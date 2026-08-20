@@ -26,6 +26,9 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 3
 
+  const [receiptBase64, setReceiptBase64] = useState<string>('')
+  const [isCompressing, setIsCompressing] = useState(false)
+
   const [formData, setFormData] = useState({
     vehicle_id: '',
     driver_name: '',
@@ -45,7 +48,6 @@ export default function Home() {
     if (storedLogs) setLogs(JSON.parse(storedLogs))
   }, [])
 
-  // Mengisi KM Awal Otomatis saat Kendaraan Dipilih
   const handleVehicleSelect = (vehicleId: string) => {
     const selected = vehicles.find((v) => v.id === vehicleId)
     setFormData((prev) => ({
@@ -53,6 +55,38 @@ export default function Home() {
       vehicle_id: vehicleId,
       initial_km: selected ? (selected.last_km || 0) : 0,
     }))
+  }
+
+  // Fungsi Kompresi Foto Struk di HP (Otomatis dari MB -> KB)
+  const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsCompressing(true)
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target?.result as string
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 800 // Kualitas tinggi untuk teks struk
+        const scale = MAX_WIDTH / img.width
+        const width = img.width > MAX_WIDTH ? MAX_WIDTH : img.width
+        const height = img.width > MAX_WIDTH ? img.height * scale : img.height
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        // Kompresi ke format JPEG dengan kualitas 0.7
+        const compressedData = canvas.toDataURL('image/jpeg', 0.7)
+        setReceiptBase64(compressedData)
+        setIsCompressing(false)
+      }
+    }
   }
 
   const unitPrice = fuelPrices[formData.fuel_type] || 0
@@ -88,15 +122,14 @@ export default function Home() {
       km_per_liter: kmPerLiter,
       total_cost: calculatedTotalCost,
       fuel_type: formData.fuel_type,
+      receipt_image: receiptBase64, // Pratinjau foto tersimpan
       date: today,
     }
 
-    // 1. Simpan Transaksi Baru ke LocalStorage
     const updatedLogs = [newLog, ...logs]
     setLogs(updatedLogs)
     localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
 
-    // 2. Update Position Odometer Terakhir Kendaraan
     const updatedVehicles = vehicles.map((v) =>
       v.id === formData.vehicle_id ? { ...v, last_km: finalKmNum } : v
     )
@@ -104,7 +137,7 @@ export default function Home() {
     localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
 
     setCurrentPage(1)
-    alert('Laporan pengisian BBM berhasil dikirim!')
+    alert('Laporan pengisian BBM & foto struk berhasil dikirim!')
 
     setFormData({
       vehicle_id: '',
@@ -114,6 +147,7 @@ export default function Home() {
       liters: '',
       fuel_type: 'Pertalite',
     })
+    setReceiptBase64('')
   }
 
   const totalPages = Math.ceil(logs.length / itemsPerPage)
@@ -239,6 +273,33 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Akses Kamera / Upload Foto Struk */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Foto Bukti Struk Pembelian</label>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleImageCapture}
+              className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+            />
+            {isCompressing && (
+              <p className="text-[11px] text-blue-600 font-medium mt-1">Mengompres ukuran foto...</p>
+            )}
+            {receiptBase64 && (
+              <div className="mt-2 relative w-24 h-24 border rounded-lg overflow-hidden bg-slate-100">
+                <img src={receiptBase64} alt="Struk Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setReceiptBase64('')}
+                  className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-lg text-xs transition shadow-sm mt-2"
@@ -248,6 +309,7 @@ export default function Home() {
         </form>
       </div>
 
+      {/* Sesi Laporan Saat Ini */}
       {logs.length > 0 && (
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <div className="flex justify-between items-center">

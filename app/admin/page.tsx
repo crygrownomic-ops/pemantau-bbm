@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
+  const [previewReceipt, setPreviewReceipt] = useState<string | null>(null)
 
   useEffect(() => {
     const storedVehicles = localStorage.getItem('vehicle_budgets')
@@ -42,7 +43,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Hapus Satu Baris Log Transaksi
   const handleDeleteLog = (id: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus catatan transaksi ini?')) {
       const updatedLogs = logs.filter((l) => l.id !== id)
@@ -51,7 +51,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Helper Renderer Badge Efisiensi BBM
   const renderEfficiencyBadge = (kmPerLiterVal: number) => {
     if (kmPerLiterVal < 8) {
       return (
@@ -279,7 +278,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabel Rekapitulasi Real-Time dengan Highlight Efisiensi */}
+        {/* Tabel Rekapitulasi Real-Time */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
@@ -308,7 +307,8 @@ export default function AdminDashboard() {
                   <th className="p-3.5">Jenis BBM</th>
                   <th className="p-3.5">Volume</th>
                   <th className="p-3.5">Jarak (KM)</th>
-                  <th className="p-3.5">Status Efisiensi</th>
+                  <th className="p-3.5">Efisiensi</th>
+                  <th className="p-3.5">Struk</th>
                   <th className="p-3.5 text-right">Total Biaya</th>
                   <th className="p-3.5 text-center">Aksi</th>
                 </tr>
@@ -329,6 +329,18 @@ export default function AdminDashboard() {
                     <td className="p-3.5 font-mono">
                       {renderEfficiencyBadge(Number(log.km_per_liter))}
                     </td>
+                    <td className="p-3.5">
+                      {log.receipt_image ? (
+                        <button
+                          onClick={() => setPreviewReceipt(log.receipt_image)}
+                          className="text-[11px] text-blue-600 hover:text-blue-800 font-bold underline"
+                        >
+                          Lihat Struk
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">-</span>
+                      )}
+                    </td>
                     <td className="p-3.5 text-right font-mono font-bold text-slate-900">
                       Rp {log.total_cost.toLocaleString('id-ID')}
                     </td>
@@ -348,6 +360,32 @@ export default function AdminDashboard() {
         </div>
 
       </div>
+
+      {/* Modal Pratinjau Foto Struk */}
+      {previewReceipt && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-xs font-bold text-slate-900">Verifikasi Foto Struk BBM</h3>
+              <button
+                onClick={() => setPreviewReceipt(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto rounded-lg border bg-slate-50 flex items-center justify-center p-2">
+              <img src={previewReceipt} alt="Foto Struk BBM" className="max-w-full h-auto rounded" />
+            </div>
+            <button
+              onClick={() => setPreviewReceipt(null)}
+              className="w-full bg-slate-900 text-white text-xs font-bold py-2 rounded-lg"
+            >
+              Tutup Pratinjau
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
