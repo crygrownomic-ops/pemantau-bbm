@@ -26,15 +26,35 @@ export default function AdminDashboard() {
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
   useEffect(() => {
-    const storedVehicles = localStorage.getItem('vehicle_budgets')
-    const storedLogs = localStorage.getItem('fuel_logs')
+    try {
+      const storedVehicles = localStorage.getItem('vehicle_budgets')
+      const storedLogs = localStorage.getItem('fuel_logs')
 
-    if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
-    if (storedLogs) setLogs(JSON.parse(storedLogs))
+      if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
+      if (storedLogs) {
+        const parsedLogs = JSON.parse(storedLogs)
+        if (Array.isArray(parsedLogs)) {
+          // Migrasi & Normalisasi data transaksi lama agar tidak error
+          const sanitizedLogs = parsedLogs.map((l: any) => ({
+            ...l,
+            initial_km: Number(l.initial_km) || 0,
+            final_km: Number(l.final_km) || 0,
+            distance_km: Number(l.distance_km) || 0,
+            liters: Number(l.liters) || 0,
+            total_cost: Number(l.total_cost) || 0,
+            km_per_liter: l.km_per_liter ? String(l.km_per_liter) : '0',
+            status: l.status || 'PENDING',
+            date: l.date || new Date().toISOString().split('T')[0],
+          }))
+          setLogs(sanitizedLogs)
+        }
+      }
+    } catch (err) {
+      console.error('Error loading stored logs:', err)
+    }
   }, [])
 
   const handleLogin = (e: React.FormEvent) => {
@@ -47,7 +67,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Update Status Verifikasi Transaksi (PENDING -> VERIFIED / FLAGGED)
   const handleUpdateStatus = (id: number, newStatus: 'VERIFIED' | 'FLAGGED') => {
     const updatedLogs = logs.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
     setLogs(updatedLogs)
@@ -65,6 +84,14 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleResetData = () => {
+    if (confirm('Atur ulang seluruh cache transaksi ke data bawaan? Aksi ini membersihkan data berformat rusak.')) {
+      localStorage.removeItem('fuel_logs')
+      setLogs(DEFAULT_LOGS)
+      alert('Data transaksi berhasil di-reset!')
+    }
+  }
+
   const handleDownloadReceipt = (receiptBase64: string, plateNumber: string, date: string, finalKm: number) => {
     const cleanPlate = (plateNumber || 'ARMADA').replace(/\s+/g, '').toUpperCase()
     const cleanDate = date || 'TANPATANGGAL'
@@ -79,25 +106,26 @@ export default function AdminDashboard() {
   }
 
   const renderEfficiencyBadge = (kmPerLiterVal: number) => {
-    if (kmPerLiterVal < 8) {
+    const val = Number(kmPerLiterVal) || 0
+    if (val < 8) {
       return (
         <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
-          {kmPerLiterVal} KM/L (Boros)
+          {val} KM/L (Boros)
         </span>
       )
-    } else if (kmPerLiterVal < 12) {
+    } else if (val < 12) {
       return (
         <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-          {kmPerLiterVal} KM/L (Normal)
+          {val} KM/L (Normal)
         </span>
       )
     } else {
       return (
         <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-          {kmPerLiterVal} KM/L (Irit)
+          {val} KM/L (Irit)
         </span>
       )
     }
@@ -113,7 +141,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Filter Data
   const filteredLogs = logs.filter((log) => {
     const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
     const matchStart = !startDate || log.date >= startDate
@@ -121,20 +148,19 @@ export default function AdminDashboard() {
     return matchVehicle && matchStart && matchEnd
   })
 
-  // Deteksi Anomali Boros & Pending Audit
   const pendingCount = logs.filter((l) => !l.status || l.status === 'PENDING').length
   const highConsumptionLogs = logs.filter((l) => Number(l.km_per_liter) < 8)
 
-  const totalCost = filteredLogs.reduce((acc, l) => acc + l.total_cost, 0)
-  const totalLiters = filteredLogs.reduce((acc, l) => acc + l.liters, 0)
-  const totalKm = filteredLogs.reduce((acc, l) => acc + l.distance_km, 0)
+  const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+  const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+  const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
   const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
 
   const vehicleStats = vehicles.map((v) => {
     const vLogs = logs.filter((l) => l.plate_number === v.plate_number)
-    const spentCost = vLogs.reduce((acc, l) => acc + l.total_cost, 0)
-    const km = vLogs.reduce((acc, l) => acc + l.distance_km, 0)
-    const liters = vLogs.reduce((acc, l) => acc + l.liters, 0)
+    const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+    const km = vLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+    const liters = vLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
     const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
     const usagePercent = Math.min(Math.round((spentCost / (v.monthly_budget || 1)) * 100), 100)
     const isOverBudget = spentCost > v.monthly_budget
@@ -150,9 +176,9 @@ export default function AdminDashboard() {
     csvContent += 'Tanggal,Plat Kendaraan,Model,Pengemudi,Jenis BBM,KM Awal,KM Akhir,Jarak (KM),Volume (Liter),Harga/Liter (Rp),Total Biaya (Rp),Efisiensi (KM/L),Status Efisiensi,Status Verifikasi\n'
 
     filteredLogs.forEach((l) => {
-      const effVal = Number(l.km_per_liter)
+      const effVal = Number(l.km_per_liter) || 0
       const statusEff = effVal < 8 ? 'Boros' : effVal < 12 ? 'Normal' : 'Irit'
-      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km},${l.liters},${l.unit_price || 0},${l.total_cost},${l.km_per_liter},${statusEff},${l.status || 'PENDING'}\n`
+      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km || 0},${l.liters || 0},${l.unit_price || 0},${l.total_cost || 0},${effVal},${statusEff},${l.status || 'PENDING'}\n`
     })
 
     csvContent += `\nTOTAL REKAPITULASI,,,,,,,${totalKm},${totalLiters},,${totalCost},${avgKmPerLiter} KM/L,,\n`
@@ -221,7 +247,14 @@ export default function AdminDashboard() {
             <h1 className="text-xl font-bold text-slate-900">Monitoring Operasional BBM</h1>
             <p className="text-xs text-slate-500 mt-0.5">Pengawasan efisiensi konsumsi & rekapitulasi pagu anggaran</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleResetData}
+              className="text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-2 rounded-lg border border-rose-200 transition"
+              title="Reset data jika cache rusak"
+            >
+              Reset Cache
+            </button>
             <Link
               href="/admin/settings"
               className="text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition flex items-center gap-1.5"
@@ -230,7 +263,7 @@ export default function AdminDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Pengaturan Master Data
+              Master Data
             </Link>
             <button
               onClick={exportToExcel}
@@ -239,7 +272,7 @@ export default function AdminDashboard() {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Export Rekap Excel/CSV
+              Export Excel
             </button>
             <Link
               href="/"
@@ -250,7 +283,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Banner Peringatan Anomali & Pending Audit */}
+        {/* Banner Peringatan Anomali */}
         {(pendingCount > 0 || highConsumptionLogs.length > 0) && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="flex items-center gap-3">
@@ -350,7 +383,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabel Rekapitulasi & Approval Admin */}
+        {/* Tabel Rekapitulasi */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
@@ -428,11 +461,11 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="p-3.5 font-mono whitespace-nowrap">
-                      {log.initial_km ? log.initial_km.toLocaleString('id-ID') : '-'} → {log.final_km ? log.final_km.toLocaleString('id-ID') : '-'} ({log.distance_km} KM)
+                      {log.initial_km ? log.initial_km.toLocaleString('id-ID') : 0} → {log.final_km ? log.final_km.toLocaleString('id-ID') : 0} ({log.distance_km || 0} KM)
                     </td>
-                    <td className="p-3.5 font-mono whitespace-nowrap">{log.liters} L</td>
+                    <td className="p-3.5 font-mono whitespace-nowrap">{log.liters || 0} L</td>
                     <td className="p-3.5 font-mono whitespace-nowrap">
-                      {renderEfficiencyBadge(Number(log.km_per_liter))}
+                      {renderEfficiencyBadge(log.km_per_liter)}
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
                       {log.receipt_image ? (
@@ -459,7 +492,7 @@ export default function AdminDashboard() {
                       {renderStatusBadge(log.status)}
                     </td>
                     <td className="p-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                      Rp {log.total_cost.toLocaleString('id-ID')}
+                      Rp {(log.total_cost || 0).toLocaleString('id-ID')}
                     </td>
                     <td className="p-3.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
@@ -499,7 +532,7 @@ export default function AdminDashboard() {
 
       </div>
 
-      {/* Modal Preview Struk + Approval Action */}
+      {/* Modal Preview Struk */}
       {previewReceipt && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 space-y-4">
