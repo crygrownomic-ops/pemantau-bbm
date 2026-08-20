@@ -95,14 +95,12 @@ export default function SettingsPage() {
     })
   }
 
-  // Hapus Armada Sekaligus Membersihkan Log Transaksinya
   const handleDeleteClick = (v: any) => {
     if (confirm(`Hapus armada ${v.plate_number}? Seluruh riwayat transaksi armada ini juga akan dibersihkan.`)) {
       const updatedVehicles = vehicles.filter((item) => item.id !== v.id)
       setVehicles(updatedVehicles)
       localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
 
-      // Clean-up transaksi terikat
       const storedLogs = localStorage.getItem('fuel_logs')
       if (storedLogs) {
         const logs = JSON.parse(storedLogs)
@@ -170,8 +168,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800">
+      <div className="max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
         <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200">
           <div>
@@ -195,7 +193,6 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Form Pendaftaran / Edit Armada */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">
             {editingId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
@@ -273,7 +270,6 @@ export default function SettingsPage() {
           </form>
         </div>
 
-        {/* Tabel Daftar Armada */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Daftar Armada Aktif ({vehicles.length})</h2>
@@ -308,7 +304,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Form Tarif BBM */}
         <form onSubmit={handleSavePrices} className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Tarif Bahan Bakar (Per Liter)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -338,6 +333,11 @@ export default function SettingsPage() {
         </form>
 
       </div>
+
+      {/* Footer Credit */}
+      <footer className="py-4 text-center border-t border-slate-200 bg-white text-[11px] text-slate-500 font-medium mt-8">
+        Developed by <span className="font-bold text-slate-800">Urai Ikhsan Fadhilah</span>
+      </footer>
     </div>
   )
 }
