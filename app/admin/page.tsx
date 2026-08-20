@@ -16,7 +16,6 @@ const DEFAULT_LOGS = [
   { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 45000, final_km: 45380, distance_km: 380, liters: 30, unit_price: 12950, km_per_liter: 12.67, total_cost: 300000, fuel_type: 'Pertamax', date: '2026-08-20', status: 'PENDING' },
 ]
 
-// Fungsi Pembersih & Pengaman Data Master Armada
 function sanitizeVehicles(data: any) {
   if (!Array.isArray(data) || data.length === 0) return DEFAULT_VEHICLES
   return data.map((v, idx) => ({
@@ -27,7 +26,6 @@ function sanitizeVehicles(data: any) {
   }))
 }
 
-// Fungsi Pembersih & Pengaman Data Transaksi BBM
 function sanitizeLogs(data: any) {
   if (!Array.isArray(data)) return DEFAULT_LOGS
   return data.map((l, idx) => ({
@@ -60,6 +58,11 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+
+  // State Modal Reset Cache Ber-PIN
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetPinInput, setResetPinInput] = useState('')
+  const [resetPinError, setResetPinError] = useState(false)
 
   useEffect(() => {
     try {
@@ -108,11 +111,18 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleClearCache = () => {
-    if (confirm('Atur ulang seluruh cache transaksi di browser? Aksi ini membersihkan data berformat rusak.')) {
+  // Eksekusi Reset Cache Setelah Lolos PIN
+  const handleConfirmResetCache = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (resetPinInput === '1234') {
       localStorage.removeItem('fuel_logs')
       setLogs(DEFAULT_LOGS)
-      alert('Cache berhasil dibersihkan!')
+      setShowResetModal(false)
+      setResetPinInput('')
+      setResetPinError(false)
+      alert('Cache berhasil dibersihkan dan dipulihkan ke data standar!')
+    } else {
+      setResetPinError(true)
     }
   }
 
@@ -165,7 +175,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Tampilan Form Autentikasi PIN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
@@ -207,18 +216,71 @@ export default function AdminDashboard() {
               ← Form Driver
             </Link>
             <button
-              onClick={handleClearCache}
+              onClick={() => setShowResetModal(true)}
               className="text-rose-600 hover:text-rose-800 font-semibold"
             >
               Reset Cache
             </button>
           </div>
         </div>
+
+        {/* Modal Proteksi Reset Cache */}
+        {showResetModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 text-left">
+            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4">
+              <div className="text-center space-y-1">
+                <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center mx-auto text-lg">
+                  ⚠️
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">Konfirmasi Reset Cache</h3>
+                <p className="text-xs text-rose-600 font-medium leading-relaxed">
+                  PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi lokal yang tersimpan di browser ini!
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirmResetCache} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1 text-center">Masukkan PIN Admin untuk Konfirmasi</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    placeholder="••••"
+                    className="w-full text-center text-lg tracking-widest py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
+                    value={resetPinInput}
+                    onChange={(e) => setResetPinInput(e.target.value)}
+                  />
+                  {resetPinError && (
+                    <p className="text-[11px] text-rose-600 text-center font-medium mt-1">PIN Salah!</p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowResetModal(false)
+                      setResetPinInput('')
+                      setResetPinError(false)
+                    }}
+                    className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 rounded-lg"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2 rounded-lg"
+                  >
+                    Ya, Reset
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
-  // Kalkulasi Aman
   const safeLogs = Array.isArray(logs) ? logs : []
   const safeVehicles = Array.isArray(vehicles) ? vehicles : []
 
@@ -279,7 +341,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800">
       <div className="max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
-        {/* Header */}
+        {/* Header Navigation */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-xl border border-slate-200 gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Monitoring Operasional BBM</h1>
@@ -287,12 +349,18 @@ export default function AdminDashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleClearCache}
+              onClick={() => setShowResetModal(true)}
               className="text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-2 rounded-lg border border-rose-200 transition"
               title="Reset data jika cache rusak"
             >
               Reset Cache
             </button>
+            <Link
+              href="/admin/backup"
+              className="text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-lg transition"
+            >
+              💾 Pusat Backup
+            </Link>
             <Link
               href="/admin/settings"
               className="text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition flex items-center gap-1.5"
@@ -312,12 +380,6 @@ export default function AdminDashboard() {
               </svg>
               Export Excel
             </button>
-            <Link
-              href="/"
-              className="text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-lg transition"
-            >
-              Form Driver
-            </Link>
           </div>
         </div>
 
@@ -618,6 +680,60 @@ export default function AdminDashboard() {
                 📥 Unduh Berkas Struk
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Proteksi Reset Cache */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 text-left">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className="text-center space-y-1">
+              <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center mx-auto text-lg">
+                ⚠️
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Konfirmasi Reset Cache</h3>
+              <p className="text-xs text-rose-600 font-medium leading-relaxed">
+                PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi lokal di browser ini!
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmResetCache} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1 text-center">Masukkan PIN Admin untuk Konfirmasi</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  placeholder="••••"
+                  className="w-full text-center text-lg tracking-widest py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
+                  value={resetPinInput}
+                  onChange={(e) => setResetPinInput(e.target.value)}
+                />
+                {resetPinError && (
+                  <p className="text-[11px] text-rose-600 text-center font-medium mt-1">PIN Salah!</p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(false)
+                    setResetPinInput('')
+                    setResetPinError(false)
+                  }}
+                  className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2 rounded-lg"
+                >
+                  Ya, Reset
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
