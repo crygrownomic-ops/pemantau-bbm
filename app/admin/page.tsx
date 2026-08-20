@@ -59,7 +59,6 @@ export default function AdminDashboard() {
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
-  // State Modal Reset Cache Ber-PIN
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
@@ -78,7 +77,7 @@ export default function AdminDashboard() {
         setLogs(sanitizeLogs(parsedL))
       }
     } catch (err) {
-      console.error('Error loading stored logs or vehicles:', err)
+      console.error('Error loading stored data:', err)
       localStorage.removeItem('fuel_logs')
       localStorage.removeItem('vehicle_budgets')
     }
@@ -111,7 +110,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Eksekusi Reset Cache Setelah Lolos PIN
   const handleConfirmResetCache = (e: React.FormEvent) => {
     e.preventDefault()
     if (resetPinInput === '1234') {
@@ -120,7 +118,7 @@ export default function AdminDashboard() {
       setShowResetModal(false)
       setResetPinInput('')
       setResetPinError(false)
-      alert('Cache berhasil dibersihkan dan dipulihkan ke data standar!')
+      alert('Cache berhasil dibersihkan!')
     } else {
       setResetPinError(true)
     }
@@ -224,7 +222,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Modal Proteksi Reset Cache */}
         {showResetModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 text-left">
             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4">
@@ -234,7 +231,7 @@ export default function AdminDashboard() {
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">Konfirmasi Reset Cache</h3>
                 <p className="text-xs text-rose-600 font-medium leading-relaxed">
-                  PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi lokal yang tersimpan di browser ini!
+                  PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi lokal di browser ini!
                 </p>
               </div>
 
@@ -312,29 +309,100 @@ export default function AdminDashboard() {
     return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget }
   })
 
+  // FUNGSI EKSPOR EXCEL NATIVE BERKOLOM & BERSAMBUNG RAPI
   const exportToExcel = () => {
-    let csvContent = 'REKAPITULASI OPERASIONAL PENGISIAN BBM\n'
-    csvContent += `Periode Export,${startDate || 'Awal'} s/d ${endDate || 'Akhir'}\n`
-    csvContent += `Filter Armada,${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}\n\n`
+    const title = 'REKAPITULASI OPERASIONAL PENGISIAN BBM'
+    const periodStr = `Periode: ${startDate || 'Awal'} s/d ${endDate || 'Hari Ini'}`
+    const filterStr = `Filter Armada: ${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}`
 
-    csvContent += 'Tanggal,Plat Kendaraan,Model,Pengemudi,Jenis BBM,KM Awal,KM Akhir,Jarak (KM),Volume (Liter),Harga/Liter (Rp),Total Biaya (Rp),Efisiensi (KM/L),Status Efisiensi,Status Verifikasi\n'
-
+    let tableRows = ''
     filteredLogs.forEach((l) => {
       const effVal = Number(l.km_per_liter) || 0
-      const statusEff = effVal < 8 ? 'Boros' : effVal < 12 ? 'Normal' : 'Irit'
-      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km || 0},${l.liters || 0},${l.unit_price || 0},${l.total_cost || 0},${effVal},${statusEff},${l.status || 'PENDING'}\n`
+      const statusEff = effVal < 8 ? 'Boros (<8 KM/L)' : effVal < 12 ? 'Normal (8-12 KM/L)' : 'Irit (>12 KM/L)'
+      
+      tableRows += `
+        <tr>
+          <td style="text-align: center;">${l.date || '-'}</td>
+          <td style="font-weight: bold; text-align: center;">${l.plate_number || '-'}</td>
+          <td>${l.vehicle_model || '-'}</td>
+          <td>${l.driver_name || '-'}</td>
+          <td style="text-align: center;">${l.fuel_type || '-'}</td>
+          <td style="text-align: right;">${(Number(l.initial_km) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: right;">${(Number(l.final_km) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: right; font-weight: bold;">${(Number(l.distance_km) || 0).toLocaleString('id-ID')} KM</td>
+          <td style="text-align: right;">${(Number(l.liters) || 0).toLocaleString('id-ID')} L</td>
+          <td style="text-align: right;">Rp ${(Number(l.unit_price) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: right; font-weight: bold;">Rp ${(Number(l.total_cost) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: center;">${effVal} KM/L</td>
+          <td style="text-align: center;">${statusEff}</td>
+          <td style="text-align: center; font-weight: bold;">${l.status || 'PENDING'}</td>
+        </tr>
+      `
     })
 
-    csvContent += `\nTOTAL REKAPITULASI,,,,,,,${totalKm},${totalLiters},,${totalCost},${avgKmPerLiter} KM/L,,\n`
+    const excelHTML = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+        <style>
+          body { font-family: Arial, sans-serif; }
+          .header-title { font-size: 16px; font-weight: bold; color: #0f172a; }
+          .header-meta { font-size: 11px; color: #475569; }
+          table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+          th { background-color: #0f172a; color: #ffffff; font-weight: bold; border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-size: 11px; }
+          td { border: 1px solid #cbd5e1; padding: 6px; font-size: 11px; }
+          .total-row { background-color: #f1f5f9; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header-title">${title}</div>
+        <div class="header-meta">${periodStr}</div>
+        <div class="header-meta">${filterStr}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Plat Kendaraan</th>
+              <th>Model / Tipe</th>
+              <th>Pengemudi</th>
+              <th>Jenis BBM</th>
+              <th>KM Awal</th>
+              <th>KM Akhir</th>
+              <th>Jarak Tempuh</th>
+              <th>Volume (Liter)</th>
+              <th>Harga / Liter</th>
+              <th>Total Biaya</th>
+              <th>Efisiensi</th>
+              <th>Kategori Efisiensi</th>
+              <th>Status Audit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+            <tr class="total-row">
+              <td colspan="7" style="text-align: right;">TOTAL REKAPITULASI:</td>
+              <td style="text-align: right;">${totalKm.toLocaleString('id-ID')} KM</td>
+              <td style="text-align: right;">${totalLiters.toLocaleString('id-ID')} L</td>
+              <td></td>
+              <td style="text-align: right;">Rp ${totalCost.toLocaleString('id-ID')}</td>
+              <td style="text-align: center;">${avgKmPerLiter} KM/L</td>
+              <td colspan="2"></td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = window.URL.createObjectURL(blob)
+    const blob = new Blob(['\uFEFF' + excelHTML], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `rekap-bbm-${selectedVehicle.replace(/\s+/g, '')}-${startDate || 'all'}-to-${endDate || 'now'}.csv`
+    a.download = `REKAP_OPERASIONAL_BBM_${selectedVehicle.replace(/\s+/g, '')}_${new Date().toISOString().split('T')[0]}.xls`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -378,7 +446,7 @@ export default function AdminDashboard() {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Export Excel
+              Export Excel (.XLS)
             </button>
           </div>
         </div>
