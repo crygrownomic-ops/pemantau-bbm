@@ -118,6 +118,76 @@ export default function SettingsPage() {
     showSuccessNotification()
   }
 
+  // --- SISTEM HYBRID BACKUP & RESTORE ---
+
+  // 1. Ekspor Seluruh Database ke Berkas JSON (Bisa disimpan di Drive D: / C:)
+  const handleExportBackup = () => {
+    try {
+      const storedVehicles = JSON.parse(localStorage.getItem('vehicle_budgets') || '[]')
+      const storedPrices = JSON.parse(localStorage.getItem('fuel_prices') || '{}')
+      const storedLogs = JSON.parse(localStorage.getItem('fuel_logs') || '[]')
+
+      const backupData = {
+        app_name: 'Pemantau BBM Hybrid Backup',
+        version: '1.0',
+        exported_at: new Date().toISOString(),
+        vehicle_budgets: storedVehicles.length > 0 ? storedVehicles : vehicles,
+        fuel_prices: Object.keys(storedPrices).length > 0 ? storedPrices : prices,
+        fuel_logs: storedLogs,
+      }
+
+      const jsonString = JSON.stringify(backupData, null, 2)
+      const blob = new Blob([jsonString], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+
+      const dateStr = new Date().toISOString().split('T')[0]
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `BACKUP_BBM_${dateStr}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      alert('Berkas cadangan berhasil diunduh! Silakan simpan berkas ini di Drive D: atau C: Anda.')
+    } catch (err) {
+      alert('Gagal mengekspor data cadangan!')
+    }
+  }
+
+  // 2. Impor / Restore Berkas Backup JSON
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string
+        const parsed = JSON.parse(content)
+
+        if (parsed.vehicle_budgets && parsed.fuel_prices && parsed.fuel_logs) {
+          if (confirm('Apakah Anda yakin ingin memulihkan (restore) seluruh data dari berkas ini? Data lama akan digantikan.')) {
+            localStorage.setItem('vehicle_budgets', JSON.stringify(parsed.vehicle_budgets))
+            localStorage.setItem('fuel_prices', JSON.stringify(parsed.fuel_prices))
+            localStorage.setItem('fuel_logs', JSON.stringify(parsed.fuel_logs))
+
+            setVehicles(parsed.vehicle_budgets)
+            setPrices(parsed.fuel_prices)
+
+            alert('Pemulihan data (Restore) Berhasil! Seluruh armada dan riwayat transaksi telah diperbarui.')
+            window.location.reload()
+          }
+        } else {
+          alert('Format berkas cadangan tidak dikenali. Pastikan mengunggah berkas .json resmi!')
+        }
+      } catch (err) {
+        alert('Gagal membaca berkas cadangan. Pastikan berkas berformat JSON valid.')
+      }
+    }
+    reader.readAsText(file)
+  }
+
   const showSuccessNotification = () => {
     setSavedSuccess(true)
     setTimeout(() => setSavedSuccess(false), 2500)
@@ -173,8 +243,8 @@ export default function SettingsPage() {
         
         <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200">
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Pengaturan Master Data</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manajemen armada, patokan Odometer & tarif BBM</p>
+            <h1 className="text-lg font-bold text-slate-900">Pengaturan Master Data & Pusat Backup</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Manajemen armada, tarif BBM, dan cadangan data lokal (C:/D:)</p>
           </div>
           <Link
             href="/admin"
@@ -193,6 +263,36 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Panel Hybrid Backup & Restore */}
+        <div className="bg-slate-900 text-white p-5 rounded-xl space-y-4 shadow-sm">
+          <div>
+            <h2 className="text-xs font-bold tracking-wider uppercase text-slate-300">PUSAT CADANGAN DATA LOKAL (HYBRID SYSTEM)</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Amankan seluruh data transaksi dan master armada ke berkas lokal (Drive D: / C:) untuk mencegah kehilangan data.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <button
+              onClick={handleExportBackup}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-2"
+            >
+              <span>💾</span> Unduh Cadangan Data (.JSON)
+            </button>
+
+            <label className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold py-2.5 px-4 rounded-lg text-xs transition flex items-center justify-center gap-2 cursor-pointer">
+              <span>📂</span> Unggah & Pulihkan Data
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportBackup}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Form Pendaftaran / Edit Armada */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">
             {editingId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
@@ -270,6 +370,7 @@ export default function SettingsPage() {
           </form>
         </div>
 
+        {/* Tabel Daftar Armada */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Daftar Armada Aktif ({vehicles.length})</h2>
@@ -304,6 +405,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Form Tarif BBM */}
         <form onSubmit={handleSavePrices} className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Tarif Bahan Bakar (Per Liter)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -334,7 +436,6 @@ export default function SettingsPage() {
 
       </div>
 
-      {/* Footer Credit */}
       <footer className="py-4 text-center border-t border-slate-200 bg-white text-[11px] text-slate-500 font-medium mt-8">
         Developed by <span className="font-bold text-slate-800">Urai Ikhsan Fadhilah</span>
       </footer>
