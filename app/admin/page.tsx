@@ -16,6 +16,39 @@ const DEFAULT_LOGS = [
   { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 45000, final_km: 45380, distance_km: 380, liters: 30, unit_price: 12950, km_per_liter: 12.67, total_cost: 300000, fuel_type: 'Pertamax', date: '2026-08-20', status: 'PENDING' },
 ]
 
+// Fungsi Pembersih & Pengaman Data Master Armada
+function sanitizeVehicles(data: any) {
+  if (!Array.isArray(data) || data.length === 0) return DEFAULT_VEHICLES
+  return data.map((v, idx) => ({
+    id: v?.id ? String(v.id) : String(idx + 1),
+    plate_number: String(v?.plate_number || 'ARMADA').toUpperCase(),
+    model: String(v?.model || 'Kendaraan'),
+    monthly_budget: Number(v?.monthly_budget) || 0,
+  }))
+}
+
+// Fungsi Pembersih & Pengaman Data Transaksi BBM
+function sanitizeLogs(data: any) {
+  if (!Array.isArray(data)) return DEFAULT_LOGS
+  return data.map((l, idx) => ({
+    id: l?.id || Date.now() + idx,
+    plate_number: String(l?.plate_number || 'ARMADA').toUpperCase(),
+    vehicle_model: String(l?.vehicle_model || '-'),
+    driver_name: String(l?.driver_name || 'Driver'),
+    initial_km: Number(l?.initial_km) || 0,
+    final_km: Number(l?.final_km) || 0,
+    distance_km: Number(l?.distance_km) || 0,
+    liters: Number(l?.liters) || 0,
+    unit_price: Number(l?.unit_price) || 0,
+    km_per_liter: l?.km_per_liter ? String(l.km_per_liter) : '0',
+    total_cost: Number(l?.total_cost) || 0,
+    fuel_type: String(l?.fuel_type || 'Pertalite'),
+    receipt_image: l?.receipt_image || '',
+    date: String(l?.date || new Date().toISOString().split('T')[0]),
+    status: String(l?.status || 'PENDING'),
+  }))
+}
+
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pinInput, setPinInput] = useState('')
@@ -33,27 +66,18 @@ export default function AdminDashboard() {
       const storedVehicles = localStorage.getItem('vehicle_budgets')
       const storedLogs = localStorage.getItem('fuel_logs')
 
-      if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
+      if (storedVehicles) {
+        const parsedV = JSON.parse(storedVehicles)
+        setVehicles(sanitizeVehicles(parsedV))
+      }
       if (storedLogs) {
-        const parsedLogs = JSON.parse(storedLogs)
-        if (Array.isArray(parsedLogs)) {
-          // Migrasi & Normalisasi data transaksi lama agar tidak error
-          const sanitizedLogs = parsedLogs.map((l: any) => ({
-            ...l,
-            initial_km: Number(l.initial_km) || 0,
-            final_km: Number(l.final_km) || 0,
-            distance_km: Number(l.distance_km) || 0,
-            liters: Number(l.liters) || 0,
-            total_cost: Number(l.total_cost) || 0,
-            km_per_liter: l.km_per_liter ? String(l.km_per_liter) : '0',
-            status: l.status || 'PENDING',
-            date: l.date || new Date().toISOString().split('T')[0],
-          }))
-          setLogs(sanitizedLogs)
-        }
+        const parsedL = JSON.parse(storedLogs)
+        setLogs(sanitizeLogs(parsedL))
       }
     } catch (err) {
-      console.error('Error loading stored logs:', err)
+      console.error('Error loading stored logs or vehicles:', err)
+      localStorage.removeItem('fuel_logs')
+      localStorage.removeItem('vehicle_budgets')
     }
   }, [])
 
@@ -84,11 +108,11 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleResetData = () => {
-    if (confirm('Atur ulang seluruh cache transaksi ke data bawaan? Aksi ini membersihkan data berformat rusak.')) {
+  const handleClearCache = () => {
+    if (confirm('Atur ulang seluruh cache transaksi di browser? Aksi ini membersihkan data berformat rusak.')) {
       localStorage.removeItem('fuel_logs')
       setLogs(DEFAULT_LOGS)
-      alert('Data transaksi berhasil di-reset!')
+      alert('Cache berhasil dibersihkan!')
     }
   }
 
@@ -105,7 +129,7 @@ export default function AdminDashboard() {
     document.body.removeChild(a)
   }
 
-  const renderEfficiencyBadge = (kmPerLiterVal: number) => {
+  const renderEfficiencyBadge = (kmPerLiterVal: any) => {
     const val = Number(kmPerLiterVal) || 0
     if (val < 8) {
       return (
@@ -141,58 +165,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const filteredLogs = logs.filter((log) => {
-    const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
-    const matchStart = !startDate || log.date >= startDate
-    const matchEnd = !endDate || log.date <= endDate
-    return matchVehicle && matchStart && matchEnd
-  })
-
-  const pendingCount = logs.filter((l) => !l.status || l.status === 'PENDING').length
-  const highConsumptionLogs = logs.filter((l) => Number(l.km_per_liter) < 8)
-
-  const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
-  const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
-  const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
-  const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
-
-  const vehicleStats = vehicles.map((v) => {
-    const vLogs = logs.filter((l) => l.plate_number === v.plate_number)
-    const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
-    const km = vLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
-    const liters = vLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
-    const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
-    const usagePercent = Math.min(Math.round((spentCost / (v.monthly_budget || 1)) * 100), 100)
-    const isOverBudget = spentCost > v.monthly_budget
-
-    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget }
-  })
-
-  const exportToExcel = () => {
-    let csvContent = 'REKAPITULASI OPERASIONAL PENGISIAN BBM\n'
-    csvContent += `Periode Export,${startDate || 'Awal'} s/d ${endDate || 'Akhir'}\n`
-    csvContent += `Filter Armada,${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}\n\n`
-
-    csvContent += 'Tanggal,Plat Kendaraan,Model,Pengemudi,Jenis BBM,KM Awal,KM Akhir,Jarak (KM),Volume (Liter),Harga/Liter (Rp),Total Biaya (Rp),Efisiensi (KM/L),Status Efisiensi,Status Verifikasi\n'
-
-    filteredLogs.forEach((l) => {
-      const effVal = Number(l.km_per_liter) || 0
-      const statusEff = effVal < 8 ? 'Boros' : effVal < 12 ? 'Normal' : 'Irit'
-      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km || 0},${l.liters || 0},${l.unit_price || 0},${l.total_cost || 0},${effVal},${statusEff},${l.status || 'PENDING'}\n`
-    })
-
-    csvContent += `\nTOTAL REKAPITULASI,,,,,,,${totalKm},${totalLiters},,${totalCost},${avgKmPerLiter} KM/L,,\n`
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `rekap-bbm-${selectedVehicle.replace(/\s+/g, '')}-${startDate || 'all'}-to-${endDate || 'now'}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-  }
-
+  // Tampilan Form Autentikasi PIN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
@@ -229,12 +202,77 @@ export default function AdminDashboard() {
             </button>
           </form>
 
-          <Link href="/" className="inline-block text-xs text-slate-500 hover:text-slate-800 font-medium transition pt-1">
-            ← Form Driver
-          </Link>
+          <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+            <Link href="/" className="hover:text-slate-800 font-medium transition">
+              ← Form Driver
+            </Link>
+            <button
+              onClick={handleClearCache}
+              className="text-rose-600 hover:text-rose-800 font-semibold"
+            >
+              Reset Cache
+            </button>
+          </div>
         </div>
       </div>
     )
+  }
+
+  // Kalkulasi Aman
+  const safeLogs = Array.isArray(logs) ? logs : []
+  const safeVehicles = Array.isArray(vehicles) ? vehicles : []
+
+  const filteredLogs = safeLogs.filter((log) => {
+    const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
+    const matchStart = !startDate || log.date >= startDate
+    const matchEnd = !endDate || log.date <= endDate
+    return matchVehicle && matchStart && matchEnd
+  })
+
+  const pendingCount = safeLogs.filter((l) => !l.status || l.status === 'PENDING').length
+  const highConsumptionLogs = safeLogs.filter((l) => Number(l.km_per_liter) < 8)
+
+  const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+  const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+  const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+  const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
+
+  const vehicleStats = safeVehicles.map((v) => {
+    const vLogs = safeLogs.filter((l) => l.plate_number === v.plate_number)
+    const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+    const km = vLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+    const liters = vLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+    const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
+    const budget = Number(v.monthly_budget) || 1
+    const usagePercent = Math.min(Math.round((spentCost / budget) * 100), 100)
+    const isOverBudget = spentCost > budget
+
+    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget }
+  })
+
+  const exportToExcel = () => {
+    let csvContent = 'REKAPITULASI OPERASIONAL PENGISIAN BBM\n'
+    csvContent += `Periode Export,${startDate || 'Awal'} s/d ${endDate || 'Akhir'}\n`
+    csvContent += `Filter Armada,${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}\n\n`
+
+    csvContent += 'Tanggal,Plat Kendaraan,Model,Pengemudi,Jenis BBM,KM Awal,KM Akhir,Jarak (KM),Volume (Liter),Harga/Liter (Rp),Total Biaya (Rp),Efisiensi (KM/L),Status Efisiensi,Status Verifikasi\n'
+
+    filteredLogs.forEach((l) => {
+      const effVal = Number(l.km_per_liter) || 0
+      const statusEff = effVal < 8 ? 'Boros' : effVal < 12 ? 'Normal' : 'Irit'
+      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km || 0},${l.liters || 0},${l.unit_price || 0},${l.total_cost || 0},${effVal},${statusEff},${l.status || 'PENDING'}\n`
+    })
+
+    csvContent += `\nTOTAL REKAPITULASI,,,,,,,${totalKm},${totalLiters},,${totalCost},${avgKmPerLiter} KM/L,,\n`
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `rekap-bbm-${selectedVehicle.replace(/\s+/g, '')}-${startDate || 'all'}-to-${endDate || 'now'}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   return (
@@ -249,7 +287,7 @@ export default function AdminDashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={handleResetData}
+              onClick={handleClearCache}
               className="text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-2 rounded-lg border border-rose-200 transition"
               title="Reset data jika cache rusak"
             >
@@ -303,7 +341,7 @@ export default function AdminDashboard() {
           <div className="bg-white p-5 rounded-xl border border-slate-200">
             <span className="text-xs font-medium text-slate-500">Total Biaya Operasional</span>
             <div className="text-xl font-bold font-mono text-slate-900 mt-1">
-              Rp {totalCost.toLocaleString('id-ID')}
+              Rp {(Number(totalCost) || 0).toLocaleString('id-ID')}
             </div>
           </div>
 
@@ -317,7 +355,7 @@ export default function AdminDashboard() {
           <div className="bg-white p-5 rounded-xl border border-slate-200">
             <span className="text-xs font-medium text-slate-500">Total Konsumsi BBM</span>
             <div className="text-xl font-bold font-mono text-slate-900 mt-1">
-              {totalLiters.toLocaleString('id-ID')} <span className="text-xs font-sans font-normal text-slate-500">Liter</span>
+              {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-normal text-slate-500">Liter</span>
             </div>
           </div>
 
@@ -356,12 +394,12 @@ export default function AdminDashboard() {
                   <div className="flex justify-between text-xs font-mono">
                     <span className="text-slate-500 font-sans">Realisasi:</span>
                     <span className={v.isOverBudget ? 'text-rose-600 font-bold' : 'text-slate-900 font-semibold'}>
-                      Rp {v.spentCost.toLocaleString('id-ID')}
+                      Rp {(Number(v.spentCost) || 0).toLocaleString('id-ID')}
                     </span>
                   </div>
                   <div className="flex justify-between text-[11px] text-slate-500 font-mono">
                     <span className="font-sans">Pagu Mandiri:</span>
-                    <span>Rp {v.monthly_budget.toLocaleString('id-ID')}</span>
+                    <span>Rp {(Number(v.monthly_budget) || 0).toLocaleString('id-ID')}</span>
                   </div>
 
                   <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mt-2">
@@ -423,7 +461,7 @@ export default function AdminDashboard() {
                 onChange={(e) => setSelectedVehicle(e.target.value)}
               >
                 <option value="ALL">Semua Armada</option>
-                {vehicles.map((v) => (
+                {safeVehicles.map((v) => (
                   <option key={v.plate_number} value={v.plate_number}>
                     {v.plate_number} - {v.model}
                   </option>
@@ -461,7 +499,7 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="p-3.5 font-mono whitespace-nowrap">
-                      {log.initial_km ? log.initial_km.toLocaleString('id-ID') : 0} → {log.final_km ? log.final_km.toLocaleString('id-ID') : 0} ({log.distance_km || 0} KM)
+                      {(Number(log.initial_km) || 0).toLocaleString('id-ID')} → {(Number(log.final_km) || 0).toLocaleString('id-ID')} ({log.distance_km || 0} KM)
                     </td>
                     <td className="p-3.5 font-mono whitespace-nowrap">{log.liters || 0} L</td>
                     <td className="p-3.5 font-mono whitespace-nowrap">
@@ -492,7 +530,7 @@ export default function AdminDashboard() {
                       {renderStatusBadge(log.status)}
                     </td>
                     <td className="p-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
-                      Rp {(log.total_cost || 0).toLocaleString('id-ID')}
+                      Rp {(Number(log.total_cost) || 0).toLocaleString('id-ID')}
                     </td>
                     <td className="p-3.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
