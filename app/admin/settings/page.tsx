@@ -56,6 +56,8 @@ export default function SettingsPage() {
     e.preventDefault()
     if (!vehicleForm.plate_number || !vehicleForm.model) return
 
+    // Otomatisasi Huruf Kapital pada Plat Nomor
+    const upperPlate = vehicleForm.plate_number.trim().toUpperCase()
     const budgetNum = Number(vehicleForm.monthly_budget.replace(/[^0-9]/g, '')) || 0
     const kmNum = Number(vehicleForm.last_km.replace(/[^0-9]/g, '')) || 0
 
@@ -63,14 +65,14 @@ export default function SettingsPage() {
     if (editingId) {
       updated = vehicles.map((v) =>
         v.id === editingId
-          ? { ...v, plate_number: vehicleForm.plate_number, model: vehicleForm.model, monthly_budget: budgetNum, last_km: kmNum }
+          ? { ...v, plate_number: upperPlate, model: vehicleForm.model, monthly_budget: budgetNum, last_km: kmNum }
           : v
       )
       setEditingId(null)
     } else {
       const newVehicle = {
         id: Date.now().toString(),
-        plate_number: vehicleForm.plate_number,
+        plate_number: upperPlate,
         model: vehicleForm.model,
         monthly_budget: budgetNum,
         last_km: kmNum,
@@ -87,7 +89,7 @@ export default function SettingsPage() {
   const handleEditClick = (v: any) => {
     setEditingId(v.id)
     setVehicleForm({
-      plate_number: v.plate_number,
+      plate_number: v.plate_number.toUpperCase(),
       model: v.model,
       monthly_budget: v.monthly_budget.toString(),
       last_km: v.last_km ? v.last_km.toString() : '0',
@@ -199,7 +201,7 @@ export default function SettingsPage() {
                 placeholder="B 1234 ABC"
                 className="w-full p-2 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-bold uppercase"
                 value={vehicleForm.plate_number}
-                onChange={(e) => setVehicleForm({ ...vehicleForm, plate_number: e.target.value })}
+                onChange={(e) => setVehicleForm({ ...vehicleForm, plate_number: e.target.value.toUpperCase() })}
               />
             </div>
 
@@ -271,7 +273,9 @@ export default function SettingsPage() {
             {vehicles.map((v) => (
               <div key={v.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">{v.plate_number} ({v.model})</div>
+                  <div className="text-xs font-bold text-slate-900 uppercase">
+                    {v.plate_number.toUpperCase()} <span className="font-normal text-slate-600">({v.model})</span>
+                  </div>
                   <div className="text-[11px] text-slate-500">
                     Pagu: <span className="font-mono font-semibold text-slate-700">Rp {Number(v.monthly_budget).toLocaleString('id-ID')}</span> • Position Odometer: <span className="font-mono font-bold text-slate-800">{v.last_km ? Number(v.last_km).toLocaleString('id-ID') : 0} KM</span>
                   </div>
