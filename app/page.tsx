@@ -1,28 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-const MOCK_VEHICLES = [
+const DEFAULT_PRICES: Record<string, number> = {
+  'Pertalite': 10000,
+  'Pertamax': 12950,
+  'Pertamax Green 95': 13600,
+  'Pertamax Turbo': 14400,
+  'Biosolar / Solar': 6800,
+  'Dexlite': 14550,
+  'Pertamina Dex': 15100,
+}
+
+const DEFAULT_VEHICLES = [
   { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza' },
   { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max' },
   { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga' },
 ]
 
-const FUEL_TYPES = [
-  'Pertalite',
-  'Pertamax',
-  'Pertamax Green 95',
-  'Pertamax Turbo',
-  'Biosolar / Solar',
-  'Dexlite',
-  'Pertamina Dex',
-]
-
 export default function Home() {
   const [logs, setLogs] = useState<any[]>([])
-  const [rawCost, setRawCost] = useState<string>('')
-  const [formattedCost, setFormattedCost] = useState<string>('')
+  const [fuelPrices, setFuelPrices] = useState<Record<string, number>>(DEFAULT_PRICES)
+  const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   
   const [formData, setFormData] = useState({
     vehicle_id: '',
@@ -33,45 +33,46 @@ export default function Home() {
     fuel_type: 'Pertalite',
   })
 
-  // Format Angka Ribuan dengan Titik (cth: 350.000)
-  const handleCostChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, '')
-    setRawCost(value)
-    if (value) {
-      setFormattedCost(Number(value).toLocaleString('id-ID'))
-    } else {
-      setFormattedCost('')
-    }
-  }
+  useEffect(() => {
+    const storedPrices = localStorage.getItem('fuel_prices')
+    const storedVehicles = localStorage.getItem('vehicle_budgets')
+    if (storedPrices) setFuelPrices(JSON.parse(storedPrices))
+    if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
+  }, [])
+
+  // Formula Kalkulasi Reaktif & Otomatis Total Biaya
+  const unitPrice = fuelPrices[formData.fuel_type] || 0
+  const numericLiters = parseFloat(formData.liters) || 0
+  const calculatedTotalCost = numericLiters * unitPrice
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     const distance = Number(formData.final_km) - Number(formData.initial_km)
     if (distance <= 0) {
-      alert('KM Akhir harus lebih besar dari KM Awal!')
+      alert('KM Akhir Odometer harus lebih besar dari KM Awal!')
       return
     }
 
-    const kmPerLiter = (distance / Number(formData.liters)).toFixed(2)
-    const selectedVehicle = MOCK_VEHICLES.find(v => v.id === formData.vehicle_id)
+    const kmPerLiter = (distance / numericLiters).toFixed(2)
+    const selectedVehicle = vehicles.find((v) => v.id === formData.vehicle_id)
 
     const newLog = {
       id: Date.now(),
       plate_number: selectedVehicle?.plate_number,
       driver_name: formData.driver_name,
       distance_km: distance,
-      liters: formData.liters,
+      liters: numericLiters,
       km_per_liter: kmPerLiter,
-      total_cost: Number(rawCost),
+      unit_price: unitPrice,
+      total_cost: calculatedTotalCost,
       fuel_type: formData.fuel_type,
       created_at: new Date().toLocaleTimeString('id-ID'),
     }
 
     setLogs([newLog, ...logs])
-    alert('Laporan BBM berhasil disimpan!')
+    alert('Laporan pengisian BBM berhasil dikirim!')
 
-    // Reset Form
     setFormData({
       vehicle_id: '',
       driver_name: '',
@@ -80,22 +81,20 @@ export default function Home() {
       liters: '',
       fuel_type: 'Pertalite',
     })
-    setRawCost('')
-    setFormattedCost('')
   }
 
   return (
-    <main className="max-w-xl mx-auto p-4 min-h-screen bg-gray-50 space-y-6">
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <main className="max-w-xl mx-auto p-4 min-h-screen bg-slate-50 space-y-6 font-sans text-slate-800">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Form Laporan BBM</h1>
-            <p className="text-xs text-gray-500">Input transaksi operasional pengisian BBM</p>
+            <h1 className="text-base font-bold text-slate-900">Laporan Pengisian BBM</h1>
+            <p className="text-xs text-slate-500">Pencatatan penggunaan operasional harian</p>
           </div>
           <Link
             href="/admin"
-            className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold px-3 py-2 rounded-lg transition"
+            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg border border-slate-200 transition"
           >
             Akses Admin →
           </Link>
@@ -103,15 +102,15 @@ export default function Home() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Pilih Kendaraan</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih Kendaraan</label>
             <select
               required
-              className="w-full p-2.5 border rounded-lg text-sm bg-white border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-2.5 border rounded-lg text-xs bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
               value={formData.vehicle_id}
               onChange={(e) => setFormData({ ...formData, vehicle_id: e.target.value })}
             >
-              <option value="">-- Pilih Kendaraan Armada --</option>
-              {MOCK_VEHICLES.map((v) => (
+              <option value="">-- Pilih Armada --</option>
+              {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.plate_number} ({v.model})
                 </option>
@@ -120,49 +119,56 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Nama Pengemudi</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Pengemudi</label>
             <input
               type="text"
               required
-              placeholder="Contoh: Budi Santoso"
-              className="w-full p-2.5 border rounded-lg text-sm border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Contoh: Udin"
+              className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none"
               value={formData.driver_name}
               onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Bahan Bakar</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-semibold text-slate-700">Jenis Bahan Bakar</label>
+              <span className="text-[11px] font-mono text-slate-500">
+                Rp {unitPrice.toLocaleString('id-ID')} / Liter
+              </span>
+            </div>
             <select
-              className="w-full p-2.5 border rounded-lg text-sm bg-white border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full p-2.5 border rounded-lg text-xs bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
               value={formData.fuel_type}
               onChange={(e) => setFormData({ ...formData, fuel_type: e.target.value })}
             >
-              {FUEL_TYPES.map((type) => (
-                <option key={type} value={type}>{type}</option>
+              {Object.keys(fuelPrices).map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">KM Awal Odometer</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">KM Awal Odometer</label>
               <input
                 type="number"
                 required
                 placeholder="45000"
-                className="w-full p-2.5 border rounded-lg text-sm border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono"
                 value={formData.initial_km}
                 onChange={(e) => setFormData({ ...formData, initial_km: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">KM Akhir Odometer</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">KM Akhir Odometer</label>
               <input
                 type="number"
                 required
                 placeholder="45420"
-                className="w-full p-2.5 border rounded-lg text-sm border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono"
                 value={formData.final_km}
                 onChange={(e) => setFormData({ ...formData, final_km: e.target.value })}
               />
@@ -171,56 +177,49 @@ export default function Home() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Volume (Liter)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Volume (Liter)</label>
               <input
                 type="number"
                 step="0.01"
                 required
-                placeholder="35.5"
-                className="w-full p-2.5 border rounded-lg text-sm border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="30"
+                className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono"
                 value={formData.liters}
                 onChange={(e) => setFormData({ ...formData, liters: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Total Biaya (Rp)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-sm text-gray-500 font-medium">Rp</span>
-                <input
-                  type="text"
-                  required
-                  placeholder="350.000"
-                  className="w-full p-2.5 pl-9 border rounded-lg text-sm border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-900"
-                  value={formattedCost}
-                  onChange={handleCostChange}
-                />
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Total Biaya (Terhitung)</label>
+              <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 flex justify-between items-center">
+                <span>Rp</span>
+                <span>{calculatedTotalCost.toLocaleString('id-ID')}</span>
               </div>
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm hover:bg-blue-700 transition mt-2 shadow-sm"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-lg text-xs transition shadow-sm mt-2"
           >
-            Simpan Laporan BBM
+            Kirim Laporan Pengisian
           </button>
         </form>
       </div>
 
       {logs.length > 0 && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="font-bold text-gray-800 mb-3 text-sm">Riwayat Pengisian Sesi Ini</h2>
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <h2 className="font-bold text-slate-900 mb-3 text-xs tracking-wider uppercase">Sesi Laporan Saat Ini</h2>
           <div className="space-y-2">
             {logs.map((log) => (
-              <div key={log.id} className="p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs space-y-1">
-                <div className="flex justify-between font-bold text-gray-800">
+              <div key={log.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+                <div className="flex justify-between font-semibold text-slate-900">
                   <span>{log.plate_number} ({log.driver_name})</span>
-                  <span className="text-blue-600">Rp {log.total_cost.toLocaleString('id-ID')}</span>
+                  <span className="font-mono">Rp {log.total_cost.toLocaleString('id-ID')}</span>
                 </div>
-                <div className="flex justify-between text-gray-500">
+                <div className="flex justify-between text-slate-500 text-[11px]">
                   <span>{log.fuel_type} • {log.liters} L</span>
-                  <span>Efisiensi: <strong>{log.km_per_liter} KM/L</strong></span>
+                  <span>Efisiensi: <strong className="text-slate-800 font-mono">{log.km_per_liter} KM/L</strong></span>
                 </div>
               </div>
             ))}

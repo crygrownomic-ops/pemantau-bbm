@@ -1,70 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-const MOCK_VEHICLES = [
+const DEFAULT_VEHICLES = [
   { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000 },
   { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000 },
   { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000 },
 ]
 
 const MOCK_LOGS = [
-  {
-    id: 1,
-    plate_number: 'B 1234 ABC',
-    model: 'Toyota Avanza',
-    driver_name: 'Budi Santoso',
-    distance_km: 420,
-    liters: 35,
-    km_per_liter: 12.0,
-    total_cost: 350000,
-    fuel_type: 'Pertalite',
-    date: '2026-08-18',
-  },
-  {
-    id: 2,
-    plate_number: 'B 5678 XYZ',
-    model: 'Daihatsu Gran Max',
-    driver_name: 'Ahmad Supriadi',
-    distance_km: 300,
-    liters: 40,
-    km_per_liter: 7.5,
-    total_cost: 1850000,
-    fuel_type: 'Biosolar / Solar',
-    date: '2026-08-19',
-  },
-  {
-    id: 3,
-    plate_number: 'B 9012 DEF',
-    model: 'Isuzu Traga',
-    driver_name: 'Dede Kurnia',
-    distance_km: 550,
-    liters: 50,
-    km_per_liter: 11.0,
-    total_cost: 2700000,
-    fuel_type: 'Dexlite',
-    date: '2026-08-20',
-  },
-  {
-    id: 4,
-    plate_number: 'B 1234 ABC',
-    model: 'Toyota Avanza',
-    driver_name: 'Budi Santoso',
-    distance_km: 380,
-    liters: 30,
-    km_per_liter: 12.67,
-    total_cost: 300000,
-    fuel_type: 'Pertamax',
-    date: '2026-08-20',
-  },
+  { id: 1, plate_number: 'B 1234 ABC', driver_name: 'Budi', distance_km: 420, liters: 35, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18' },
+  { id: 2, plate_number: 'B 5678 XYZ', driver_name: 'Ahmad', distance_km: 300, liters: 40, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19' },
+  { id: 3, plate_number: 'B 9012 DEF', driver_name: 'Dede', distance_km: 550, liters: 50, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20' },
+  { id: 4, plate_number: 'B 1234 ABC', driver_name: 'Budi', distance_km: 380, liters: 30, km_per_liter: 12.67, total_cost: 300000, fuel_type: 'Pertamax', date: '2026-08-20' },
 ]
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState(false)
-  const [selectedVehicle, setSelectedVehicle] = useState<string>('ALL')
+  const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
+  const [selectedVehicle, setSelectedVehicle] = useState('ALL')
+
+  useEffect(() => {
+    const storedVehicles = localStorage.getItem('vehicle_budgets')
+    if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
+  }, [])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,27 +42,21 @@ export default function AdminDashboard() {
     ? MOCK_LOGS
     : MOCK_LOGS.filter((log) => log.plate_number === selectedVehicle)
 
-  const totalCost = filteredLogs.reduce((acc, item) => acc + item.total_cost, 0)
-  const totalLiters = filteredLogs.reduce((acc, item) => acc + item.liters, 0)
-  const totalKm = filteredLogs.reduce((acc, item) => acc + item.distance_km, 0)
+  const totalCost = filteredLogs.reduce((acc, l) => acc + l.total_cost, 0)
+  const totalLiters = filteredLogs.reduce((acc, l) => acc + l.liters, 0)
+  const totalKm = filteredLogs.reduce((acc, l) => acc + l.distance_km, 0)
   const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
 
-  const vehicleStats = MOCK_VEHICLES.map((v) => {
+  const vehicleStats = vehicles.map((v) => {
     const logs = MOCK_LOGS.filter((l) => l.plate_number === v.plate_number)
     const spentCost = logs.reduce((acc, l) => acc + l.total_cost, 0)
     const km = logs.reduce((acc, l) => acc + l.distance_km, 0)
     const liters = logs.reduce((acc, l) => acc + l.liters, 0)
     const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
-    const usagePercent = Math.min(Math.round((spentCost / v.monthly_budget) * 100), 100)
+    const usagePercent = Math.min(Math.round((spentCost / (v.monthly_budget || 1)) * 100), 100)
     const isOverBudget = spentCost > v.monthly_budget
 
-    return {
-      ...v,
-      spentCost,
-      efficiency: Number(efficiency),
-      usagePercent,
-      isOverBudget,
-    }
+    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget }
   })
 
   const exportToCSV = () => {
@@ -113,44 +69,48 @@ export default function AdminDashboard() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `rekap-bbm-${selectedVehicle.replace(/\s+/g, '')}.csv`
+    a.download = `rekap-bbm.csv`
     a.click()
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200 max-w-sm w-full space-y-4 text-center">
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
-            🔒
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-sm w-full space-y-5 text-center">
+          <div className="w-10 h-10 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg flex items-center justify-center mx-auto">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
           </div>
-          <h1 className="text-lg font-bold text-gray-800">Akses Dashboard Admin</h1>
-          <p className="text-xs text-gray-500">Masukkan PIN Keamanan untuk membuka dashboard</p>
+          <div>
+            <h1 className="text-base font-bold text-slate-900">Dashboard Administrator</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Masukkan PIN keamanan untuk melihat data operasional</p>
+          </div>
 
           <form onSubmit={handleLogin} className="space-y-3">
             <input
               type="password"
               maxLength={4}
-              placeholder="PIN (Default: 1234)"
-              className="w-full text-center text-lg tracking-widest p-2.5 border rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+              placeholder="••••"
+              className="w-full text-center text-xl tracking-widest py-2.5 border rounded-lg border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
             />
 
             {pinError && (
-              <p className="text-xs text-red-600 font-medium">PIN salah! Gunakan PIN: 1234</p>
+              <p className="text-xs text-rose-600 font-medium">PIN tidak valid (Default: 1234)</p>
             )}
 
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm transition"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 rounded-lg text-xs transition"
             >
               Masuk Dashboard
             </button>
           </form>
 
-          <Link href="/" className="block text-xs text-gray-500 hover:underline pt-2">
-            ← Kembali ke Form Driver
+          <Link href="/" className="inline-block text-xs text-slate-500 hover:text-slate-800 font-medium transition pt-1">
+            ← Form Driver
           </Link>
         </div>
       </div>
@@ -158,148 +118,141 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 font-sans">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
       <div className="max-w-6xl mx-auto space-y-6">
         
-        {/* Header Dashboard & Navigasi Pengaturan */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-xl shadow-sm border border-gray-200 gap-4">
+        {/* Header Dashboard */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-xl border border-slate-200 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Monitoring Operasional BBM</h1>
-            <p className="text-xs text-gray-500 mt-1">Pengawasan efisiensi BBM dan kontrol pagu anggaran armada</p>
+            <h1 className="text-xl font-bold text-slate-900">Monitoring Operasional BBM</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Pengawasan efisiensi konsumsi dan rekapitulasi pagu anggaran</p>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/admin/settings"
-              className="text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-800 px-3.5 py-2 rounded-lg border border-gray-300 transition flex items-center gap-1"
+              className="text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-lg border border-slate-200 transition flex items-center gap-1.5"
             >
-              ⚙️ Pengaturan Tarif
+              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Pengaturan Tarif & Pagu
             </Link>
             <button
               onClick={exportToCSV}
-              className="text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3.5 py-2 rounded-lg border border-emerald-200 transition"
+              className="text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg border border-emerald-200 transition flex items-center gap-1.5"
             >
-              📥 Export CSV
+              <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export CSV
             </button>
             <Link
               href="/"
-              className="text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 px-3.5 py-2 rounded-lg transition"
+              className="text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-lg transition"
             >
-              ← Form Driver
+              Form Driver
             </Link>
           </div>
         </div>
 
         {/* Ringkasan Metrik */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <span className="text-xs font-semibold text-gray-500">Total Pengeluaran</span>
-            <div className="text-2xl font-extrabold text-gray-900 mt-1">
+          <div className="bg-white p-5 rounded-xl border border-slate-200">
+            <span className="text-xs font-medium text-slate-500">Total Biaya Operasional</span>
+            <div className="text-xl font-bold font-mono text-slate-900 mt-1">
               Rp {totalCost.toLocaleString('id-ID')}
             </div>
-            <span className="text-[11px] text-gray-500">Total belanja BBM</span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <span className="text-xs font-semibold text-gray-500">Rata-Rata Efisiensi Armada</span>
-            <div className="text-2xl font-extrabold text-blue-600 mt-1">
-              {avgKmPerLiter} <span className="text-xs font-normal text-gray-600">KM/L</span>
+          <div className="bg-white p-5 rounded-xl border border-slate-200">
+            <span className="text-xs font-medium text-slate-500">Rata-Rata Efisiensi Armada</span>
+            <div className="text-xl font-bold font-mono text-slate-900 mt-1">
+              {avgKmPerLiter} <span className="text-xs font-sans font-normal text-slate-500">KM/L</span>
             </div>
-            <span className="text-[11px] text-gray-500">Total Jarak: {totalKm} KM</span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <span className="text-xs font-semibold text-gray-500">Total Volume BBM</span>
-            <div className="text-2xl font-extrabold text-gray-900 mt-1">
-              {totalLiters.toLocaleString('id-ID')} <span className="text-xs font-normal text-gray-600">Liter</span>
+          <div className="bg-white p-5 rounded-xl border border-slate-200">
+            <span className="text-xs font-medium text-slate-500">Total Konsumsi BBM</span>
+            <div className="text-xl font-bold font-mono text-slate-900 mt-1">
+              {totalLiters.toLocaleString('id-ID')} <span className="text-xs font-sans font-normal text-slate-500">Liter</span>
             </div>
-            <span className="text-[11px] text-gray-500">Semua Jenis Bahan Bakar</span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <span className="text-xs font-semibold text-gray-500">Total Transaksi</span>
-            <div className="text-2xl font-extrabold text-gray-900 mt-1">
-              {filteredLogs.length} <span className="text-xs font-normal text-gray-600">Pengisian</span>
+          <div className="bg-white p-5 rounded-xl border border-slate-200">
+            <span className="text-xs font-medium text-slate-500">Total Transaksi Pengisian</span>
+            <div className="text-xl font-bold font-mono text-slate-900 mt-1">
+              {filteredLogs.length} <span className="text-xs font-sans font-normal text-slate-500">Laporan</span>
             </div>
-            <span className="text-[11px] text-gray-500">Laporan terverifikasi</span>
           </div>
         </div>
 
-        {/* Pemantauan Budget Operasional per Kendaraan */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4">
-          <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-gray-800">Kontrol Anggaran Operasional Bulanan</h2>
-              <p className="text-xs text-gray-500">Realisasi pengeluaran BBM terhadap batas pagu anggaran</p>
-            </div>
-          </div>
+        {/* Pemantauan Budget Operasional Mandiri */}
+        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+          <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Pagu Anggaran Bulanan Per Kendaraan</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {vehicleStats.map((v) => (
-              <div key={v.plate_number} className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+              <div key={v.plate_number} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-bold text-sm text-gray-900">{v.plate_number}</div>
-                    <div className="text-xs text-gray-500">{v.model}</div>
+                    <div className="font-bold text-xs text-slate-900">{v.plate_number}</div>
+                    <div className="text-[11px] text-slate-500">{v.model}</div>
                   </div>
                   {v.isOverBudget ? (
-                    <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      Over Budget!
+                    <span className="bg-rose-100 text-rose-700 text-[10px] font-semibold px-2 py-0.5 rounded">
+                      Exceeded
                     </span>
                   ) : (
-                    <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      Aman
+                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-0.5 rounded">
+                      Normal
                     </span>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-gray-600">Realisasi:</span>
-                    <span className={v.isOverBudget ? 'text-red-600 font-bold' : 'text-gray-900'}>
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-slate-500 font-sans">Realisasi:</span>
+                    <span className={v.isOverBudget ? 'text-rose-600 font-bold' : 'text-slate-900 font-semibold'}>
                       Rp {v.spentCost.toLocaleString('id-ID')}
                     </span>
                   </div>
-                  <div className="flex justify-between text-[11px] text-gray-500">
-                    <span>Pagu Anggaran:</span>
+                  <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                    <span className="font-sans">Pagu Mandiri:</span>
                     <span>Rp {v.monthly_budget.toLocaleString('id-ID')}</span>
                   </div>
 
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden mt-1">
+                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mt-2">
                     <div
-                      className={`h-2.5 rounded-full transition-all duration-500 ${
-                        v.isOverBudget ? 'bg-red-600' : v.usagePercent > 80 ? 'bg-amber-500' : 'bg-blue-600'
+                      className={`h-1.5 rounded-full transition-all duration-500 ${
+                        v.isOverBudget ? 'bg-rose-600' : 'bg-slate-900'
                       }`}
                       style={{ width: `${v.usagePercent}%` }}
                     ></div>
                   </div>
-                  <div className="text-right text-[10px] font-medium text-gray-500 pt-0.5">
-                    Terpakai {v.usagePercent}%
-                  </div>
                 </div>
 
-                <div className="pt-2 border-t border-gray-200 flex justify-between items-center text-xs">
-                  <span className="text-gray-500">Efisiensi Rata-rata:</span>
-                  <span className={`font-bold ${v.efficiency >= 10 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {v.efficiency} KM/L
-                  </span>
+                <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
+                  <span className="text-slate-500">Efisiensi:</span>
+                  <span className="font-mono font-bold text-slate-800">{v.efficiency} KM/L</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Tabel Rekap Transaksi */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <h2 className="text-sm font-bold text-gray-800">Rincian Transaksi Pengisian BBM</h2>
+        {/* Tabel Rekapitulasi */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
             
             <select
-              className="text-xs border border-gray-300 rounded-lg p-2 bg-white font-semibold text-gray-700 outline-none"
+              className="text-xs border border-slate-300 rounded-lg p-2 bg-white font-medium text-slate-700 outline-none"
               value={selectedVehicle}
               onChange={(e) => setSelectedVehicle(e.target.value)}
             >
-              <option value="ALL">Semua Armada Kendaraan</option>
-              {MOCK_VEHICLES.map((v) => (
+              <option value="ALL">Semua Armada</option>
+              {vehicles.map((v) => (
                 <option key={v.plate_number} value={v.plate_number}>
                   {v.plate_number} - {v.model}
                 </option>
@@ -308,8 +261,8 @@ export default function AdminDashboard() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-600">
-              <thead className="bg-gray-50 text-gray-700 font-bold border-b border-gray-200">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                 <tr>
                   <th className="p-3.5">Tanggal</th>
                   <th className="p-3.5">Kendaraan</th>
@@ -321,21 +274,21 @@ export default function AdminDashboard() {
                   <th className="p-3.5 text-right">Total Biaya</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 transition">
-                    <td className="p-3.5 whitespace-nowrap font-medium">{log.date}</td>
-                    <td className="p-3.5 whitespace-nowrap font-bold text-gray-900">{log.plate_number}</td>
-                    <td className="p-3.5 whitespace-nowrap">{log.driver_name}</td>
-                    <td className="p-3.5 whitespace-nowrap">
-                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium text-[11px]">
+                  <tr key={log.id} className="hover:bg-slate-50 transition">
+                    <td className="p-3.5 font-medium">{log.date}</td>
+                    <td className="p-3.5 font-bold text-slate-900">{log.plate_number}</td>
+                    <td className="p-3.5">{log.driver_name}</td>
+                    <td className="p-3.5">
+                      <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-medium text-[11px]">
                         {log.fuel_type}
                       </span>
                     </td>
-                    <td className="p-3.5 whitespace-nowrap">{log.liters} L</td>
-                    <td className="p-3.5 whitespace-nowrap">{log.distance_km} KM</td>
-                    <td className="p-3.5 whitespace-nowrap font-bold text-blue-600">{log.km_per_liter} KM/L</td>
-                    <td className="p-3.5 whitespace-nowrap text-right font-extrabold text-gray-900">
+                    <td className="p-3.5 font-mono">{log.liters} L</td>
+                    <td className="p-3.5 font-mono">{log.distance_km} KM</td>
+                    <td className="p-3.5 font-mono font-bold text-slate-800">{log.km_per_liter} KM/L</td>
+                    <td className="p-3.5 text-right font-mono font-bold text-slate-900">
                       Rp {log.total_cost.toLocaleString('id-ID')}
                     </td>
                   </tr>
