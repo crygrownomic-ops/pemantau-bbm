@@ -59,6 +59,10 @@ export default function AdminDashboard() {
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
+  // State Pagination Tabel Admin (5 Baris Per Halaman)
+  const [adminPage, setAdminPage] = useState(1)
+  const logsPerPage = 5
+
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
@@ -82,6 +86,11 @@ export default function AdminDashboard() {
       localStorage.removeItem('vehicle_budgets')
     }
   }, [])
+
+  // Reset Halaman ke-1 Jika Filter Berubah
+  useEffect(() => {
+    setAdminPage(1)
+  }, [selectedVehicle, startDate, endDate])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -288,6 +297,10 @@ export default function AdminDashboard() {
     return matchVehicle && matchStart && matchEnd
   })
 
+  // Kalkulasi Pagination
+  const totalAdminPages = Math.ceil(filteredLogs.length / logsPerPage) || 1
+  const paginatedAdminLogs = filteredLogs.slice((adminPage - 1) * logsPerPage, adminPage * logsPerPage)
+
   const pendingCount = safeLogs.filter((l) => !l.status || l.status === 'PENDING').length
   const highConsumptionLogs = safeLogs.filter((l) => Number(l.km_per_liter) < 8)
 
@@ -309,7 +322,6 @@ export default function AdminDashboard() {
     return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget }
   })
 
-  // FUNGSI EKSPOR EXCEL NATIVE BERKOLOM & BERSAMBUNG RAPI
   const exportToExcel = () => {
     const title = 'REKAPITULASI OPERASIONAL PENGISIAN BBM'
     const periodStr = `Periode: ${startDate || 'Awal'} s/d ${endDate || 'Hari Ini'}`
@@ -551,7 +563,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabel Rekapitulasi */}
+        {/* Tabel Rekapitulasi dengan Pagination */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
@@ -618,7 +630,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredLogs.map((log) => (
+                {paginatedAdminLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50 transition">
                     <td className="p-3.5 font-medium whitespace-nowrap">{log.date}</td>
                     <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.plate_number}</td>
@@ -695,6 +707,32 @@ export default function AdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Navigasi Pagination Admin (5 Baris per Halaman) */}
+          <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs">
+            <span className="text-slate-500 font-mono text-[11px]">
+              Menampilkan {filteredLogs.length > 0 ? (adminPage - 1) * logsPerPage + 1 : 0} - {Math.min(adminPage * logsPerPage, filteredLogs.length)} dari {filteredLogs.length} transaksi
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={adminPage === 1}
+                onClick={() => setAdminPage((prev) => prev - 1)}
+                className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 rounded font-medium transition"
+              >
+                ← Prev
+              </button>
+              <span className="font-mono text-[11px] text-slate-700 px-2 font-bold">
+                {adminPage} / {totalAdminPages}
+              </span>
+              <button
+                disabled={adminPage === totalAdminPages || totalAdminPages === 0}
+                onClick={() => setAdminPage((prev) => prev + 1)}
+                className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 rounded font-medium transition"
+              >
+                Next →
+              </button>
+            </div>
           </div>
         </div>
 

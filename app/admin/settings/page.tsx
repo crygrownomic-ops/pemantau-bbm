@@ -19,6 +19,17 @@ const DEFAULT_VEHICLES = [
   { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500 },
 ]
 
+function sanitizeVehicles(data: any) {
+  if (!Array.isArray(data) || data.length === 0) return DEFAULT_VEHICLES
+  return data.map((v, idx) => ({
+    id: v?.id ? String(v.id) : String(idx + 1),
+    plate_number: String(v?.plate_number || 'ARMADA').toUpperCase(),
+    model: String(v?.model || 'Kendaraan'),
+    monthly_budget: Number(v?.monthly_budget) || 0,
+    last_km: Number(v?.last_km) || 0,
+  }))
+}
+
 export default function SettingsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pinInput, setPinInput] = useState('')
@@ -31,10 +42,14 @@ export default function SettingsPage() {
   const [savedSuccess, setSavedSuccess] = useState(false)
 
   useEffect(() => {
-    const localPrices = localStorage.getItem('fuel_prices')
-    const localVehicles = localStorage.getItem('vehicle_budgets')
-    if (localPrices) setPrices(JSON.parse(localPrices))
-    if (localVehicles) setVehicles(JSON.parse(localVehicles))
+    try {
+      const localPrices = localStorage.getItem('fuel_prices')
+      const localVehicles = localStorage.getItem('vehicle_budgets')
+      if (localPrices) setPrices(JSON.parse(localPrices))
+      if (localVehicles) setVehicles(sanitizeVehicles(JSON.parse(localVehicles)))
+    } catch (err) {
+      console.error('Error parsing settings localstorage:', err)
+    }
   }, [])
 
   const handleLogin = (e: React.FormEvent) => {
@@ -63,7 +78,7 @@ export default function SettingsPage() {
     let updated: any[]
     if (editingId) {
       updated = vehicles.map((v) =>
-        v.id === editingId
+        String(v.id) === String(editingId)
           ? { ...v, plate_number: upperPlate, model: vehicleForm.model, monthly_budget: budgetNum, last_km: kmNum }
           : v
       )
@@ -86,26 +101,36 @@ export default function SettingsPage() {
   }
 
   const handleEditClick = (v: any) => {
-    setEditingId(v.id)
+    setEditingId(String(v.id))
     setVehicleForm({
-      plate_number: v.plate_number.toUpperCase(),
-      model: v.model,
-      monthly_budget: v.monthly_budget.toString(),
-      last_km: v.last_km ? v.last_km.toString() : '0',
+      plate_number: String(v.plate_number || '').toUpperCase(),
+      model: String(v.model || ''),
+      monthly_budget: (Number(v.monthly_budget) || 0).toString(),
+      last_km: (Number(v.last_km) || 0).toString(),
     })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDeleteClick = (v: any) => {
     if (confirm(`Hapus armada ${v.plate_number}? Seluruh riwayat transaksi armada ini juga akan dibersihkan.`)) {
-      const updatedVehicles = vehicles.filter((item) => item.id !== v.id)
+      const updatedVehicles = vehicles.filter((item) => String(item.id) !== String(v.id))
       setVehicles(updatedVehicles)
       localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
 
       const storedLogs = localStorage.getItem('fuel_logs')
       if (storedLogs) {
-        const logs = JSON.parse(storedLogs)
-        const cleanedLogs = logs.filter((l: any) => l.plate_number !== v.plate_number)
-        localStorage.setItem('fuel_logs', JSON.stringify(cleanedLogs))
+        try {
+          const logs = JSON.parse(storedLogs)
+          const cleanedLogs = logs.filter((l: any) => String(l.plate_number).toUpperCase() !== String(v.plate_number).toUpperCase())
+          localStorage.setItem('fuel_logs', JSON.stringify(cleanedLogs))
+        } catch (err) {
+          console.error('Error cleaning logs:', err)
+        }
+      }
+
+      if (editingId && String(editingId) === String(v.id)) {
+        setEditingId(null)
+        setVehicleForm({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
       }
 
       showSuccessNotification()
@@ -201,7 +226,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Form Pendaftaran Armada */}
+        {/* Form Pendaftaran & Edit Armada */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">
             {editingId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
@@ -292,19 +317,19 @@ export default function SettingsPage() {
                     {v.plate_number.toUpperCase()} <span className="font-normal text-slate-600">({v.model})</span>
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    Pagu: <span className="font-mono font-semibold text-slate-700">Rp {Number(v.monthly_budget).toLocaleString('id-ID')}</span> • Position Odometer: <span className="font-mono font-bold text-slate-800">{v.last_km ? Number(v.last_km).toLocaleString('id-ID') : 0} KM</span>
+                    Pagu: <span className="font-mono font-semibold text-slate-700">Rp {(Number(v.monthly_budget) || 0).toLocaleString('id-ID')}</span> • Position Odometer: <span className="font-mono font-bold text-slate-800">{(Number(v.last_km) || 0).toLocaleString('id-ID')} KM</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEditClick(v)}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 bg-blue-50 rounded"
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2.5 py-1 bg-blue-50 hover:bg-blue-100 rounded transition"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteClick(v)}
-                    className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2 py-1 bg-rose-50 rounded"
+                    className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2.5 py-1 bg-rose-50 hover:bg-rose-100 rounded transition"
                   >
                     Hapus
                   </button>
