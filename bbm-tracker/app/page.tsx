@@ -1,69 +1,154 @@
-import Image from "next/image";
+'use client'
+
+import { useState } from 'react'
+
+// Data tiruan master kendaraan
+const MOCK_VEHICLES = [
+  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza' },
+  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max' },
+  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga' },
+]
 
 export default function Home() {
+  const [logs, setLogs] = useState<any[]>([])
+  const [formData, setFormData] = useState({
+    vehicle_id: '',
+    driver_name: '',
+    initial_km: '',
+    final_km: '',
+    liters: '',
+    total_cost: '',
+    fuel_type: 'Pertalite',
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Kalkulasi lokal
+    const distance = Number(formData.final_km) - Number(formData.initial_km)
+    const kmPerLiter = (distance / Number(formData.liters)).toFixed(2)
+    const selectedVehicle = MOCK_VEHICLES.find(v => v.id === formData.vehicle_id)
+
+    const newLog = {
+      id: Date.now(),
+      plate_number: selectedVehicle?.plate_number,
+      driver_name: formData.driver_name,
+      distance_km: distance,
+      km_per_liter: kmPerLiter,
+      total_cost: formData.total_cost,
+      fuel_type: formData.fuel_type,
+      created_at: new Date().toLocaleTimeString(),
+    }
+
+    setLogs([newLog, ...logs])
+    alert('Log berhasil ditambahkan ke memori lokal!')
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="max-w-xl mx-auto p-4 min-h-screen bg-gray-50 space-y-6">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h1 className="text-xl font-bold text-gray-800 mb-4">Input BBM (Versi Preview)</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Kendaraan</label>
+            <select
+              required
+              className="w-full p-2 border rounded-md text-sm mt-1"
+              value={formData.vehicle_id}
+              onChange={(e) => setFormData({ ...formData, vehicle_id: e.target.value })}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+              <option value="">-- Pilih Kendaraan --</option>
+              {MOCK_VEHICLES.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.plate_number} ({v.model})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Nama Pengemudi</label>
+            <input
+              type="text"
+              required
+              className="w-full p-2 border rounded-md text-sm mt-1"
+              onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">KM Awal</label>
+              <input
+                type="number"
+                required
+                className="w-full p-2 border rounded-md text-sm mt-1"
+                onChange={(e) => setFormData({ ...formData, initial_km: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">KM Akhir</label>
+              <input
+                type="number"
+                required
+                className="w-full p-2 border rounded-md text-sm mt-1"
+                onChange={(e) => setFormData({ ...formData, final_km: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Liter</label>
+              <input
+                type="number"
+                step="0.1"
+                required
+                className="w-full p-2 border rounded-md text-sm mt-1"
+                onChange={(e) => setFormData({ ...formData, liters: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Total Biaya (Rp)</label>
+              <input
+                type="number"
+                required
+                className="w-full p-2 border rounded-md text-sm mt-1"
+                onChange={(e) => setFormData({ ...formData, total_cost: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-md font-medium text-sm hover:bg-blue-700"
           >
-            Documentation
-          </a>
+            Simpan Laporan
+          </button>
+        </form>
+      </div>
+
+      {/* Tabel Preview Hasil Input */}
+      {logs.length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h2 className="font-bold text-gray-800 mb-3">Riwayat Sesi Ini</h2>
+          <div className="space-y-2">
+            {logs.map((log) => (
+              <div key={log.id} className="p-3 bg-gray-50 border rounded-lg text-xs space-y-1">
+                <div className="flex justify-between font-bold text-gray-700">
+                  <span>{log.plate_number} ({log.driver_name})</span>
+                  <span>Rp {Number(log.total_cost).toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Efisiensi: {log.km_per_liter} KM/L</span>
+                  <span>Jarak: {log.distance_km} KM</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
-  );
+      )}
+    </main>
+  )
 }
