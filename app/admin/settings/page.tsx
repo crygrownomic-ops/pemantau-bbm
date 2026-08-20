@@ -56,7 +56,6 @@ export default function SettingsPage() {
     e.preventDefault()
     if (!vehicleForm.plate_number || !vehicleForm.model) return
 
-    // Otomatisasi Huruf Kapital pada Plat Nomor
     const upperPlate = vehicleForm.plate_number.trim().toUpperCase()
     const budgetNum = Number(vehicleForm.monthly_budget.replace(/[^0-9]/g, '')) || 0
     const kmNum = Number(vehicleForm.last_km.replace(/[^0-9]/g, '')) || 0
@@ -96,11 +95,21 @@ export default function SettingsPage() {
     })
   }
 
-  const handleDeleteClick = (id: string) => {
-    if (confirm('Apakah Anda yakin ingin menghapus armada ini?')) {
-      const updated = vehicles.filter((v) => v.id !== id)
-      setVehicles(updated)
-      localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
+  // Hapus Armada Sekaligus Membersihkan Log Transaksinya
+  const handleDeleteClick = (v: any) => {
+    if (confirm(`Hapus armada ${v.plate_number}? Seluruh riwayat transaksi armada ini juga akan dibersihkan.`)) {
+      const updatedVehicles = vehicles.filter((item) => item.id !== v.id)
+      setVehicles(updatedVehicles)
+      localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
+
+      // Clean-up transaksi terikat
+      const storedLogs = localStorage.getItem('fuel_logs')
+      if (storedLogs) {
+        const logs = JSON.parse(storedLogs)
+        const cleanedLogs = logs.filter((l: any) => l.plate_number !== v.plate_number)
+        localStorage.setItem('fuel_logs', JSON.stringify(cleanedLogs))
+      }
+
       showSuccessNotification()
     }
   }
@@ -288,7 +297,7 @@ export default function SettingsPage() {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(v.id)}
+                    onClick={() => handleDeleteClick(v)}
                     className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2 py-1 bg-rose-50 rounded"
                   >
                     Hapus

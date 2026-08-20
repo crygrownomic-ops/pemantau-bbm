@@ -42,6 +42,41 @@ export default function AdminDashboard() {
     }
   }
 
+  // Hapus Satu Baris Log Transaksi
+  const handleDeleteLog = (id: number) => {
+    if (confirm('Apakah Anda yakin ingin menghapus catatan transaksi ini?')) {
+      const updatedLogs = logs.filter((l) => l.id !== id)
+      setLogs(updatedLogs)
+      localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
+    }
+  }
+
+  // Helper Renderer Badge Efisiensi BBM
+  const renderEfficiencyBadge = (kmPerLiterVal: number) => {
+    if (kmPerLiterVal < 8) {
+      return (
+        <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+          {kmPerLiterVal} KM/L (Boros)
+        </span>
+      )
+    } else if (kmPerLiterVal < 12) {
+      return (
+        <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+          {kmPerLiterVal} KM/L (Normal)
+        </span>
+      )
+    } else {
+      return (
+        <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+          {kmPerLiterVal} KM/L (Irit)
+        </span>
+      )
+    }
+  }
+
   const filteredLogs = selectedVehicle === 'ALL'
     ? logs
     : logs.filter((log) => log.plate_number === selectedVehicle)
@@ -236,15 +271,15 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
-                  <span className="text-slate-500">Efisiensi:</span>
-                  <span className="font-mono font-bold text-slate-800">{v.efficiency} KM/L</span>
+                  <span className="text-slate-500">Efisiensi Rata-Rata:</span>
+                  {renderEfficiencyBadge(v.efficiency)}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Tabel Rekapitulasi Real-Time */}
+        {/* Tabel Rekapitulasi Real-Time dengan Highlight Efisiensi */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
@@ -273,8 +308,9 @@ export default function AdminDashboard() {
                   <th className="p-3.5">Jenis BBM</th>
                   <th className="p-3.5">Volume</th>
                   <th className="p-3.5">Jarak (KM)</th>
-                  <th className="p-3.5">Efisiensi</th>
+                  <th className="p-3.5">Status Efisiensi</th>
                   <th className="p-3.5 text-right">Total Biaya</th>
+                  <th className="p-3.5 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -290,9 +326,19 @@ export default function AdminDashboard() {
                     </td>
                     <td className="p-3.5 font-mono">{log.liters} L</td>
                     <td className="p-3.5 font-mono">{log.distance_km} KM</td>
-                    <td className="p-3.5 font-mono font-bold text-slate-800">{log.km_per_liter} KM/L</td>
+                    <td className="p-3.5 font-mono">
+                      {renderEfficiencyBadge(Number(log.km_per_liter))}
+                    </td>
                     <td className="p-3.5 text-right font-mono font-bold text-slate-900">
                       Rp {log.total_cost.toLocaleString('id-ID')}
+                    </td>
+                    <td className="p-3.5 text-center">
+                      <button
+                        onClick={() => handleDeleteLog(log.id)}
+                        className="text-[11px] text-rose-600 hover:text-rose-800 font-medium px-2 py-0.5 bg-rose-50 rounded"
+                      >
+                        Hapus
+                      </button>
                     </td>
                   </tr>
                 ))}
