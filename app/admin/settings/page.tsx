@@ -14,9 +14,9 @@ const DEFAULT_PRICES: Record<string, number> = {
 }
 
 const DEFAULT_VEHICLES = [
-  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000 },
-  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000 },
-  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000 },
+  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45000 },
+  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000 },
+  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500 },
 ]
 
 export default function SettingsPage() {
@@ -26,10 +26,8 @@ export default function SettingsPage() {
 
   const [prices, setPrices] = useState<Record<string, number>>(DEFAULT_PRICES)
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
-  
-  // State Form Tambah / Edit Armada
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [vehicleForm, setVehicleForm] = useState({ plate_number: '', model: '', monthly_budget: '' })
+  const [vehicleForm, setVehicleForm] = useState({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
   const [savedSuccess, setSavedSuccess] = useState(false)
 
   useEffect(() => {
@@ -54,21 +52,20 @@ export default function SettingsPage() {
     setPrices((prev) => ({ ...prev, [fuelType]: num }))
   }
 
-  // Tambah atau Update Kendaraan
   const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault()
     if (!vehicleForm.plate_number || !vehicleForm.model) return
 
     const budgetNum = Number(vehicleForm.monthly_budget.replace(/[^0-9]/g, '')) || 0
+    const kmNum = Number(vehicleForm.last_km.replace(/[^0-9]/g, '')) || 0
 
+    let updated: any[]
     if (editingId) {
-      const updated = vehicles.map((v) =>
+      updated = vehicles.map((v) =>
         v.id === editingId
-          ? { ...v, plate_number: vehicleForm.plate_number, model: vehicleForm.model, monthly_budget: budgetNum }
+          ? { ...v, plate_number: vehicleForm.plate_number, model: vehicleForm.model, monthly_budget: budgetNum, last_km: kmNum }
           : v
       )
-      setVehicles(updated)
-      localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
       setEditingId(null)
     } else {
       const newVehicle = {
@@ -76,13 +73,14 @@ export default function SettingsPage() {
         plate_number: vehicleForm.plate_number,
         model: vehicleForm.model,
         monthly_budget: budgetNum,
+        last_km: kmNum,
       }
-      const updated = [...vehicles, newVehicle]
-      setVehicles(updated)
-      localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
+      updated = [...vehicles, newVehicle]
     }
 
-    setVehicleForm({ plate_number: '', model: '', monthly_budget: '' })
+    setVehicles(updated)
+    localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
+    setVehicleForm({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
     showSuccessNotification()
   }
 
@@ -92,11 +90,12 @@ export default function SettingsPage() {
       plate_number: v.plate_number,
       model: v.model,
       monthly_budget: v.monthly_budget.toString(),
+      last_km: v.last_km ? v.last_km.toString() : '0',
     })
   }
 
   const handleDeleteClick = (id: string) => {
-    if (confirm('Apakah Abah yakin ingin menghapus armada ini?')) {
+    if (confirm('Apakah Anda yakin ingin menghapus armada ini?')) {
       const updated = vehicles.filter((v) => v.id !== id)
       setVehicles(updated)
       localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
@@ -163,11 +162,10 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
       <div className="max-w-3xl mx-auto space-y-6">
         
-        {/* Header */}
         <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200">
           <div>
             <h1 className="text-lg font-bold text-slate-900">Pengaturan Master Data</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manajemen armada kendaraan, pagu anggaran & tarif BBM</p>
+            <p className="text-xs text-slate-500 mt-0.5">Manajemen armada, patokan Odometer & tarif BBM</p>
           </div>
           <Link
             href="/admin"
@@ -186,13 +184,13 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Form Tambah / Edit Armada */}
+        {/* Form Pendaftaran / Edit Armada */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">
             {editingId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
           </h2>
 
-          <form onSubmit={handleSaveVehicle} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <form onSubmit={handleSaveVehicle} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">Plat Nomor</label>
               <input
@@ -229,13 +227,25 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="sm:col-span-3 flex justify-end gap-2 pt-1">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Patokan KM Odometer Awal</label>
+              <input
+                type="text"
+                required
+                placeholder="45000"
+                className="w-full p-2 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-semibold"
+                value={vehicleForm.last_km ? Number(vehicleForm.last_km.replace(/[^0-9]/g, '')).toLocaleString('id-ID') : ''}
+                onChange={(e) => setVehicleForm({ ...vehicleForm, last_km: e.target.value })}
+              />
+            </div>
+
+            <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
               {editingId && (
                 <button
                   type="button"
                   onClick={() => {
                     setEditingId(null)
-                    setVehicleForm({ plate_number: '', model: '', monthly_budget: '' })
+                    setVehicleForm({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
                   }}
                   className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg font-medium"
                 >
@@ -261,8 +271,10 @@ export default function SettingsPage() {
             {vehicles.map((v) => (
               <div key={v.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">{v.plate_number}</div>
-                  <div className="text-[11px] text-slate-500">{v.model} • Pagu: <span className="font-mono font-semibold text-slate-700">Rp {Number(v.monthly_budget).toLocaleString('id-ID')}</span></div>
+                  <div className="text-xs font-bold text-slate-900">{v.plate_number} ({v.model})</div>
+                  <div className="text-[11px] text-slate-500">
+                    Pagu: <span className="font-mono font-semibold text-slate-700">Rp {Number(v.monthly_budget).toLocaleString('id-ID')}</span> • Position Odometer: <span className="font-mono font-bold text-slate-800">{v.last_km ? Number(v.last_km).toLocaleString('id-ID') : 0} KM</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

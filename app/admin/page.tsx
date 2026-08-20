@@ -9,7 +9,7 @@ const DEFAULT_VEHICLES = [
   { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000 },
 ]
 
-const MOCK_LOGS = [
+const DEFAULT_LOGS = [
   { id: 1, plate_number: 'B 1234 ABC', driver_name: 'Budi', distance_km: 420, liters: 35, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18' },
   { id: 2, plate_number: 'B 5678 XYZ', driver_name: 'Ahmad', distance_km: 300, liters: 40, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19' },
   { id: 3, plate_number: 'B 9012 DEF', driver_name: 'Dede', distance_km: 550, liters: 50, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20' },
@@ -21,11 +21,15 @@ export default function AdminDashboard() {
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState(false)
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
+  const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
 
   useEffect(() => {
     const storedVehicles = localStorage.getItem('vehicle_budgets')
+    const storedLogs = localStorage.getItem('fuel_logs')
+
     if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
+    if (storedLogs) setLogs(JSON.parse(storedLogs))
   }, [])
 
   const handleLogin = (e: React.FormEvent) => {
@@ -39,8 +43,8 @@ export default function AdminDashboard() {
   }
 
   const filteredLogs = selectedVehicle === 'ALL'
-    ? MOCK_LOGS
-    : MOCK_LOGS.filter((log) => log.plate_number === selectedVehicle)
+    ? logs
+    : logs.filter((log) => log.plate_number === selectedVehicle)
 
   const totalCost = filteredLogs.reduce((acc, l) => acc + l.total_cost, 0)
   const totalLiters = filteredLogs.reduce((acc, l) => acc + l.liters, 0)
@@ -48,10 +52,10 @@ export default function AdminDashboard() {
   const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
 
   const vehicleStats = vehicles.map((v) => {
-    const logs = MOCK_LOGS.filter((l) => l.plate_number === v.plate_number)
-    const spentCost = logs.reduce((acc, l) => acc + l.total_cost, 0)
-    const km = logs.reduce((acc, l) => acc + l.distance_km, 0)
-    const liters = logs.reduce((acc, l) => acc + l.liters, 0)
+    const vLogs = logs.filter((l) => l.plate_number === v.plate_number)
+    const spentCost = vLogs.reduce((acc, l) => acc + l.total_cost, 0)
+    const km = vLogs.reduce((acc, l) => acc + l.distance_km, 0)
+    const liters = vLogs.reduce((acc, l) => acc + l.liters, 0)
     const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
     const usagePercent = Math.min(Math.round((spentCost / (v.monthly_budget || 1)) * 100), 100)
     const isOverBudget = spentCost > v.monthly_budget
@@ -84,7 +88,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h1 className="text-base font-bold text-slate-900">Dashboard Administrator</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Masukkan PIN keamanan untuk melihat data operasional</p>
+            <p className="text-xs text-slate-500 mt-0.5">Masukkan PIN keamanan</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3">
@@ -121,7 +125,6 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 font-sans text-slate-800">
       <div className="max-w-6xl mx-auto space-y-6">
         
-        {/* Header Dashboard */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-5 rounded-xl border border-slate-200 gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Monitoring Operasional BBM</h1>
@@ -156,7 +159,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Ringkasan Metrik */}
+        {/* Metrik */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200">
             <span className="text-xs font-medium text-slate-500">Total Biaya Operasional</span>
@@ -187,7 +190,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Pemantauan Budget Operasional Mandiri */}
+        {/* Pagu Anggaran */}
         <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
           <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Pagu Anggaran Bulanan Per Kendaraan</h2>
 
@@ -241,7 +244,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabel Rekapitulasi */}
+        {/* Tabel Rekapitulasi Real-Time */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
