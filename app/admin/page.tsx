@@ -10,10 +10,10 @@ const DEFAULT_VEHICLES = [
 ]
 
 const DEFAULT_LOGS = [
-  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18' },
-  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 6800, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19' },
-  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20' },
-  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 45000, final_km: 45380, distance_km: 380, liters: 30, unit_price: 12950, km_per_liter: 12.67, total_cost: 300000, fuel_type: 'Pertamax', date: '2026-08-20' },
+  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18', status: 'VERIFIED' },
+  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 6800, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19', status: 'FLAGGED' },
+  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 45000, final_km: 45380, distance_km: 380, liters: 30, unit_price: 12950, km_per_liter: 12.67, total_cost: 300000, fuel_type: 'Pertamax', date: '2026-08-20', status: 'PENDING' },
 ]
 
 export default function AdminDashboard() {
@@ -23,7 +23,6 @@ export default function AdminDashboard() {
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
 
-  // Filter State
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -48,6 +47,16 @@ export default function AdminDashboard() {
     }
   }
 
+  // Update Status Verifikasi Transaksi (PENDING -> VERIFIED / FLAGGED)
+  const handleUpdateStatus = (id: number, newStatus: 'VERIFIED' | 'FLAGGED') => {
+    const updatedLogs = logs.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+    setLogs(updatedLogs)
+    localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
+    if (previewReceipt && previewReceipt.id === id) {
+      setPreviewReceipt({ ...previewReceipt, status: newStatus })
+    }
+  }
+
   const handleDeleteLog = (id: number) => {
     if (confirm('Apakah Anda yakin ingin menghapus catatan transaksi ini?')) {
       const updatedLogs = logs.filter((l) => l.id !== id)
@@ -56,7 +65,6 @@ export default function AdminDashboard() {
     }
   }
 
-  // Fungsi Unduh Gambar Struk dengan Penamaan Otomatis: [Plat]_[Tanggal]_[KMAkhir].jpg
   const handleDownloadReceipt = (receiptBase64: string, plateNumber: string, date: string, finalKm: number) => {
     const cleanPlate = (plateNumber || 'ARMADA').replace(/\s+/g, '').toUpperCase()
     const cleanDate = date || 'TANPATANGGAL'
@@ -95,13 +103,27 @@ export default function AdminDashboard() {
     }
   }
 
-  // Logika Multi-Filtering (Tanggal + Armada)
+  const renderStatusBadge = (status?: string) => {
+    if (status === 'VERIFIED') {
+      return <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">VERIFIED</span>
+    } else if (status === 'FLAGGED') {
+      return <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">ANOMALI</span>
+    } else {
+      return <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px]">PENDING</span>
+    }
+  }
+
+  // Filter Data
   const filteredLogs = logs.filter((log) => {
     const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
     const matchStart = !startDate || log.date >= startDate
     const matchEnd = !endDate || log.date <= endDate
     return matchVehicle && matchStart && matchEnd
   })
+
+  // Deteksi Anomali Boros & Pending Audit
+  const pendingCount = logs.filter((l) => !l.status || l.status === 'PENDING').length
+  const highConsumptionLogs = logs.filter((l) => Number(l.km_per_liter) < 8)
 
   const totalCost = filteredLogs.reduce((acc, l) => acc + l.total_cost, 0)
   const totalLiters = filteredLogs.reduce((acc, l) => acc + l.liters, 0)
@@ -120,22 +142,20 @@ export default function AdminDashboard() {
     return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget }
   })
 
-  // Export Excel / CSV Terstruktur dengan Rincian & Baris Total
   const exportToExcel = () => {
     let csvContent = 'REKAPITULASI OPERASIONAL PENGISIAN BBM\n'
     csvContent += `Periode Export,${startDate || 'Awal'} s/d ${endDate || 'Akhir'}\n`
     csvContent += `Filter Armada,${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}\n\n`
 
-    csvContent += 'Tanggal,Plat Kendaraan,Model,Pengemudi,Jenis BBM,KM Awal,KM Akhir,Jarak (KM),Volume (Liter),Harga/Liter (Rp),Total Biaya (Rp),Efisiensi (KM/L),Status Efisiensi\n'
+    csvContent += 'Tanggal,Plat Kendaraan,Model,Pengemudi,Jenis BBM,KM Awal,KM Akhir,Jarak (KM),Volume (Liter),Harga/Liter (Rp),Total Biaya (Rp),Efisiensi (KM/L),Status Efisiensi,Status Verifikasi\n'
 
     filteredLogs.forEach((l) => {
       const effVal = Number(l.km_per_liter)
-      const status = effVal < 8 ? 'Boros' : effVal < 12 ? 'Normal' : 'Irit'
-      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km},${l.liters},${l.unit_price || 0},${l.total_cost},${l.km_per_liter},${status}\n`
+      const statusEff = effVal < 8 ? 'Boros' : effVal < 12 ? 'Normal' : 'Irit'
+      csvContent += `${l.date},${l.plate_number},${l.vehicle_model || '-'},${l.driver_name},${l.fuel_type},${l.initial_km || 0},${l.final_km || 0},${l.distance_km},${l.liters},${l.unit_price || 0},${l.total_cost},${l.km_per_liter},${statusEff},${l.status || 'PENDING'}\n`
     })
 
-    // Baris Rangkuman / Total
-    csvContent += `\nTOTAL REKAPITULASI,,,,,,,${totalKm},${totalLiters},,${totalCost},${avgKmPerLiter} KM/L,\n`
+    csvContent += `\nTOTAL REKAPITULASI,,,,,,,${totalKm},${totalLiters},,${totalCost},${avgKmPerLiter} KM/L,,\n`
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
@@ -230,6 +250,21 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Banner Peringatan Anomali & Pending Audit */}
+        {(pendingCount > 0 || highConsumptionLogs.length > 0) && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div className="text-xs text-amber-900">
+                <span className="font-bold">Sistem Perhatian Audit Operasional:</span>
+                <span className="block mt-0.5">
+                  Terdapat <strong className="underline">{pendingCount} laporan baru</strong> butuh verifikasi struk, serta <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi terindikasi boros (&lt; 8 KM/L)</strong>.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Metrik */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200">
@@ -315,12 +350,11 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabel Rekapitulasi & Filter Lanjutan */}
+        {/* Tabel Rekapitulasi & Approval Admin */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
             <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
             
-            {/* Filter Controls (Tanggal & Armada) */}
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
                 <span className="text-slate-500 font-medium">Dari:</span>
@@ -373,12 +407,13 @@ export default function AdminDashboard() {
                   <th className="p-3.5">Kendaraan</th>
                   <th className="p-3.5">Pengemudi</th>
                   <th className="p-3.5">Jenis BBM</th>
-                  <th className="p-3.5">KM Awal - Akhir</th>
+                  <th className="p-3.5">KM Odometer</th>
                   <th className="p-3.5">Volume</th>
-                  <th className="p-3.5">Status Efisiensi</th>
-                  <th className="p-3.5">Bukti Struk</th>
+                  <th className="p-3.5">Efisiensi</th>
+                  <th className="p-3.5">Audit Struk</th>
+                  <th className="p-3.5">Status Admin</th>
                   <th className="p-3.5 text-right">Total Biaya</th>
-                  <th className="p-3.5 text-center">Aksi</th>
+                  <th className="p-3.5 text-center">Aksi Verifikasi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -401,7 +436,7 @@ export default function AdminDashboard() {
                     </td>
                     <td className="p-3.5 whitespace-nowrap">
                       {log.receipt_image ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setPreviewReceipt(log)}
                             className="text-[11px] text-blue-600 hover:text-blue-800 font-bold underline"
@@ -413,23 +448,47 @@ export default function AdminDashboard() {
                             className="text-[10px] text-slate-700 bg-slate-100 hover:bg-slate-200 px-1.5 py-0.5 rounded border border-slate-200 font-mono"
                             title="Unduh Struk"
                           >
-                            📥 Unduh
+                            📥
                           </button>
                         </div>
                       ) : (
                         <span className="text-slate-400 text-[11px]">-</span>
                       )}
                     </td>
+                    <td className="p-3.5 whitespace-nowrap">
+                      {renderStatusBadge(log.status)}
+                    </td>
                     <td className="p-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                       Rp {log.total_cost.toLocaleString('id-ID')}
                     </td>
                     <td className="p-3.5 text-center whitespace-nowrap">
-                      <button
-                        onClick={() => handleDeleteLog(log.id)}
-                        className="text-[11px] text-rose-600 hover:text-rose-800 font-medium px-2 py-0.5 bg-rose-50 rounded"
-                      >
-                        Hapus
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        {log.status !== 'VERIFIED' && (
+                          <button
+                            onClick={() => handleUpdateStatus(log.id, 'VERIFIED')}
+                            className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded"
+                            title="Setujui Laporan"
+                          >
+                            ✓ Verifikasi
+                          </button>
+                        )}
+                        {log.status !== 'FLAGGED' && (
+                          <button
+                            onClick={() => handleUpdateStatus(log.id, 'FLAGGED')}
+                            className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded"
+                            title="Tandai Anomali"
+                          >
+                            ⚠ Anomali
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteLog(log.id)}
+                          className="text-[10px] text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 bg-rose-50 rounded"
+                          title="Hapus Permanent"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -440,14 +499,14 @@ export default function AdminDashboard() {
 
       </div>
 
-      {/* Modal Pratinjau Foto Struk & Tombol Unduh */}
+      {/* Modal Preview Struk + Approval Action */}
       {previewReceipt && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
               <div>
-                <h3 className="text-xs font-bold text-slate-900">Verifikasi Foto Struk BBM</h3>
-                <p className="text-[11px] text-slate-500">{previewReceipt.plate_number} • {previewReceipt.date}</p>
+                <h3 className="text-xs font-bold text-slate-900">Verifikasi Audit Struk BBM</h3>
+                <p className="text-[11px] text-slate-500">{previewReceipt.plate_number} • {previewReceipt.date} • {previewReceipt.driver_name}</p>
               </div>
               <button
                 onClick={() => setPreviewReceipt(null)}
@@ -456,28 +515,42 @@ export default function AdminDashboard() {
                 ✕
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto rounded-lg border bg-slate-50 flex items-center justify-center p-2">
+            <div className="max-h-[55vh] overflow-y-auto rounded-lg border bg-slate-50 flex items-center justify-center p-2">
               <img src={previewReceipt.receipt_image} alt="Foto Struk BBM" className="max-w-full h-auto rounded" />
             </div>
-            <div className="flex gap-2">
+
+            <div className="space-y-2 pt-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Status Saat Ini:</span>
+                {renderStatusBadge(previewReceipt.status)}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleUpdateStatus(previewReceipt.id, 'VERIFIED')}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition"
+                >
+                  ✓ Setujui (Verified)
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus(previewReceipt.id, 'FLAGGED')}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2 rounded-lg transition"
+                >
+                  ⚠ Tandai Anomali
+                </button>
+              </div>
+
               <button
                 onClick={() => handleDownloadReceipt(previewReceipt.receipt_image, previewReceipt.plate_number, previewReceipt.date, previewReceipt.final_km)}
-                className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-lg transition"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2 rounded-lg border border-slate-200 transition"
               >
-                📥 Unduh Gambar
-              </button>
-              <button
-                onClick={() => setPreviewReceipt(null)}
-                className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2 rounded-lg transition"
-              >
-                Tutup
+                📥 Unduh Berkas Struk
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Footer Credit */}
       <footer className="py-4 text-center border-t border-slate-200 bg-white text-[11px] text-slate-500 font-medium mt-8">
         Developed by <span className="font-bold text-slate-800">Urai Ikhsan Fadhilah</span>
       </footer>

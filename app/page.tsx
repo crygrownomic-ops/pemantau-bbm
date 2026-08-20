@@ -128,6 +128,7 @@ export default function Home() {
       fuel_type: formData.fuel_type,
       receipt_image: receiptBase64,
       date: formData.fill_date,
+      status: 'PENDING', // Bawaan status transaksi baru
     }
 
     const updatedLogs = [newLog, ...logs]
@@ -141,7 +142,7 @@ export default function Home() {
     localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
 
     setCurrentPage(1)
-    alert('Laporan pengisian BBM & foto struk berhasil dikirim!')
+    alert('Laporan pengisian BBM & foto struk berhasil dikirim! Menunggu verifikasi admin.')
 
     setFormData({
       vehicle_id: '',
@@ -345,7 +346,11 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between text-slate-500 text-[11px]">
                     <span>{log.date} • {log.fuel_type} • {log.liters} L</span>
-                    <span>Efisiensi: <strong className="text-slate-800 font-mono">{log.km_per_liter} KM/L</strong></span>
+                    <span className="font-medium">
+                      Status: <span className={log.status === 'VERIFIED' ? 'text-emerald-600 font-bold' : log.status === 'FLAGGED' ? 'text-rose-600 font-bold' : 'text-amber-600 font-bold'}>
+                        {log.status || 'PENDING'}
+                      </span>
+                    </span>
                   </div>
                 </div>
               ))}
@@ -376,7 +381,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer Credit */}
       <footer className="py-4 text-center border-t border-slate-200 bg-white text-[11px] text-slate-500 font-medium mt-8">
         Developed by <span className="font-bold text-slate-800">Urai Ikhsan Fadhilah</span>
       </footer>
