@@ -94,6 +94,13 @@ export default function AdminDashboard() {
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
+  // Cek Sesi Login Otomatis
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('admin_authenticated') === 'true') {
+      setIsAuthenticated(true)
+    }
+  }, [])
+
   useEffect(() => {
     try {
       const storedVehicles = localStorage.getItem('vehicle_budgets')
@@ -122,6 +129,7 @@ export default function AdminDashboard() {
     e.preventDefault()
     if (pinInput === '1234') {
       setIsAuthenticated(true)
+      sessionStorage.setItem('admin_authenticated', 'true')
       setPinError(false)
     } else {
       setPinError(true)
@@ -445,23 +453,42 @@ export default function AdminDashboard() {
               )}
             </button>
 
-            {/* RENAMED MENU: Pusat Kelola Operasional */}
+            {/* PUSAT KELOLA OPERASIONAL & SUB-LINKS LANGSUNG */}
+            <div className="pt-3 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Pusat Kelola Operasional
+            </div>
+
             <Link
-              href="/admin/settings"
-              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition group"
+              href="/admin/settings?tab=drivers"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">⚙️</span>
-                <div className="text-left">
-                  <div className="font-bold group-hover:text-white text-slate-300">Pusat Kelola Operasional</div>
-                  <div className="text-[9px] text-slate-500">Armada, Supir & Tarif</div>
-                </div>
-              </div>
+              <span className="text-sm">👨‍✈️</span> Master & Biodata Driver
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=vehicles"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+            >
+              <span className="text-sm">🚚</span> Armada Kendaraan
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=prices"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+            >
+              <span className="text-sm">⛽</span> Tarif Bahan Bakar
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=company"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+            >
+              <span className="text-sm">🏢</span> Profil Perusahaan
             </Link>
 
             <Link
               href="/admin/backup"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-3 border-t border-slate-800 mt-2"
             >
               <span className="text-base">💾</span> Pusat Backup (.JSON)
             </Link>
@@ -534,10 +561,8 @@ export default function AdminDashboard() {
 
           {activeTab === 'dashboard' && (
             <>
-              {/* MERGED EXECUTIVE COMMAND BAR (SINGLE UNIFIED CONTAINER) */}
+              {/* MERGED EXECUTIVE COMMAND BAR */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden divide-y md:divide-y-0 md:divide-x divide-slate-100 grid grid-cols-1 md:grid-cols-4">
-                
-                {/* 1. Total Biaya */}
                 <div className="p-5 bg-gradient-to-br from-indigo-50/40 via-white to-white space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Total Biaya Operasional</span>
@@ -549,7 +574,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-semibold text-indigo-600 block">Real-Time Total Pengeluaran BBM</span>
                 </div>
 
-                {/* 2. Rata-Rata Efisiensi */}
                 <div className="p-5 bg-gradient-to-br from-emerald-50/40 via-white to-white space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Rata-Rata Efisiensi</span>
@@ -561,7 +585,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-semibold text-emerald-600 block">Rasio Efisiensi Konsumsi Armada</span>
                 </div>
 
-                {/* 3. Total Konsumsi BBM */}
                 <div className="p-5 bg-gradient-to-br from-amber-50/40 via-white to-white space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Total Konsumsi BBM</span>
@@ -573,7 +596,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-semibold text-amber-600 block">Total Volume Terdistribusi</span>
                 </div>
 
-                {/* 4. Total Laporan */}
                 <div className="p-5 bg-gradient-to-br from-slate-50/60 via-white to-white space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Laporan Pengisian</span>
@@ -584,10 +606,9 @@ export default function AdminDashboard() {
                   </div>
                   <span className="text-[10px] font-semibold text-slate-500 block">Audit & Verifikasi Berkas</span>
                 </div>
-
               </div>
 
-              {/* UNIFIED PAGU ANGGARAN BULANAN PANEL */}
+              {/* PAGU ANGGARAN BULANAN PANEL */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b pb-3">
                   <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Realisasi vs Pagu Anggaran Bulanan Armada</h2>

@@ -148,6 +148,21 @@ export default function SettingsPage() {
 
   const [savedSuccess, setSavedSuccess] = useState(false)
 
+  // Cek Sesi Login Otomatis & URL Parameter Tab
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (sessionStorage.getItem('admin_authenticated') === 'true') {
+        setIsAuthenticated(true)
+      }
+
+      const params = new URLSearchParams(window.location.search)
+      const tabParam = params.get('tab')
+      if (tabParam && ['drivers', 'vehicles', 'prices', 'company'].includes(tabParam)) {
+        setActiveTab(tabParam as any)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     try {
       const localPrices = localStorage.getItem('fuel_prices')
@@ -168,6 +183,7 @@ export default function SettingsPage() {
     e.preventDefault()
     if (pinInput === '1234') {
       setIsAuthenticated(true)
+      sessionStorage.setItem('admin_authenticated', 'true')
       setPinError(false)
     } else {
       setPinError(true)
@@ -456,8 +472,7 @@ export default function SettingsPage() {
               <span className="text-base">📊</span> Dashboard Utama
             </Link>
 
-            {/* MAIN MENU NAME: Pusat Kelola Operasional */}
-            <div className="pt-2 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            <div className="pt-3 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
               Pusat Kelola Operasional
             </div>
 
@@ -1073,15 +1088,14 @@ export default function SettingsPage() {
         </main>
       </div>
 
-      {/* MODAL PREVIEW BIODATA DRIVER (CARD DIGITAL EKSEKUTIF) */}
+      {/* MODAL PREVIEW BIODATA DRIVER */}
       {selectedDriverProfile && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             
-            {/* Header Card Profile */}
             <div className="flex justify-between items-start border-b pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-2xl flex items-center justify-center font-bold text-xl shadow-md">
+                <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-2xl flex items-center justify-center mx-auto font-bold text-xl shadow-md">
                   👨‍✈️
                 </div>
                 <div>
@@ -1097,9 +1111,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            {/* Grid Informasi Biodata Detail */}
             <div className="space-y-4 text-xs">
-              
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
                 <span className="font-bold text-slate-900 uppercase text-[10px] tracking-wider block">Legalitas Mengemudi</span>
                 <div className="grid grid-cols-2 gap-2 font-mono">
@@ -1155,7 +1167,6 @@ export default function SettingsPage() {
 
             </div>
 
-            {/* Footer Modal Action */}
             <div className="flex justify-between items-center pt-2 border-t">
               <button
                 onClick={() => {
