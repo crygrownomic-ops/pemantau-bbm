@@ -11,7 +11,7 @@ const DEFAULT_VEHICLES = [
 
 const DEFAULT_LOGS = [
   { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-18', status: 'VERIFIED' },
-  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 12500, km_per_liter: 7.5, total_cost: 500000, fuel_type: 'Biosolar / Solar', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat 35 KM - Pompa Rusak', date: '2026-08-19', status: 'FLAGGED' },
+  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 12500, km_per_liter: 7.5, total_cost: 500000, fuel_type: 'Biosolar / Solar', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat 35 KM - Kehabisan Stok', date: '2026-08-19', status: 'FLAGGED' },
   { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede Kurniawan', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 727500, fuel_type: 'Dexlite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
   { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
 ]
@@ -81,6 +81,9 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // STATE DROPDOWN SIDEBAR ACCORDION
+  const [isKelolaOpen, setIsKelolaOpen] = useState(false)
 
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
@@ -96,7 +99,6 @@ export default function AdminDashboard() {
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
-  // Sesi Login Permanen LocalStorage
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
       setIsAuthenticated(true)
@@ -193,22 +195,22 @@ export default function AdminDashboard() {
     const val = Number(kmPerLiterVal) || 0
     if (val < 8) {
       return (
-        <span className="bg-rose-100 text-rose-700 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-sm">
+        <span className="bg-rose-500/10 text-rose-600 border border-rose-300 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-xs">
           <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
           {val} KM/L (Boros)
         </span>
       )
     } else if (val < 12) {
       return (
-        <span className="bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+        <span className="bg-amber-500/10 text-amber-700 border border-amber-300 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
           {val} KM/L (Normal)
         </span>
       )
     } else {
       return (
-        <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+        <span className="bg-emerald-500/10 text-emerald-700 border border-emerald-300 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
           {val} KM/L (Irit)
         </span>
       )
@@ -229,7 +231,7 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-5 text-center border border-slate-100">
-          <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center mx-auto text-xl font-bold shadow-md">
+          <div className="w-12 h-12 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold shadow-lg">
             ⛽
           </div>
           <div>
@@ -242,7 +244,7 @@ export default function AdminDashboard() {
               type="password"
               maxLength={4}
               placeholder="••••"
-              className="w-full text-center text-2xl tracking-widest py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold bg-slate-50"
+              className="w-full text-center text-2xl tracking-widest py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-mono font-bold bg-slate-50"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
             />
@@ -414,24 +416,20 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url)
   }
 
-  const handleTriggerPrint = () => {
-    window.print()
-  }
-
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       
-      {/* SIDEBAR NAVIGATION KIRI */}
+      {/* SIDEBAR NAVIGATION KIRI REVISED WITH DROPDOWN ACCORDION */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between print:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-amber-500 text-slate-900 rounded-xl flex items-center justify-center font-bold text-lg shadow-md">
+              <div className="w-9 h-9 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 rounded-xl flex items-center justify-center font-extrabold text-lg shadow-md">
                 ⛽
               </div>
               <div>
                 <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
-                <span className="text-[10px] text-amber-400 font-semibold tracking-wider uppercase">Enterprise Edition</span>
+                <span className="text-[10px] text-amber-400 font-bold tracking-wider uppercase">Enterprise Edition</span>
               </div>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
@@ -441,74 +439,91 @@ export default function AdminDashboard() {
 
           <nav className="p-4 space-y-1">
             
-            {/* TOMBOL PINTAS UTAMA KEMBALI KE FORM DRIVER */}
+            {/* TOMBOL PINTAS FORM DRIVER */}
             <Link
               href="/"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md hover:brightness-105 transition mb-3"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-md hover:brightness-105 transition mb-3"
             >
               <span className="text-base">📱</span> Form Input BBM Driver
             </Link>
 
+            {/* MODUL NAVIGATION PERTAMA */}
             <button
               onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-slate-800 text-white font-bold border-l-4 border-amber-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <span className="text-base">📊</span> Dashboard Utama
             </button>
 
             <button
               onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-slate-800 text-white font-bold border-l-4 border-amber-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <span className="text-base">📈</span> Analytics & Grafik
             </button>
 
             <button
               onClick={() => { setActiveTab('maintenance'); setSidebarOpen(false); }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'maintenance' ? 'bg-slate-800 text-white font-bold border-l-4 border-amber-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'maintenance' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <div className="flex items-center gap-3">
                 <span className="text-base">🔧</span> Jadwal Servis Armada
               </div>
               {criticalServiceCount > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
                   {criticalServiceCount}
                 </span>
               )}
             </button>
 
-            {/* PUSAT KELOLA OPERASIONAL & SUB-LINKS LANGSUNG */}
-            <div className="pt-3 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              Pusat Kelola Operasional
+            {/* PUSAT KELOLA OPERASIONAL DROPDOWN ACCORDION */}
+            <div className="pt-3">
+              <button
+                type="button"
+                onClick={() => setIsKelolaOpen(!isKelolaOpen)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition group"
+              >
+                <span className="uppercase text-[10px] tracking-wider text-amber-400 font-extrabold flex items-center gap-2">
+                  <span>⚙️</span> Pusat Kelola Operasional
+                </span>
+                <span className="text-slate-500 group-hover:text-white transition-transform text-xs font-bold">
+                  {isKelolaOpen ? '▲' : '▼'}
+                </span>
+              </button>
+
+              {/* SUB-MENU DROPDOWN */}
+              {isKelolaOpen && (
+                <div className="mt-1 pl-3 space-y-1 border-l-2 border-slate-700 ml-3 animate-fade-in">
+                  <Link
+                    href="/admin/settings?tab=drivers"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+                  >
+                    <span>👨‍✈️</span> Master Biodata Driver
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=vehicles"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+                  >
+                    <span>🚚</span> Armada Kendaraan
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=prices"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+                  >
+                    <span>⛽</span> Tarif Bahan Bakar
+                  </Link>
+
+                  <Link
+                    href="/admin/settings?tab=company"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+                  >
+                    <span>🏢</span> Profil Perusahaan
+                  </Link>
+                </div>
+              )}
             </div>
-
-            <Link
-              href="/admin/settings?tab=drivers"
-              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
-            >
-              <span className="text-sm">👨‍✈️</span> Master & Biodata Driver
-            </Link>
-
-            <Link
-              href="/admin/settings?tab=vehicles"
-              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
-            >
-              <span className="text-sm">🚚</span> Armada Kendaraan
-            </Link>
-
-            <Link
-              href="/admin/settings?tab=prices"
-              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
-            >
-              <span className="text-sm">⛽</span> Tarif Bahan Bakar
-            </Link>
-
-            <Link
-              href="/admin/settings?tab=company"
-              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
-            >
-              <span className="text-sm">🏢</span> Profil Perusahaan
-            </Link>
 
             <Link
               href="/admin/backup"
@@ -538,7 +553,7 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* KONTEN UTAMA */}
+      {/* KONTEN UTAMA DENGAN WARNA WARNI VIBRANT */}
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* TOP BAR / HEADER */}
@@ -561,13 +576,13 @@ export default function AdminDashboard() {
             </Link>
             <button
               onClick={() => setShowPrintModal(true)}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition items-center gap-1.5 shadow-sm hidden sm:flex"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition hidden sm:flex items-center gap-1.5 shadow-sm"
             >
               🖨️ Cetak PDF Eksekutif
             </button>
             <button
               onClick={exportToExcel}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition items-center gap-1.5 shadow-sm hidden sm:flex"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition hidden sm:flex items-center gap-1.5 shadow-sm"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -580,15 +595,15 @@ export default function AdminDashboard() {
         {/* MAIN BODY CONTENT */}
         <main className="p-4 sm:p-6 space-y-6 overflow-y-auto print:p-0">
           
-          {/* BANNER PERINGATAN ANOMALI & TRANS-DARURAT */}
+          {/* BANNER PERINGATAN ANOMALI */}
           {(pendingCount > 0 || emergencyCount > 0 || highConsumptionLogs.length > 0 || criticalServiceCount > 0) && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm print:hidden">
+            <div className="p-4 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-300/80 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm print:hidden">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">⚠️</span>
-                <div className="text-xs text-amber-900">
-                  <span className="font-bold">Sistem Perhatian Operasional:</span>
+                <div className="text-xs text-amber-950">
+                  <span className="font-bold uppercase tracking-wider text-[11px] text-amber-800">Perhatian Audit Operasional:</span>
                   <span className="block mt-0.5">
-                    Terdapat <strong className="underline">{pendingCount} laporan baru</strong>, <strong className="text-amber-800 font-bold underline">{emergencyCount} pengisian darurat emperan</strong>, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, serta <strong className="text-rose-700 underline">{criticalServiceCount} armada wajib servis</strong>.
+                    Terdapat <strong className="text-indigo-900 underline">{pendingCount} laporan baru</strong>, <strong className="text-amber-800 underline">{emergencyCount} pengisian darurat emperan</strong>, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, dan <strong className="text-rose-700 underline">{criticalServiceCount} armada wajib servis</strong>.
                   </span>
                 </div>
               </div>
@@ -597,74 +612,83 @@ export default function AdminDashboard() {
 
           {activeTab === 'dashboard' && (
             <>
-              {/* MERGED EXECUTIVE COMMAND BAR */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden divide-y md:divide-y-0 md:divide-x divide-slate-100 grid grid-cols-1 md:grid-cols-4">
-                <div className="p-5 bg-gradient-to-br from-indigo-50/40 via-white to-white space-y-2">
+              {/* MERGED EXECUTIVE COMMAND BAR DENGAN WARNA VIBRANT */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                
+                {/* CARD 1: TOTAL BIAYA (INDIGO/VIOLET) */}
+                <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-indigo-500/30">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Total Biaya Operasional</span>
-                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm shadow">💰</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Total Biaya Operasional</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm">💰</span>
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                  <div className="text-2xl font-extrabold font-mono text-white">
                     Rp {(Number(totalCost) || 0).toLocaleString('id-ID')}
                   </div>
-                  <span className="text-[10px] font-semibold text-indigo-600 block">Real-Time Total Pengeluaran BBM</span>
+                  <span className="text-[10px] font-medium text-indigo-100 block">Akumulasi Real-Time Pengeluaran</span>
                 </div>
 
-                <div className="p-5 bg-gradient-to-br from-emerald-50/40 via-white to-white space-y-2">
+                {/* CARD 2: RATA-RATA EFISIENSI (EMERALD/TEAL) */}
+                <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-emerald-500/30">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Rata-Rata Efisiensi</span>
-                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow">⚡</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Rata-Rata Efisiensi</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm">⚡</span>
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
-                    {avgKmPerLiter} <span className="text-xs font-sans font-medium text-slate-500">KM/L</span>
+                  <div className="text-2xl font-extrabold font-mono text-white">
+                    {avgKmPerLiter} <span className="text-xs font-sans font-medium text-emerald-100">KM/L</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-emerald-600 block">Rasio Efisiensi Konsumsi Armada</span>
+                  <span className="text-[10px] font-medium text-emerald-100 block">Rasio Efisiensi Seluruh Armada</span>
                 </div>
 
-                <div className="p-5 bg-gradient-to-br from-amber-50/40 via-white to-white space-y-2">
+                {/* CARD 3: TOTAL KONSUMSI BBM (AMBER/ORANGE) */}
+                <div className="p-5 bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-amber-400/30">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Total Konsumsi BBM</span>
-                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-sm shadow">🛢️</span>
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">Total Konsumsi BBM</span>
+                    <span className="w-8 h-8 rounded-xl bg-slate-950/20 backdrop-blur-md text-slate-950 flex items-center justify-center text-sm">🛢️</span>
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
-                    {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-medium text-slate-500">Liter</span>
+                  <div className="text-2xl font-extrabold font-mono text-slate-950">
+                    {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-semibold text-slate-800">Liter</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-amber-600 block">Total Volume Terdistribusi</span>
+                  <span className="text-[10px] font-bold text-slate-900 block">Total Volume BBM Terdistribusi</span>
                 </div>
 
-                <div className="p-5 bg-gradient-to-br from-slate-50/60 via-white to-white space-y-2">
+                {/* CARD 4: TOTAL LAPORAN (SKY/BLUE) */}
+                <div className="p-5 bg-gradient-to-br from-blue-600 to-sky-700 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-blue-500/30">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Laporan Pengisian</span>
-                    <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm shadow">📋</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Total Transaksi</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm">📋</span>
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
-                    {filteredLogs.length} <span className="text-xs font-sans font-medium text-slate-500">Laporan</span>
+                  <div className="text-2xl font-extrabold font-mono text-white">
+                    {filteredLogs.length} <span className="text-xs font-sans font-medium text-blue-100">Laporan</span>
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 block">Audit & Verifikasi Berkas</span>
+                  <span className="text-[10px] font-medium text-blue-100 block">Audit Transaksi Terverifikasi</span>
                 </div>
+
               </div>
 
-              {/* PAGU ANGGARAN BULANAN PANEL */}
+              {/* PAGU ANGGARAN BULANAN PANEL DENGAN COLOR ACCENT */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b pb-3">
-                  <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Realisasi vs Pagu Anggaran Bulanan Armada</h2>
+                  <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                    Realisasi vs Pagu Anggaran Bulanan Armada
+                  </h2>
                   <span className="text-[11px] text-slate-500 font-medium">Batas Maksimum Pengeluaran Operasional</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {vehicleStats.map((v) => (
-                    <div key={v.plate_number} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 hover:border-slate-300 transition shadow-xs">
+                    <div key={v.plate_number} className="p-4 bg-gradient-to-b from-slate-50 to-slate-100/60 rounded-xl border border-slate-200/90 space-y-3 hover:shadow-md transition">
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="font-bold text-xs text-slate-900">{v.plate_number}</div>
+                          <div className="font-extrabold text-xs text-slate-900">{v.plate_number}</div>
                           <div className="text-[11px] text-slate-500">{v.model}</div>
                         </div>
                         {v.isOverBudget ? (
-                          <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                          <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
                             Exceeded
                           </span>
                         ) : (
-                          <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                          <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
                             Normal
                           </span>
                         )}
@@ -685,15 +709,15 @@ export default function AdminDashboard() {
                         <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mt-2">
                           <div
                             className={`h-2 rounded-full transition-all duration-500 ${
-                              v.isOverBudget ? 'bg-rose-600' : 'bg-slate-900'
+                              v.isOverBudget ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-indigo-500 to-blue-600'
                             }`}
                             style={{ width: `${v.usagePercent}%` }}
                           ></div>
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
-                        <span className="text-slate-500">Efisiensi Rata-Rata:</span>
+                      <div className="pt-2 border-t border-slate-200/80 flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Rasio Efisiensi:</span>
                         {renderEfficiencyBadge(v.efficiency)}
                       </div>
                     </div>
@@ -704,7 +728,10 @@ export default function AdminDashboard() {
               {/* TABEL REKAPITULASI AUDIT LOGS */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-                  <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
+                  <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    Rincian Transaksi Pengisian BBM
+                  </h2>
                   
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
@@ -752,7 +779,7 @@ export default function AdminDashboard() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                    <thead className="bg-slate-900 text-white font-bold border-b border-slate-800">
                       <tr>
                         <th className="p-3.5">Tanggal</th>
                         <th className="p-3.5">Kendaraan</th>
@@ -773,12 +800,12 @@ export default function AdminDashboard() {
                         <tr key={log.id} className="hover:bg-slate-50/80 transition">
                           <td className="p-3.5 font-medium whitespace-nowrap">{log.date}</td>
                           <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.plate_number}</td>
-                          <td className="p-3.5 whitespace-nowrap">{log.driver_name}</td>
+                          <td className="p-3.5 whitespace-nowrap font-medium text-slate-800">{log.driver_name}</td>
                           
                           {/* BADGE SPBU VS DARURAT ECERAN */}
                           <td className="p-3.5 whitespace-nowrap">
                             {log.fill_location === 'ECERAN' ? (
-                              <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-2.5 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1 shadow-xs">
+                              <span className="bg-amber-500/10 text-amber-900 border border-amber-300 font-extrabold px-2.5 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1 shadow-xs">
                                 ⚠️ DARURAT (ECERAN)
                               </span>
                             ) : (
@@ -1105,7 +1132,7 @@ export default function AdminDashboard() {
                 Tutup
               </button>
               <button
-                onClick={handleTriggerPrint}
+                onClick={() => window.print()}
                 className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5"
               >
                 🖨️ Cetak / Simpan PDF
