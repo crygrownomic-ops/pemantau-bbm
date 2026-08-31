@@ -12,7 +12,7 @@ const Icons = {
   ),
   Dashboard: () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2h-2a2 2 0 01-2-2v-2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
     </svg>
   ),
   Analytics: () => (
@@ -174,7 +174,6 @@ function getMaintenanceSchedule(currentKm: number, kirExpiryDate?: string) {
   const nextTireKm = Math.ceil((km + 1) / tireInterval) * tireInterval
   const remainingTireKm = nextTireKm - km
 
-  // PERHITUNGAN KIR DAYS REMAINING
   let daysToKir = 999
   let isKirCritical = false
   if (kirExpiryDate) {
@@ -210,17 +209,22 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isKelolaOpen, setIsKelolaOpen] = useState(false)
 
+  // FILTER UNTUK TABEL BBM
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+
+  // FILTER UNTUK TABEL SERVIS & KIR
+  const [serviceStartDate, setServiceStartDate] = useState('')
+  const [serviceEndDate, setServiceEndDate] = useState('')
+  const [serviceSelectedVehicle, setServiceSelectedVehicle] = useState('ALL')
 
   const [showPrintModal, setShowPrintModal] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
-  // STATE MODAL SERVIS / PERBAIKAN / KIR SELESAI
   const [selectedServiceVehicle, setSelectedServiceVehicle] = useState<any | null>(null)
   const [serviceTypeInput, setServiceTypeInput] = useState('Ganti Oli & Filter Mesin')
   const [serviceCostInput, setServiceCostInput] = useState('')
@@ -306,7 +310,6 @@ export default function AdminDashboard() {
     setServiceHistory(updatedHistory)
     localStorage.setItem('service_history', JSON.stringify(updatedHistory))
 
-    // UPDATE TANGGAL KADALUARSA KIR JIKA PENGUJIANKIR BERKALA
     if (serviceTypeInput === 'Pengujian Uji KIR Berkala' && newKirExpiryInput) {
       const updatedVehicles = vehicles.map((v) =>
         v.plate_number === selectedServiceVehicle.plate_number ? { ...v, kir_expiry: newKirExpiryInput } : v
@@ -396,7 +399,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900">Dashboard Admin</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Sistem Monitoring BBM & Maintenance Armada</p>
+            <p className="text-xs text-slate-500 mt-0.5">FleetOps 360 • System Control Center</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3">
@@ -440,10 +443,19 @@ export default function AdminDashboard() {
   const safeLogs = Array.isArray(logs) ? logs : []
   const safeVehicles = Array.isArray(vehicles) ? vehicles : []
 
+  // FILTER LOGS BBM
   const filteredLogs = safeLogs.filter((log) => {
     const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
     const matchStart = !startDate || log.date >= startDate
     const matchEnd = !endDate || log.date <= endDate
+    return matchVehicle && matchStart && matchEnd
+  })
+
+  // FILTER RIWAYAT SERVIS / KIR / PERBAIKAN
+  const filteredServiceHistory = serviceHistory.filter((s) => {
+    const matchVehicle = serviceSelectedVehicle === 'ALL' || s.plate_number === serviceSelectedVehicle
+    const matchStart = !serviceStartDate || s.date >= serviceStartDate
+    const matchEnd = !serviceEndDate || s.date <= serviceEndDate
     return matchVehicle && matchStart && matchEnd
   })
 
@@ -461,7 +473,6 @@ export default function AdminDashboard() {
     const vLogs = safeLogs.filter((l) => l.plate_number === v.plate_number)
     const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
     
-    // BIAYA SERVIS / PERBAIKAN / KIR PER VEHICLE
     const vServices = serviceHistory.filter((s) => s.plate_number === v.plate_number)
     const spentMaintenance = vServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
     const totalOperationalCost = spentCost + spentMaintenance
@@ -604,7 +615,7 @@ export default function AdminDashboard() {
                 <Icons.Fuel />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
+                <h2 className="text-sm font-bold text-white tracking-wide">FLEETOPS 360</h2>
                 <span className="text-[10px] text-amber-400 font-bold tracking-wider uppercase">Enterprise Edition</span>
               </div>
             </div>
@@ -1138,11 +1149,11 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* MODUL SERVIS, KIR & PERBAIKAN ARMADA DISEMPURNAKAN */}
+          {/* MODUL SERVIS, KIR & PERBAIKAN ARMADA WITH SCROLL LOCK & SEARCH FILTER */}
           {activeTab === 'maintenance' && (
             <div className="space-y-6">
               
-              {/* HEADER MAITENANCE INFO */}
+              {/* HEADER MAINTENANCE INFO */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -1245,17 +1256,59 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {/* TABEL HISTORI PERBAIKAN BENGKEL & KARTU KIR */}
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-3">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+              {/* TABEL HISTORI PERBAIKAN BENGKEL - DILENGKAPI SCROLL LOCK & FILTER TANGGAL */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
                   <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
                     Riwayat Pengerjaan Servis, Uji KIR & Perbaikan Bengkel
                   </h3>
-                  <span className="text-[11px] text-slate-500 font-mono">Total {serviceHistory.length} Pengerjaan</span>
+                  
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                      <span className="text-slate-500 font-medium">Dari:</span>
+                      <input
+                        type="date"
+                        className="bg-transparent font-medium text-slate-800 outline-none"
+                        value={serviceStartDate}
+                        onChange={(e) => setServiceStartDate(e.target.value)}
+                      />
+                      <span className="text-slate-500 font-medium">s/d</span>
+                      <input
+                        type="date"
+                        className="bg-transparent font-medium text-slate-800 outline-none"
+                        value={serviceEndDate}
+                        onChange={(e) => setServiceEndDate(e.target.value)}
+                      />
+                      {(serviceStartDate || serviceEndDate) && (
+                        <button
+                          onClick={() => {
+                            setServiceStartDate('')
+                            setServiceEndDate('')
+                          }}
+                          className="text-slate-400 hover:text-slate-700 ml-1 font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <select
+                      className="text-xs border border-slate-300 rounded-xl p-2 bg-white font-medium text-slate-700 outline-none"
+                      value={serviceSelectedVehicle}
+                      onChange={(e) => setServiceSelectedVehicle(e.target.value)}
+                    >
+                      <option value="ALL">Semua Armada</option>
+                      {safeVehicles.map((v) => (
+                        <option key={v.plate_number} value={v.plate_number}>
+                          {v.plate_number} - {v.model}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
+                <div className="overflow-x-auto max-h-[180px] overflow-y-auto">
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
                       <tr>
@@ -1268,7 +1321,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {serviceHistory.map((s) => (
+                      {filteredServiceHistory.map((s) => (
                         <tr key={s.id} className="hover:bg-slate-50 transition">
                           <td className="p-3 font-mono">{s.date}</td>
                           <td className="p-3 font-bold text-slate-900">{s.plate_number}</td>
@@ -1282,6 +1335,15 @@ export default function AdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-mono text-[11px]">
+                    Menampilkan total <strong className="text-slate-900">{filteredServiceHistory.length}</strong> catatan pengerjaan
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-medium italic">
+                    💡 Gulung (scroll) ke bawah pada tabel untuk melihat data lainnya
+                  </span>
                 </div>
               </div>
 
