@@ -29,9 +29,12 @@ export default function Home() {
   const [receiptBase64, setReceiptBase64] = useState<string>('')
   const [isCompressing, setIsCompressing] = useState(false)
 
+  const todayStr = new Date().toISOString().split('T')[0]
+
   const [formData, setFormData] = useState({
     vehicle_id: '',
     driver_name: '',
+    fill_date: todayStr,
     initial_km: 0,
     final_km: '',
     liters: '',
@@ -57,7 +60,6 @@ export default function Home() {
     }))
   }
 
-  // Fungsi Kompresi Foto Struk di HP (Otomatis dari MB -> KB)
   const handleImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -70,7 +72,7 @@ export default function Home() {
       img.src = event.target?.result as string
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 800 // Kualitas tinggi untuk teks struk
+        const MAX_WIDTH = 800
         const scale = MAX_WIDTH / img.width
         const width = img.width > MAX_WIDTH ? MAX_WIDTH : img.width
         const height = img.width > MAX_WIDTH ? img.height * scale : img.height
@@ -81,7 +83,6 @@ export default function Home() {
         const ctx = canvas.getContext('2d')
         ctx?.drawImage(img, 0, 0, width, height)
 
-        // Kompresi ke format JPEG dengan kualitas 0.7
         const compressedData = canvas.toDataURL('image/jpeg', 0.7)
         setReceiptBase64(compressedData)
         setIsCompressing(false)
@@ -111,19 +112,23 @@ export default function Home() {
 
     const kmPerLiter = (distance / numericLiters).toFixed(2)
     const selectedVehicle = vehicles.find((v) => v.id === formData.vehicle_id)
-    const today = new Date().toISOString().split('T')[0]
 
     const newLog = {
       id: Date.now(),
       plate_number: selectedVehicle?.plate_number,
+      vehicle_model: selectedVehicle?.model,
       driver_name: formData.driver_name,
+      initial_km: formData.initial_km,
+      final_km: finalKmNum,
       distance_km: distance,
       liters: numericLiters,
+      unit_price: unitPrice,
       km_per_liter: kmPerLiter,
       total_cost: calculatedTotalCost,
       fuel_type: formData.fuel_type,
-      receipt_image: receiptBase64, // Pratinjau foto tersimpan
-      date: today,
+      receipt_image: receiptBase64,
+      date: formData.fill_date,
+      status: 'PENDING', // Bawaan status transaksi baru
     }
 
     const updatedLogs = [newLog, ...logs]
@@ -137,11 +142,12 @@ export default function Home() {
     localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
 
     setCurrentPage(1)
-    alert('Laporan pengisian BBM & foto struk berhasil dikirim!')
+    alert('Laporan pengisian BBM & foto struk berhasil dikirim! Menunggu verifikasi admin.')
 
     setFormData({
       vehicle_id: '',
       driver_name: '',
+      fill_date: todayStr,
       initial_km: 0,
       final_km: '',
       liters: '',
@@ -154,209 +160,230 @@ export default function Home() {
   const paginatedLogs = logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   return (
-    <main className="max-w-xl mx-auto p-4 min-h-screen bg-slate-50 space-y-6 font-sans text-slate-800">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        
-        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-          <div>
-            <h1 className="text-base font-bold text-slate-900">Form Laporan BBM</h1>
-            <p className="text-xs text-slate-500">Input transaksi operasional pengisian BBM</p>
-          </div>
-          <Link
-            href="/admin"
-            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg border border-slate-200 transition"
-          >
-            Akses Admin →
-          </Link>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih Kendaraan</label>
-            <select
-              required
-              className="w-full p-2.5 border rounded-lg text-xs bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
-              value={formData.vehicle_id}
-              onChange={(e) => handleVehicleSelect(e.target.value)}
-            >
-              <option value="">-- Pilih Armada --</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.plate_number} ({v.model})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Nama Pengemudi <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Contoh: Udin"
-              className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
-              value={formData.driver_name}
-              onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-semibold text-slate-700">Jenis Bahan Bakar</label>
-              <span className="text-[11px] font-mono text-slate-500">
-                Rp {unitPrice.toLocaleString('id-ID')} / Liter
-              </span>
-            </div>
-            <select
-              className="w-full p-2.5 border rounded-lg text-xs bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
-              value={formData.fuel_type}
-              onChange={(e) => setFormData({ ...formData, fuel_type: e.target.value })}
-            >
-              {Object.keys(fuelPrices).map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800">
+      <main className="max-w-xl w-full mx-auto p-4 space-y-6">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          
+          <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
             <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-semibold text-slate-700">KM Awal Odometer</label>
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">Otomatis</span>
+              <h1 className="text-base font-bold text-slate-900">Form Laporan BBM</h1>
+              <p className="text-xs text-slate-500">Input transaksi operasional pengisian BBM</p>
+            </div>
+            <Link
+              href="/admin"
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-1.5 rounded-lg border border-slate-200 transition"
+            >
+              Akses Admin →
+            </Link>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih Kendaraan</label>
+                <select
+                  required
+                  className="w-full p-2.5 border rounded-lg text-xs bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
+                  value={formData.vehicle_id}
+                  onChange={(e) => handleVehicleSelect(e.target.value)}
+                >
+                  <option value="">-- Pilih Armada --</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.plate_number} ({v.model})
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Pengisian</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium bg-white"
+                  value={formData.fill_date}
+                  onChange={(e) => setFormData({ ...formData, fill_date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Nama Pengemudi <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
-                readOnly
-                disabled
-                className="w-full p-2.5 border rounded-lg text-xs bg-slate-100 border-slate-200 text-slate-700 font-mono font-bold cursor-not-allowed"
-                value={`${formData.initial_km.toLocaleString('id-ID')} KM`}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">KM Akhir Odometer</label>
-              <input
-                type="number"
                 required
-                placeholder="45420"
-                className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
-                value={formData.final_km}
-                onChange={(e) => setFormData({ ...formData, final_km: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Volume (Liter)</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                placeholder="30"
-                className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono"
-                value={formData.liters}
-                onChange={(e) => setFormData({ ...formData, liters: e.target.value })}
+                placeholder="Contoh: Udin"
+                className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
+                value={formData.driver_name}
+                onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Total Biaya (Terhitung)</label>
-              <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 flex justify-between items-center">
-                <span>Rp</span>
-                <span>{calculatedTotalCost.toLocaleString('id-ID')}</span>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-semibold text-slate-700">Jenis Bahan Bakar</label>
+                <span className="text-[11px] font-mono text-slate-500">
+                  Rp {unitPrice.toLocaleString('id-ID')} / Liter
+                </span>
+              </div>
+              <select
+                className="w-full p-2.5 border rounded-lg text-xs bg-white border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
+                value={formData.fuel_type}
+                onChange={(e) => setFormData({ ...formData, fuel_type: e.target.value })}
+              >
+                {Object.keys(fuelPrices).map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">KM Awal Odometer</label>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold">Otomatis</span>
+                </div>
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  className="w-full p-2.5 border rounded-lg text-xs bg-slate-100 border-slate-200 text-slate-700 font-mono font-bold cursor-not-allowed"
+                  value={`${formData.initial_km.toLocaleString('id-ID')} KM`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">KM Akhir Odometer</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="45420"
+                  className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
+                  value={formData.final_km}
+                  onChange={(e) => setFormData({ ...formData, final_km: e.target.value })}
+                />
               </div>
             </div>
-          </div>
 
-          {/* Akses Kamera / Upload Foto Struk */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Foto Bukti Struk Pembelian</label>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleImageCapture}
-              className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
-            />
-            {isCompressing && (
-              <p className="text-[11px] text-blue-600 font-medium mt-1">Mengompres ukuran foto...</p>
-            )}
-            {receiptBase64 && (
-              <div className="mt-2 relative w-24 h-24 border rounded-lg overflow-hidden bg-slate-100">
-                <img src={receiptBase64} alt="Struk Preview" className="w-full h-full object-cover" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Volume (Liter)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="30"
+                  className="w-full p-2.5 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono"
+                  value={formData.liters}
+                  onChange={(e) => setFormData({ ...formData, liters: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Total Biaya (Terhitung)</label>
+                <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-900 flex justify-between items-center">
+                  <span>Rp</span>
+                  <span>{calculatedTotalCost.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Foto Bukti Struk Pembelian</label>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleImageCapture}
+                className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+              />
+              {isCompressing && (
+                <p className="text-[11px] text-blue-600 font-medium mt-1">Mengompres ukuran foto...</p>
+              )}
+              {receiptBase64 && (
+                <div className="mt-2 relative w-24 h-24 border rounded-lg overflow-hidden bg-slate-100">
+                  <img src={receiptBase64} alt="Struk Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setReceiptBase64('')}
+                    className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-lg text-xs transition shadow-sm mt-2"
+            >
+              Kirim Laporan Pengisian
+            </button>
+          </form>
+        </div>
+
+        {logs.length > 0 && (
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <h2 className="font-bold text-slate-900 text-xs tracking-wider uppercase">SESI LAPORAN SAAT INI</h2>
+              <span className="text-[11px] text-slate-400 font-mono">
+                Total: {logs.length} Laporan
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {paginatedLogs.map((log) => (
+                <div key={log.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{log.plate_number} ({log.driver_name})</span>
+                    <span className="font-mono">Rp {log.total_cost.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 text-[11px]">
+                    <span>{log.date} • {log.fuel_type} • {log.liters} L</span>
+                    <span className="font-medium">
+                      Status: <span className={log.status === 'VERIFIED' ? 'text-emerald-600 font-bold' : log.status === 'FLAGGED' ? 'text-rose-600 font-bold' : 'text-amber-600 font-bold'}>
+                        {log.status || 'PENDING'}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-xs">
                 <button
-                  type="button"
-                  onClick={() => setReceiptBase64('')}
-                  className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => prev - 1)}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded font-medium transition"
                 >
-                  ✕
+                  ← Sebelumnya
+                </button>
+                <span className="font-mono text-[11px] text-slate-500">
+                  Halaman {currentPage} dari {totalPages}
+                </span>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded font-medium transition"
+                >
+                  Berikutnya →
                 </button>
               </div>
             )}
           </div>
+        )}
+      </main>
 
-          <button
-            type="submit"
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded-lg text-xs transition shadow-sm mt-2"
-          >
-            Kirim Laporan Pengisian
-          </button>
-        </form>
-      </div>
-
-      {/* Sesi Laporan Saat Ini */}
-      {logs.length > 0 && (
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-          <div className="flex justify-between items-center">
-            <h2 className="font-bold text-slate-900 text-xs tracking-wider uppercase">SESI LAPORAN SAAT INI</h2>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Total: {logs.length} Laporan
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            {paginatedLogs.map((log) => (
-              <div key={log.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-                <div className="flex justify-between font-bold text-slate-900">
-                  <span>{log.plate_number} ({log.driver_name})</span>
-                  <span className="font-mono">Rp {log.total_cost.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between text-slate-500 text-[11px]">
-                  <span>{log.fuel_type} • {log.liters} L</span>
-                  <span>Efisiensi: <strong className="text-slate-800 font-mono">{log.km_per_liter} KM/L</strong></span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-xs">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded font-medium transition"
-              >
-                ← Sebelumnya
-              </button>
-              <span className="font-mono text-[11px] text-slate-500">
-                Halaman {currentPage} dari {totalPages}
-              </span>
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => prev + 1)}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 rounded font-medium transition"
-              >
-                Berikutnya →
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </main>
+      <footer className="py-4 text-center border-t border-slate-200 bg-white text-[11px] text-slate-500 font-medium mt-8">
+        Developed by <span className="font-bold text-slate-800">Urai Ikhsan Fadhilah</span>
+      </footer>
+    </div>
   )
 }
