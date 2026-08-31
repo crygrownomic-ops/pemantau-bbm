@@ -10,9 +10,11 @@ const DEFAULT_VEHICLES = [
 ]
 
 const DEFAULT_LOGS = [
-  { id: 1, plate_number: 'KB 1234 YK', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 47500, final_km: 47582, distance_km: 82, liters: 35.5, unit_price: 12500, km_per_liter: 2.31, total_cost: 443750, fuel_type: 'Pertalite', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat Habis Stok', date: '2026-08-31', status: 'PENDING' },
-  { id: 2, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Udin', initial_km: 45070, final_km: 45250, distance_km: 180, liters: 30, unit_price: 10000, km_per_liter: 6.0, total_cost: 300000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-26', status: 'VERIFIED' },
-  { id: 3, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Joko', initial_km: 0, final_km: 70, distance_km: 70, liters: 25.3, unit_price: 10000, km_per_liter: 2.77, total_cost: 253000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Ahmad Supardi', initial_km: 45250, final_km: 45750, distance_km: 500, liters: 15, unit_price: 10000, km_per_liter: 33.33, total_cost: 150000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-31', status: 'PENDING' },
+  { id: 2, plate_number: 'KB 1234 YK', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 47582, final_km: 47896, distance_km: 314, liters: 30, unit_price: 10000, km_per_liter: 10.47, total_cost: 300000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-31', status: 'PENDING' },
+  { id: 3, plate_number: 'KB 1234 YK', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 47500, final_km: 47582, distance_km: 82, liters: 35.5, unit_price: 12500, km_per_liter: 2.31, total_cost: 443750, fuel_type: 'Pertalite', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat Habis Stok', date: '2026-08-31', status: 'PENDING' },
+  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Udin', initial_km: 45070, final_km: 45250, distance_km: 180, liters: 30, unit_price: 10000, km_per_liter: 6.0, total_cost: 300000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-26', status: 'VERIFIED' },
+  { id: 5, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Joko', initial_km: 0, final_km: 70, distance_km: 70, liters: 25.3, unit_price: 10000, km_per_liter: 2.77, total_cost: 253000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
 ]
 
 function sanitizeVehicles(data: any) {
@@ -80,8 +82,6 @@ export default function AdminDashboard() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  
-  // State Dropdown Sidebar Accordion
   const [isKelolaOpen, setIsKelolaOpen] = useState(false)
 
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
@@ -90,7 +90,6 @@ export default function AdminDashboard() {
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
   const [showPrintModal, setShowPrintModal] = useState(false)
-
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
@@ -705,7 +704,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* TABEL REKAPITULASI AUDIT LOGS WITH SCROLL BOX */}
+              {/* TABEL REKAPITULASI AUDIT LOGS - SCROLL LOCK 3 BARIS & DROPDOWN AKSI */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
                   <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -757,8 +756,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* SCROLL BOX CONTAINER WITH STICKY HEADER */}
-                <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+                {/* SCROLL BOX CONTAINER DENGAN KETINGGIAN 3 BARIS (max-h-[210px]) */}
+                <div className="overflow-x-auto max-h-[210px] overflow-y-auto">
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
                       <tr>
@@ -839,34 +838,24 @@ export default function AdminDashboard() {
                           <td className="p-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                             Rp {(Number(log.total_cost) || 0).toLocaleString('id-ID')}
                           </td>
+
+                          {/* DROPDOWN AKSI VERIFIKASI RINGKAS */}
                           <td className="p-3.5 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1">
-                              {log.status !== 'VERIFIED' && (
-                                <button
-                                  onClick={() => handleUpdateStatus(log.id, 'VERIFIED')}
-                                  className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg shadow-sm"
-                                  title="Setujui Laporan"
-                                >
-                                  ✓ Verifikasi
-                                </button>
-                              )}
-                              {log.status !== 'FLAGGED' && (
-                                <button
-                                  onClick={() => handleUpdateStatus(log.id, 'FLAGGED')}
-                                  className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded-lg shadow-sm"
-                                  title="Tandai Anomali"
-                                >
-                                  ⚠ Anomali
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDeleteLog(log.id)}
-                                className="text-[10px] text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 bg-rose-50 rounded-lg"
-                                title="Hapus Permanent"
-                              >
-                                ✕
-                              </button>
-                            </div>
+                            <select
+                              className="text-[11px] font-bold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer transition shadow-xs"
+                              value=""
+                              onChange={(e) => {
+                                const val = e.target.value
+                                if (val === 'VERIFIED') handleUpdateStatus(log.id, 'VERIFIED')
+                                if (val === 'FLAGGED') handleUpdateStatus(log.id, 'FLAGGED')
+                                if (val === 'DELETE') handleDeleteLog(log.id)
+                              }}
+                            >
+                              <option value="" disabled>⚡ Pilih Aksi</option>
+                              <option value="VERIFIED">✓ Setujui (Verified)</option>
+                              <option value="FLAGGED">⚠ Tandai Anomali</option>
+                              <option value="DELETE">🗑 Hapus Transaksi</option>
+                            </select>
                           </td>
                         </tr>
                       ))}
@@ -880,7 +869,7 @@ export default function AdminDashboard() {
                     Menampilkan total <strong className="text-slate-900">{filteredLogs.length}</strong> transaksi
                   </span>
                   <span className="text-[11px] text-slate-400 font-medium italic">
-                    💡 Gulung (scroll) ke bawah pada tabel untuk melihat seluruh data
+                    💡 Gulung (scroll) ke bawah pada tabel untuk melihat data lainnya
                   </span>
                 </div>
               </div>
