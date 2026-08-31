@@ -148,10 +148,10 @@ export default function SettingsPage() {
 
   const [savedSuccess, setSavedSuccess] = useState(false)
 
-  // Cek Sesi Login Otomatis & URL Parameter Tab
+  // INGAT PERMANEN: Cek Autentikasi Login dari LocalStorage & Tab URL
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      if (sessionStorage.getItem('admin_authenticated') === 'true') {
+      if (localStorage.getItem('admin_authenticated') === 'true') {
         setIsAuthenticated(true)
       }
 
@@ -183,7 +183,7 @@ export default function SettingsPage() {
     e.preventDefault()
     if (pinInput === '1234') {
       setIsAuthenticated(true)
-      sessionStorage.setItem('admin_authenticated', 'true')
+      localStorage.setItem('admin_authenticated', 'true')
       setPinError(false)
     } else {
       setPinError(true)
@@ -575,7 +575,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* TAB 1: MASTER DATA & BIODATA PENGEMUDI (DRIVER EVALUATION ENGINE) */}
+          {/* TAB 1: MASTER DATA & BIODATA PENGEMUDI */}
           {activeTab === 'drivers' && (
             <div className="space-y-6">
 

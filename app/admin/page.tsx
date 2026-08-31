@@ -77,7 +77,6 @@ export default function AdminDashboard() {
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
 
-  // Tab Navigasi Admin
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -86,7 +85,6 @@ export default function AdminDashboard() {
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
-  // State Modal Cetak PDF Eksekutif
   const [showPrintModal, setShowPrintModal] = useState(false)
 
   const [adminPage, setAdminPage] = useState(1)
@@ -95,6 +93,13 @@ export default function AdminDashboard() {
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
+
+  // INGAT PERMANEN: Cek Autentikasi Login dari LocalStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
+      setIsAuthenticated(true)
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -124,9 +129,17 @@ export default function AdminDashboard() {
     e.preventDefault()
     if (pinInput === '1234') {
       setIsAuthenticated(true)
+      localStorage.setItem('admin_authenticated', 'true')
       setPinError(false)
     } else {
       setPinError(true)
+    }
+  }
+
+  const handleLogout = () => {
+    if (confirm('Kunci kembali akses Admin?')) {
+      localStorage.removeItem('admin_authenticated')
+      setIsAuthenticated(false)
     }
   }
 
@@ -240,13 +253,13 @@ export default function AdminDashboard() {
               type="submit"
               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md"
             >
-              Verifikasi Akses
+              Verifikasi Akses Admin
             </button>
           </form>
 
           <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
-            <Link href="/" className="hover:text-slate-800 font-medium transition">
-              ← Form Driver
+            <Link href="/" className="hover:text-amber-600 font-bold transition flex items-center gap-1">
+              📱 Form Driver BBM
             </Link>
             <button
               onClick={() => setShowResetModal(true)}
@@ -419,23 +432,32 @@ export default function AdminDashboard() {
           </div>
 
           <nav className="p-4 space-y-1">
+            
+            {/* TOMBOL PINTAS UTAMA KEMBALI KE FORM DRIVER */}
+            <Link
+              href="/"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md hover:brightness-105 transition mb-3"
+            >
+              <span className="text-base">📱</span> Form Input BBM Driver
+            </Link>
+
             <button
               onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-slate-800 text-white font-bold border-l-4 border-amber-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <span className="text-base">📊</span> Dashboard Utama
             </button>
 
             <button
               onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-slate-800 text-white font-bold border-l-4 border-amber-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <span className="text-base">📈</span> Analytics & Grafik
             </button>
 
             <button
               onClick={() => { setActiveTab('maintenance'); setSidebarOpen(false); }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'maintenance' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'maintenance' ? 'bg-slate-800 text-white font-bold border-l-4 border-amber-500' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <div className="flex items-center gap-3">
                 <span className="text-base">🔧</span> Jadwal Servis Armada
@@ -447,30 +469,62 @@ export default function AdminDashboard() {
               )}
             </button>
 
+            {/* PUSAT KELOLA OPERASIONAL & SUB-LINKS LANGSUNG */}
+            <div className="pt-3 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Pusat Kelola Operasional
+            </div>
+
             <Link
-              href="/admin/settings"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              href="/admin/settings?tab=drivers"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
             >
-              <span className="text-base">⚙️</span> Master Data & BBM
+              <span className="text-sm">👨‍✈️</span> Master & Biodata Driver
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=vehicles"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+            >
+              <span className="text-sm">🚚</span> Armada Kendaraan
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=prices"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+            >
+              <span className="text-sm">⛽</span> Tarif Bahan Bakar
+            </Link>
+
+            <Link
+              href="/admin/settings?tab=company"
+              className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
+            >
+              <span className="text-sm">🏢</span> Profil Perusahaan
             </Link>
 
             <Link
               href="/admin/backup"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-3 border-t border-slate-800 mt-2"
             >
               <span className="text-base">💾</span> Pusat Backup (.JSON)
             </Link>
           </nav>
         </div>
 
-        <div className="p-4 border-t border-slate-800 space-y-3">
+        <div className="p-4 border-t border-slate-800 space-y-2">
+          <button
+            onClick={handleLogout}
+            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+          >
+            🔒 Kunci Akses Admin
+          </button>
           <button
             onClick={() => setShowResetModal(true)}
-            className="w-full bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+            className="w-full bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 py-1.5 rounded-xl text-[11px] font-semibold transition flex items-center justify-center gap-1.5"
           >
             ⚠️ Reset Cache
           </button>
-          <div className="text-[10px] text-slate-500 text-center">
+          <div className="text-[10px] text-slate-500 text-center pt-1">
             Dev by <span className="font-bold text-slate-400">Urai Ikhsan Fadhilah</span>
           </div>
         </div>
@@ -491,15 +545,21 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+            >
+              📱 Form Driver
+            </Link>
             <button
               onClick={() => setShowPrintModal(true)}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm hidden sm:flex"
             >
               🖨️ Cetak PDF Eksekutif
             </button>
             <button
               onClick={exportToExcel}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm hidden sm:flex"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -529,60 +589,63 @@ export default function AdminDashboard() {
 
           {activeTab === 'dashboard' && (
             <>
-              {/* KARTU METRIK VISUAL GRADASI BERWARNA */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-5 rounded-2xl text-white shadow-lg shadow-indigo-200/50">
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-indigo-100">Total Biaya Operasional</span>
-                    <span className="text-xl">💰</span>
+              {/* MERGED EXECUTIVE COMMAND BAR */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden divide-y md:divide-y-0 md:divide-x divide-slate-100 grid grid-cols-1 md:grid-cols-4">
+                <div className="p-5 bg-gradient-to-br from-indigo-50/40 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Total Biaya Operasional</span>
+                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm shadow">💰</span>
                   </div>
-                  <div className="text-2xl font-bold font-mono mt-2">
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
                     Rp {(Number(totalCost) || 0).toLocaleString('id-ID')}
                   </div>
-                  <span className="text-[10px] text-indigo-200 mt-1 block">Real-Time Transaksi BBM</span>
+                  <span className="text-[10px] font-semibold text-indigo-600 block">Real-Time Total Pengeluaran BBM</span>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-5 rounded-2xl text-white shadow-lg shadow-emerald-200/50">
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-emerald-100">Rata-Rata Efisiensi</span>
-                    <span className="text-xl">⚡</span>
+                <div className="p-5 bg-gradient-to-br from-emerald-50/40 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Rata-Rata Efisiensi</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow">⚡</span>
                   </div>
-                  <div className="text-2xl font-bold font-mono mt-2">
-                    {avgKmPerLiter} <span className="text-xs font-sans font-normal text-emerald-100">KM/L</span>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {avgKmPerLiter} <span className="text-xs font-sans font-medium text-slate-500">KM/L</span>
                   </div>
-                  <span className="text-[10px] text-emerald-200 mt-1 block">Rasio Konsumsi Keseluruhan</span>
+                  <span className="text-[10px] font-semibold text-emerald-600 block">Rasio Efisiensi Konsumsi Armada</span>
                 </div>
 
-                <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-5 rounded-2xl text-white shadow-lg shadow-amber-200/50">
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-amber-100">Total Konsumsi BBM</span>
-                    <span className="text-xl">🛢️</span>
+                <div className="p-5 bg-gradient-to-br from-amber-50/40 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Total Konsumsi BBM</span>
+                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-sm shadow">🛢️</span>
                   </div>
-                  <div className="text-2xl font-bold font-mono mt-2">
-                    {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-normal text-amber-100">Liter</span>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-medium text-slate-500">Liter</span>
                   </div>
-                  <span className="text-[10px] text-amber-200 mt-1 block">Volume BBM Terdistribusi</span>
+                  <span className="text-[10px] font-semibold text-amber-600 block">Total Volume Terdistribusi</span>
                 </div>
 
-                <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-2xl text-white shadow-lg shadow-slate-300/50">
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs font-semibold text-slate-300">Total Laporan Pengisian</span>
-                    <span className="text-xl">📋</span>
+                <div className="p-5 bg-gradient-to-br from-slate-50/60 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Laporan Pengisian</span>
+                    <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm shadow">📋</span>
                   </div>
-                  <div className="text-2xl font-bold font-mono mt-2">
-                    {filteredLogs.length} <span className="text-xs font-sans font-normal text-slate-400">Laporan</span>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {filteredLogs.length} <span className="text-xs font-sans font-medium text-slate-500">Laporan</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">Audit & Verifikasi Berkas</span>
+                  <span className="text-[10px] font-semibold text-slate-500 block">Audit & Verifikasi Berkas</span>
                 </div>
               </div>
 
-              {/* PAGU ANGGARAN BULANAN */}
+              {/* PAGU ANGGARAN BULANAN PANEL */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-                <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Pagu Anggaran Bulanan Per Kendaraan</h2>
+                <div className="flex justify-between items-center border-b pb-3">
+                  <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Realisasi vs Pagu Anggaran Bulanan Armada</h2>
+                  <span className="text-[11px] text-slate-500 font-medium">Batas Maksimum Pengeluaran Operasional</span>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {vehicleStats.map((v) => (
-                    <div key={v.plate_number} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 hover:shadow-md transition">
+                    <div key={v.plate_number} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 hover:border-slate-300 transition shadow-xs">
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="font-bold text-xs text-slate-900">{v.plate_number}</div>
@@ -805,7 +868,6 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'analytics' && (
-            /* TAB ANALYTICS & GRAFIK TREN VISUAL */
             <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
                 <h2 className="text-sm font-bold text-slate-900">Analisis Kinerja & Efisiensi Konsumsi BBM</h2>
@@ -813,8 +875,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* GRAFIK EFISIENSI PER ARMADA */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Perbandingan Efisiensi Armada (KM/Liter)</h3>
                   <div className="space-y-4 pt-2">
@@ -842,7 +902,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* GRAFIK DISTRIBUSI BIAYA OPERASIONAL */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Alokasi Biaya BBM Per Kendaraan</h3>
                   <div className="space-y-4 pt-2">
@@ -866,13 +925,11 @@ export default function AdminDashboard() {
                     })}
                   </div>
                 </div>
-
               </div>
             </div>
           )}
 
           {activeTab === 'maintenance' && (
-            /* TAB MODUL JADWAL SERVIS & MAINTENANCE ARMADA */
             <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                 <h2 className="text-sm font-bold text-slate-900">Modul Pengawas Servis & Ganti Oli Otomatis</h2>
@@ -949,15 +1006,12 @@ export default function AdminDashboard() {
       {showPrintModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-            
-            {/* Kop Surat Perusahaan */}
             <div className="border-b-2 border-slate-900 pb-4 text-center space-y-1">
               <h2 className="text-base font-bold text-slate-900 tracking-wider uppercase">LAPORAN RINGKASAN EKSEKUTIF OPERASIONAL BBM</h2>
               <p className="text-xs text-slate-600">Dokumen Resmi Audit Konsumsi & Biaya Bahan Bakar Armada Perusahaan</p>
               <p className="text-[11px] text-slate-400 font-mono">Tanggal Cetak: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
 
-            {/* Ringkasan Angka */}
             <div className="grid grid-cols-3 gap-3 text-center border p-3 rounded-xl bg-slate-50 text-xs font-mono">
               <div>
                 <span className="text-[10px] text-slate-500 block font-sans">Total Biaya Operasional</span>
@@ -973,7 +1027,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Tabel Laporan Ringkas */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border">
                 <thead className="bg-slate-900 text-white font-bold text-[11px]">
@@ -1003,7 +1056,6 @@ export default function AdminDashboard() {
               </table>
             </div>
 
-            {/* Kolom Tanda Tangan Resmi */}
             <div className="grid grid-cols-2 gap-8 pt-6 text-center text-xs">
               <div>
                 <p className="text-slate-500">Dibuat Oleh,</p>
@@ -1017,7 +1069,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Tombol Aksi */}
             <div className="flex justify-end gap-2 pt-4 border-t print:hidden">
               <button
                 onClick={() => setShowPrintModal(false)}
