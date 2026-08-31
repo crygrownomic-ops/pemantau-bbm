@@ -111,7 +111,7 @@ export default function SettingsPage() {
   const [pinError, setPinError] = useState(false)
 
   // State Tab & Sidebar
-  const [activeTab, setActiveTab] = useState<'vehicles' | 'drivers' | 'prices' | 'company'>('drivers')
+  const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices' | 'company'>('drivers')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [prices, setPrices] = useState<Record<string, number>>(DEFAULT_PRICES)
@@ -439,7 +439,7 @@ export default function SettingsPage() {
                 ⚙️
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white tracking-wide">MASTER DATA</h2>
+                <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
                 <span className="text-[10px] text-amber-400 font-semibold tracking-wider uppercase">Enterprise Edition</span>
               </div>
             </div>
@@ -455,6 +455,11 @@ export default function SettingsPage() {
             >
               <span className="text-base">📊</span> Dashboard Utama
             </Link>
+
+            {/* MAIN MENU NAME: Pusat Kelola Operasional */}
+            <div className="pt-2 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              Pusat Kelola Operasional
+            </div>
 
             <button
               onClick={() => { setActiveTab('drivers'); setSidebarOpen(false); }}
@@ -502,7 +507,7 @@ export default function SettingsPage() {
 
             <Link
               href="/admin/backup"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-2 border-t border-slate-800 mt-2"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-3 border-t border-slate-800 mt-2"
             >
               <span className="text-base">💾</span> Pusat Backup (.JSON)
             </Link>
@@ -525,9 +530,12 @@ export default function SettingsPage() {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-700 text-xl p-1">
               ☰
             </button>
-            <h1 className="text-base sm:text-lg font-bold text-slate-900">
-              {activeTab === 'drivers' ? 'Database Biodata & Evaluasi Pengemudi' : activeTab === 'vehicles' ? 'Manajemen Armada Kendaraan' : activeTab === 'prices' ? 'Pengaturan Tarif Bahan Bakar' : 'Profil & Identitas Perusahaan'}
-            </h1>
+            <div>
+              <h1 className="text-base sm:text-lg font-bold text-slate-900">Pusat Kelola Operasional</h1>
+              <p className="text-[11px] text-slate-500">
+                {activeTab === 'drivers' ? 'Database Biodata & Evaluasi Pengemudi' : activeTab === 'vehicles' ? 'Manajemen Armada Kendaraan' : activeTab === 'prices' ? 'Pengaturan Tarif Bahan Bakar' : 'Profil & Identitas Perusahaan'}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -545,7 +553,7 @@ export default function SettingsPage() {
 
           {savedSuccess && (
             <div className="p-3 bg-emerald-600 text-white rounded-2xl text-xs font-bold flex items-center justify-between shadow-md animate-bounce">
-              <span>✓ Perubahan Master Data Driver Berhasil Disimpan!</span>
+              <span>✓ Perubahan Data Operasional Berhasil Disimpan!</span>
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
@@ -1065,7 +1073,7 @@ export default function SettingsPage() {
         </main>
       </div>
 
-      {/* MODAL PREVIEW BIODATA DRIVER (CARD DIGITALEKSEKUTIF) */}
+      {/* MODAL PREVIEW BIODATA DRIVER (CARD DIGITAL EKSEKUTIF) */}
       {selectedDriverProfile && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
