@@ -19,6 +19,12 @@ const DEFAULT_VEHICLES = [
   { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500 },
 ]
 
+const DEFAULT_DRIVERS = [
+  { id: '1', name: 'Budi Santoso', phone: '081234567890', sim_type: 'SIM A', sim_expiry: '2027-12-31' },
+  { id: '2', name: 'Ahmad Supardi', phone: '082198765432', sim_type: 'SIM B1', sim_expiry: '2026-09-15' },
+  { id: '3', name: 'Dede Kurniawan', phone: '085712344321', sim_type: 'SIM B2 Umum', sim_expiry: '2026-08-10' },
+]
+
 function sanitizeVehicles(data: any) {
   if (!Array.isArray(data) || data.length === 0) return DEFAULT_VEHICLES
   return data.map((v, idx) => ({
@@ -30,6 +36,17 @@ function sanitizeVehicles(data: any) {
   }))
 }
 
+function sanitizeDrivers(data: any) {
+  if (!Array.isArray(data) || data.length === 0) return DEFAULT_DRIVERS
+  return data.map((d, idx) => ({
+    id: d?.id ? String(d.id) : String(idx + 1),
+    name: String(d?.name || 'Driver'),
+    phone: String(d?.phone || '-'),
+    sim_type: String(d?.sim_type || 'SIM A'),
+    sim_expiry: String(d?.sim_expiry || '2026-12-31'),
+  }))
+}
+
 export default function SettingsPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pinInput, setPinInput] = useState('')
@@ -37,16 +54,27 @@ export default function SettingsPage() {
 
   const [prices, setPrices] = useState<Record<string, number>>(DEFAULT_PRICES)
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
+  const [drivers, setDrivers] = useState(DEFAULT_DRIVERS)
+
+  // State Form Armada
   const [editingId, setEditingId] = useState<string | null>(null)
   const [vehicleForm, setVehicleForm] = useState({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
+
+  // State Form Driver
+  const [editingDriverId, setEditingDriverId] = useState<string | null>(null)
+  const [driverForm, setDriverForm] = useState({ name: '', phone: '', sim_type: 'SIM A', sim_expiry: '' })
+
   const [savedSuccess, setSavedSuccess] = useState(false)
 
   useEffect(() => {
     try {
       const localPrices = localStorage.getItem('fuel_prices')
       const localVehicles = localStorage.getItem('vehicle_budgets')
+      const localDrivers = localStorage.getItem('driver_list')
+
       if (localPrices) setPrices(JSON.parse(localPrices))
       if (localVehicles) setVehicles(sanitizeVehicles(JSON.parse(localVehicles)))
+      if (localDrivers) setDrivers(sanitizeDrivers(JSON.parse(localDrivers)))
     } catch (err) {
       console.error('Error parsing settings localstorage:', err)
     }
@@ -67,6 +95,7 @@ export default function SettingsPage() {
     setPrices((prev) => ({ ...prev, [fuelType]: num }))
   }
 
+  // Simpan / Edit Armada
   const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault()
     if (!vehicleForm.plate_number || !vehicleForm.model) return
@@ -100,7 +129,37 @@ export default function SettingsPage() {
     showSuccessNotification()
   }
 
-  const handleEditClick = (v: any) => {
+  // Simpan / Edit Driver
+  const handleSaveDriver = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!driverForm.name) return
+
+    let updated: any[]
+    if (editingDriverId) {
+      updated = drivers.map((d) =>
+        String(d.id) === String(editingDriverId)
+          ? { ...d, name: driverForm.name, phone: driverForm.phone, sim_type: driverForm.sim_type, sim_expiry: driverForm.sim_expiry }
+          : d
+      )
+      setEditingDriverId(null)
+    } else {
+      const newDriver = {
+        id: Date.now().toString(),
+        name: driverForm.name,
+        phone: driverForm.phone || '-',
+        sim_type: driverForm.sim_type || 'SIM A',
+        sim_expiry: driverForm.sim_expiry || '2026-12-31',
+      }
+      updated = [...drivers, newDriver]
+    }
+
+    setDrivers(updated)
+    localStorage.setItem('driver_list', JSON.stringify(updated))
+    setDriverForm({ name: '', phone: '', sim_type: 'SIM A', sim_expiry: '' })
+    showSuccessNotification()
+  }
+
+  const handleEditVehicleClick = (v: any) => {
     setEditingId(String(v.id))
     setVehicleForm({
       plate_number: String(v.plate_number || '').toUpperCase(),
@@ -111,28 +170,30 @@ export default function SettingsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleDeleteClick = (v: any) => {
-    if (confirm(`Hapus armada ${v.plate_number}? Seluruh riwayat transaksi armada ini juga akan dibersihkan.`)) {
+  const handleDeleteVehicleClick = (v: any) => {
+    if (confirm(`Hapus armada ${v.plate_number}?`)) {
       const updatedVehicles = vehicles.filter((item) => String(item.id) !== String(v.id))
       setVehicles(updatedVehicles)
       localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
+      showSuccessNotification()
+    }
+  }
 
-      const storedLogs = localStorage.getItem('fuel_logs')
-      if (storedLogs) {
-        try {
-          const logs = JSON.parse(storedLogs)
-          const cleanedLogs = logs.filter((l: any) => String(l.plate_number).toUpperCase() !== String(v.plate_number).toUpperCase())
-          localStorage.setItem('fuel_logs', JSON.stringify(cleanedLogs))
-        } catch (err) {
-          console.error('Error cleaning logs:', err)
-        }
-      }
+  const handleEditDriverClick = (d: any) => {
+    setEditingDriverId(String(d.id))
+    setDriverForm({
+      name: d.name,
+      phone: d.phone,
+      sim_type: d.sim_type,
+      sim_expiry: d.sim_expiry,
+    })
+  }
 
-      if (editingId && String(editingId) === String(v.id)) {
-        setEditingId(null)
-        setVehicleForm({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
-      }
-
+  const handleDeleteDriverClick = (d: any) => {
+    if (confirm(`Hapus data driver ${d.name}?`)) {
+      const updatedDrivers = drivers.filter((item) => String(item.id) !== String(d.id))
+      setDrivers(updatedDrivers)
+      localStorage.setItem('driver_list', JSON.stringify(updatedDrivers))
       showSuccessNotification()
     }
   }
@@ -150,15 +211,13 @@ export default function SettingsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-sm w-full space-y-5 text-center">
-          <div className="w-10 h-10 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg flex items-center justify-center mx-auto">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-5 text-center">
+          <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center mx-auto text-xl font-bold">
+            ⚙️
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900">Autentikasi Pengaturan</h1>
+            <h1 className="text-base font-bold text-slate-900">Autentikasi Master Data</h1>
             <p className="text-xs text-slate-500 mt-0.5">Masukkan PIN Administrator</p>
           </div>
 
@@ -167,18 +226,18 @@ export default function SettingsPage() {
               type="password"
               maxLength={4}
               placeholder="••••"
-              className="w-full text-center text-xl tracking-widest py-2.5 border rounded-lg border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
+              className="w-full text-center text-2xl tracking-widest py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold bg-slate-50"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
             />
 
             {pinError && (
-              <p className="text-xs text-rose-600 font-medium">PIN tidak valid (Default: 1234)</p>
+              <p className="text-xs text-rose-600 font-semibold">PIN tidak valid (Default: 1234)</p>
             )}
 
             <button
               type="submit"
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 rounded-lg text-xs transition"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md"
             >
               Verifikasi
             </button>
@@ -193,32 +252,32 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800">
-      <div className="max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-6">
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans text-slate-800">
+      <div className="max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
         
-        <div className="flex justify-between items-center bg-white p-5 rounded-xl border border-slate-200">
+        <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Pengaturan Master Data</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manajemen armada, patokan Odometer & tarif BBM</p>
+            <h1 className="text-lg font-bold text-slate-900">Pengaturan Master Data Perusahaan</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Manajemen armada, master pengemudi & tarif BBM</p>
           </div>
           <div className="flex gap-2">
             <Link
               href="/admin/backup"
-              className="text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white px-3 py-2 rounded-lg transition"
+              className="text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl transition shadow-sm"
             >
               💾 Pusat Backup
             </Link>
             <Link
               href="/admin"
-              className="text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg transition border border-slate-200"
+              className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl transition border border-slate-200"
             >
-              ← Ke Dashboard
+              ← Dashboard
             </Link>
           </div>
         </div>
 
         {savedSuccess && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold flex items-center justify-between">
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm">
             <span>Perubahan data berhasil disimpan!</span>
             <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -226,10 +285,10 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Form Pendaftaran & Edit Armada */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">
-            {editingId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
+        {/* 1. MASTER ARMADA KENDARAAN */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+            <span>🚚</span> {editingId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
           </h2>
 
           <form onSubmit={handleSaveVehicle} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -239,7 +298,7 @@ export default function SettingsPage() {
                 type="text"
                 required
                 placeholder="B 1234 ABC"
-                className="w-full p-2 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-bold uppercase"
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-bold uppercase"
                 value={vehicleForm.plate_number}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, plate_number: e.target.value.toUpperCase() })}
               />
@@ -251,7 +310,7 @@ export default function SettingsPage() {
                 type="text"
                 required
                 placeholder="Toyota Avanza"
-                className="w-full p-2 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none"
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none"
                 value={vehicleForm.model}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })}
               />
@@ -263,7 +322,7 @@ export default function SettingsPage() {
                 type="text"
                 required
                 placeholder="1.500.000"
-                className="w-full p-2 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-semibold"
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-semibold"
                 value={vehicleForm.monthly_budget ? Number(vehicleForm.monthly_budget.replace(/[^0-9]/g, '')).toLocaleString('id-ID') : ''}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_budget: e.target.value })}
               />
@@ -275,7 +334,7 @@ export default function SettingsPage() {
                 type="text"
                 required
                 placeholder="45000"
-                className="w-full p-2 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-semibold"
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-semibold"
                 value={vehicleForm.last_km ? Number(vehicleForm.last_km.replace(/[^0-9]/g, '')).toLocaleString('id-ID') : ''}
                 onChange={(e) => setVehicleForm({ ...vehicleForm, last_km: e.target.value })}
               />
@@ -289,29 +348,23 @@ export default function SettingsPage() {
                     setEditingId(null)
                     setVehicleForm({ plate_number: '', model: '', monthly_budget: '', last_km: '' })
                   }}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg font-medium"
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-xl font-medium"
                 >
                   Batal
                 </button>
               )}
               <button
                 type="submit"
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs rounded-lg font-medium transition"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs rounded-xl font-bold transition shadow-sm"
               >
                 {editingId ? 'Update Kendaraan' : '+ Tambah Armada'}
               </button>
             </div>
           </form>
-        </div>
 
-        {/* Tabel Daftar Armada */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
-            <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Daftar Armada Aktif ({vehicles.length})</h2>
-          </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 pt-3 border-t">
             {vehicles.map((v) => (
-              <div key={v.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition">
+              <div key={v.id} className="py-3 flex items-center justify-between hover:bg-slate-50 transition px-1 rounded-lg">
                 <div>
                   <div className="text-xs font-bold text-slate-900 uppercase">
                     {v.plate_number.toUpperCase()} <span className="font-normal text-slate-600">({v.model})</span>
@@ -322,14 +375,14 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleEditClick(v)}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2.5 py-1 bg-blue-50 hover:bg-blue-100 rounded transition"
+                    onClick={() => handleEditVehicleClick(v)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-bold px-2.5 py-1 bg-blue-50 rounded-lg"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(v)}
-                    className="text-xs text-rose-600 hover:text-rose-800 font-medium px-2.5 py-1 bg-rose-50 hover:bg-rose-100 rounded transition"
+                    onClick={() => handleDeleteVehicleClick(v)}
+                    className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2.5 py-1 bg-rose-50 rounded-lg"
                   >
                     Hapus
                   </button>
@@ -339,9 +392,127 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Form Tarif BBM */}
-        <form onSubmit={handleSavePrices} className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
-          <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Tarif Bahan Bakar (Per Liter)</h2>
+        {/* 2. MASTER DATA PENGEMUDI (DRIVER MANAGEMENT) */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+            <span>👨‍✈️</span> {editingDriverId ? 'Edit Data Pengemudi' : 'Tambah Master Pengemudi (Driver)'}
+          </h2>
+
+          <form onSubmit={handleSaveDriver} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Nama Lengkap Driver</label>
+              <input
+                type="text"
+                required
+                placeholder="Budi Santoso"
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-bold"
+                value={driverForm.name}
+                onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Nomor Kontak / WhatsApp</label>
+              <input
+                type="text"
+                placeholder="081234567890"
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono"
+                value={driverForm.phone}
+                onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Golongan SIM</label>
+              <select
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-semibold bg-white"
+                value={driverForm.sim_type}
+                onChange={(e) => setDriverForm({ ...driverForm, sim_type: e.target.value })}
+              >
+                <option value="SIM A">SIM A (Mobil Penumpang/Barang ringan)</option>
+                <option value="SIM B1">SIM B1 (Bus / Truk Sedang)</option>
+                <option value="SIM B1 Umum">SIM B1 Umum</option>
+                <option value="SIM B2">SIM B2 (Truk Tronton/Alat Berat)</option>
+                <option value="SIM B2 Umum">SIM B2 Umum (Truk Gandeng/Kontainer)</option>
+                <option value="SIM C">SIM C (Sepeda Motor)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Masa Berlaku SIM</label>
+              <input
+                type="date"
+                required
+                className="w-full p-2.5 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-medium"
+                value={driverForm.sim_expiry}
+                onChange={(e) => setDriverForm({ ...driverForm, sim_expiry: e.target.value })}
+              />
+            </div>
+
+            <div className="sm:col-span-2 flex justify-end gap-2 pt-1">
+              {editingDriverId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingDriverId(null)
+                    setDriverForm({ name: '', phone: '', sim_type: 'SIM A', sim_expiry: '' })
+                  }}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-xl font-medium"
+                >
+                  Batal
+                </button>
+              )}
+              <button
+                type="submit"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs rounded-xl font-bold transition shadow-sm"
+              >
+                {editingDriverId ? 'Update Driver' : '+ Tambah Driver'}
+              </button>
+            </div>
+          </form>
+
+          {/* Tabel Pengemudi */}
+          <div className="divide-y divide-slate-100 pt-3 border-t">
+            {drivers.map((d) => {
+              const todayStr = new Date().toISOString().split('T')[0]
+              const isExpired = d.sim_expiry < todayStr
+
+              return (
+                <div key={d.id} className="py-3 flex items-center justify-between hover:bg-slate-50 transition px-1 rounded-lg">
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">
+                      {d.name} <span className="font-semibold text-slate-500">({d.phone})</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">
+                      {d.sim_type} • Masa Berlaku SIM: <span className={`font-mono font-bold ${isExpired ? 'text-rose-600' : 'text-slate-800'}`}>{d.sim_expiry}</span>
+                      {isExpired && <span className="ml-2 bg-rose-100 text-rose-700 text-[10px] font-bold px-1.5 py-0.5 rounded">EXPIRED</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEditDriverClick(d)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-bold px-2.5 py-1 bg-blue-50 rounded-lg"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDriverClick(d)}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2.5 py-1 bg-rose-50 rounded-lg"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* 3. TARIF BBM */}
+        <form onSubmit={handleSavePrices} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+            <span>⛽</span> Tarif Bahan Bakar (Per Liter)
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             {Object.keys(prices).map((type) => (
               <div key={type} className="flex flex-col space-y-1">
@@ -351,7 +522,7 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     required
-                    className="w-full py-2 pl-9 pr-3 border rounded-lg text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-semibold text-slate-900 font-mono"
+                    className="w-full py-2.5 pl-9 pr-3 border rounded-xl text-xs border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-semibold text-slate-900 font-mono"
                     value={prices[type] ? prices[type].toLocaleString('id-ID') : ''}
                     onChange={(e) => handlePriceChange(type, e.target.value)}
                   />
@@ -362,7 +533,7 @@ export default function SettingsPage() {
 
           <button
             type="submit"
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 rounded-lg text-xs transition shadow-sm mt-2"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-sm mt-2"
           >
             Simpan Tarif BBM
           </button>
