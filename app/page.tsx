@@ -35,6 +35,12 @@ export default function DriverFormPage() {
   const [selectedPlate, setSelectedPlate] = useState('')
   const [selectedDriver, setSelectedDriver] = useState('')
   const [fuelType, setFuelType] = useState('Pertalite')
+  
+  // OPSI PENGISIAN DARURAT / ECERAN
+  const [fillLocation, setFillLocation] = useState<'SPBU' | 'ECERAN'>('SPBU')
+  const [customUnitPrice, setCustomUnitPrice] = useState<number | string>('')
+  const [emergencyNote, setEmergencyNote] = useState('')
+
   const [initialKm, setInitialKm] = useState<number | string>('')
   const [finalKm, setFinalKm] = useState<number | string>('')
   const [liters, setLiters] = useState<number | string>('')
@@ -112,7 +118,11 @@ export default function DriverFormPage() {
   const numLiters = Number(liters) || 0
 
   const distanceKm = Math.max(0, numFinalKm - numInitialKm)
-  const unitPrice = prices[fuelType] || 10000
+  
+  // Penentuan Harga per Liter: SPBU vs ECERAN
+  const defaultPrice = prices[fuelType] || 10000
+  const unitPrice = fillLocation === 'SPBU' ? defaultPrice : (Number(customUnitPrice) || 0)
+  
   const totalCost = Math.round(numLiters * unitPrice)
   const kmPerLiter = numLiters > 0 ? (distanceKm / numLiters).toFixed(2) : '0'
 
@@ -134,6 +144,11 @@ export default function DriverFormPage() {
       return
     }
 
+    if (fillLocation === 'ECERAN' && unitPrice <= 0) {
+      alert('Untuk Pengisian Eceran/Darurat, harap masukkan Harga per Liter!')
+      return
+    }
+
     setIsSubmitting(true)
 
     const vehicleObj = vehicles.find((v) => v.plate_number === selectedPlate)
@@ -151,18 +166,18 @@ export default function DriverFormPage() {
       km_per_liter: kmPerLiter,
       total_cost: totalCost,
       fuel_type: fuelType,
+      fill_location: fillLocation, // 'SPBU' | 'ECERAN'
+      emergency_note: fillLocation === 'ECERAN' ? emergencyNote : '',
       receipt_image: receiptImage,
       date: date,
       status: 'PENDING',
     }
 
     try {
-      // Simpan ke fuel_logs
       const existingLogs = JSON.parse(localStorage.getItem('fuel_logs') || '[]')
       const updatedLogs = [newLog, ...existingLogs]
       localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
 
-      // Update Odometer Terkini di Armada
       const existingVehicles = JSON.parse(localStorage.getItem('vehicle_budgets') || '[]')
       if (Array.isArray(existingVehicles) && existingVehicles.length > 0) {
         const updatedVehicles = existingVehicles.map((v: any) =>
@@ -180,6 +195,9 @@ export default function DriverFormPage() {
       setSelectedDriver('')
       setFinalKm('')
       setLiters('')
+      setCustomUnitPrice('')
+      setEmergencyNote('')
+      setFillLocation('SPBU')
       setReceiptImage('')
     } catch (err) {
       console.error('Error saving fuel log:', err)
@@ -234,16 +252,24 @@ export default function DriverFormPage() {
                 <span className="text-white">{submittedData.driver_name}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-400 font-sans">Sumber BBM:</span>
+                <span className={submittedData.fill_location === 'ECERAN' ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
+                  {submittedData.fill_location === 'ECERAN' ? '⚠️ ECERAN / DARURAT' : '⛽ SPBU RESMI'}
+                </span>
+              </div>
+              {submittedData.emergency_note && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans">Alasan Darurat:</span>
+                  <span className="text-slate-300 italic">{submittedData.emergency_note}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
                 <span className="text-slate-400 font-sans">Jarak Tempuh:</span>
                 <span className="text-emerald-400 font-bold">{submittedData.distance_km} KM</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400 font-sans">Total Biaya:</span>
                 <span className="text-amber-400 font-bold">Rp {submittedData.total_cost.toLocaleString('id-ID')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400 font-sans">Rasio Efisiensi:</span>
-                <span className="text-indigo-400 font-bold">{submittedData.km_per_liter} KM/L</span>
               </div>
             </div>
 
@@ -262,6 +288,36 @@ export default function DriverFormPage() {
                 <span>📱</span> Form Laporan BBM Driver
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">Isi data pengisian bahan bakar kendaraan operasional</p>
+            </div>
+
+            {/* OPSI SUMBER PENGISIAN BBM (SPBU VS ECERAN) */}
+            <div className="space-y-1.5 p-3 bg-slate-900/90 rounded-xl border border-slate-700">
+              <label className="block text-[11px] font-bold text-amber-400 uppercase tracking-wider">Sumber / Lokasi Pengisian BBM *</label>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFillLocation('SPBU')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                    fillLocation === 'SPBU'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow'
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                  }`}
+                >
+                  <span>⛽</span> SPBU Resmi
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFillLocation('ECERAN')}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                    fillLocation === 'ECERAN'
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow'
+                      : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                  }`}
+                >
+                  <span>⚠️</span> Emperan / Darurat
+                </button>
+              </div>
             </div>
 
             {/* Tanggal & Jenis BBM */}
@@ -290,6 +346,34 @@ export default function DriverFormPage() {
                 </select>
               </div>
             </div>
+
+            {/* FIELD TAMBAHAN JIKA ISI DI ECERAN / EMPERAN */}
+            {fillLocation === 'ECERAN' && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/40 rounded-xl space-y-3 animate-fade-in">
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-300 mb-1">Harga per Liter (BBM Eceran/Pertamini) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="Misal: 12500"
+                    className="w-full p-2.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs text-amber-300 font-mono font-bold outline-none focus:ring-1 focus:ring-amber-400"
+                    value={customUnitPrice}
+                    onChange={(e) => setCustomUnitPrice(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-300 mb-1">Lokasi & Alasan Pengisian Darurat</label>
+                  <input
+                    type="text"
+                    placeholder="Misal: Kec. Tayan - SPBU Terdekat Habis / 40 KM Lagi"
+                    className="w-full p-2.5 bg-slate-900 border border-amber-500/50 rounded-xl text-xs text-white font-medium outline-none focus:ring-1 focus:ring-amber-400"
+                    value={emergencyNote}
+                    onChange={(e) => setEmergencyNote(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Pilih Armada & Driver */}
             <div className="space-y-3">
@@ -370,6 +454,10 @@ export default function DriverFormPage() {
               {/* Kalkulasi Otomatis Card */}
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-700 space-y-1.5 text-xs font-mono">
                 <div className="flex justify-between">
+                  <span className="text-slate-400 font-sans text-[11px]">Tarif per Liter:</span>
+                  <span className="font-bold text-white">Rp {unitPrice.toLocaleString('id-ID')} {fillLocation === 'ECERAN' ? '(Eceran)' : '(SPBU)'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-slate-400 font-sans text-[11px]">Estimasi Jarak Tempuh:</span>
                   <span className="font-bold text-emerald-400">{distanceKm} KM</span>
                 </div>
@@ -384,9 +472,11 @@ export default function DriverFormPage() {
               </div>
             </div>
 
-            {/* Upload Struk Foto */}
+            {/* Upload Struk / Nota Manual Foto */}
             <div className="space-y-2 pt-2 border-t border-slate-700/60">
-              <label className="block text-[11px] font-semibold text-slate-300">Foto Struk Pengisian BBM (Opsional)</label>
+              <label className="block text-[11px] font-semibold text-slate-300">
+                {fillLocation === 'ECERAN' ? 'Foto Nota Manual / Botol BBM / Struk (Opsional)' : 'Foto Struk Pengisian BBM (Opsional)'}
+              </label>
               <input
                 type="file"
                 accept="image/*"
@@ -396,7 +486,7 @@ export default function DriverFormPage() {
               />
               {receiptImage && (
                 <div className="mt-2 rounded-xl border border-slate-700 p-2 bg-slate-900 flex items-center justify-between">
-                  <span className="text-[11px] text-emerald-400 font-semibold">✓ Foto Struk Siap Diunggah</span>
+                  <span className="text-[11px] text-emerald-400 font-semibold">✓ Foto Bukti Siap Diunggah</span>
                   <button type="button" onClick={() => setReceiptImage('')} className="text-rose-400 text-xs font-bold">✕ Hapus</button>
                 </div>
               )}

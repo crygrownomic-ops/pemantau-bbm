@@ -148,7 +148,7 @@ export default function SettingsPage() {
 
   const [savedSuccess, setSavedSuccess] = useState(false)
 
-  // INGAT PERMANEN: Cek Autentikasi Login dari LocalStorage & Tab URL
+  // Cek Autentikasi Login dari LocalStorage & Tab URL
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (localStorage.getItem('admin_authenticated') === 'true') {

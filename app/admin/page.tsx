@@ -10,10 +10,10 @@ const DEFAULT_VEHICLES = [
 ]
 
 const DEFAULT_LOGS = [
-  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18', status: 'VERIFIED' },
-  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 6800, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19', status: 'FLAGGED' },
-  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede Kurniawan', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20', status: 'VERIFIED' },
-  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-18', status: 'VERIFIED' },
+  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 12500, km_per_liter: 7.5, total_cost: 500000, fuel_type: 'Biosolar / Solar', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat 35 KM - Pompa Rusak', date: '2026-08-19', status: 'FLAGGED' },
+  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede Kurniawan', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 727500, fuel_type: 'Dexlite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
 ]
 
 function sanitizeVehicles(data: any) {
@@ -42,6 +42,8 @@ function sanitizeLogs(data: any) {
     km_per_liter: l?.km_per_liter ? String(l.km_per_liter) : '0',
     total_cost: Number(l?.total_cost) || 0,
     fuel_type: String(l?.fuel_type || 'Pertalite'),
+    fill_location: String(l?.fill_location || 'SPBU'),
+    emergency_note: String(l?.emergency_note || ''),
     receipt_image: l?.receipt_image || '',
     date: String(l?.date || new Date().toISOString().split('T')[0]),
     status: String(l?.status || 'PENDING'),
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
-  // INGAT PERMANEN: Cek Autentikasi Login dari LocalStorage
+  // Sesi Login Permanen LocalStorage
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
       setIsAuthenticated(true)
@@ -287,6 +289,7 @@ export default function AdminDashboard() {
   const paginatedAdminLogs = filteredLogs.slice((adminPage - 1) * logsPerPage, adminPage * logsPerPage)
 
   const pendingCount = safeLogs.filter((l) => !l.status || l.status === 'PENDING').length
+  const emergencyCount = safeLogs.filter((l) => l.fill_location === 'ECERAN').length
   const highConsumptionLogs = safeLogs.filter((l) => Number(l.km_per_liter) < 8)
 
   const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
@@ -320,6 +323,7 @@ export default function AdminDashboard() {
     filteredLogs.forEach((l) => {
       const effVal = Number(l.km_per_liter) || 0
       const statusEff = effVal < 8 ? 'Boros (<8 KM/L)' : effVal < 12 ? 'Normal (8-12 KM/L)' : 'Irit (>12 KM/L)'
+      const tempatFill = l.fill_location === 'ECERAN' ? 'DARURAT (ECERAN)' : 'SPBU RESMI'
       
       tableRows += `
         <tr>
@@ -327,6 +331,8 @@ export default function AdminDashboard() {
           <td style="font-weight: bold; text-align: center;">${l.plate_number || '-'}</td>
           <td>${l.vehicle_model || '-'}</td>
           <td>${l.driver_name || '-'}</td>
+          <td style="text-align: center;">${tempatFill}</td>
+          <td>${l.emergency_note || '-'}</td>
           <td style="text-align: center;">${l.fuel_type || '-'}</td>
           <td style="text-align: right;">${(Number(l.initial_km) || 0).toLocaleString('id-ID')}</td>
           <td style="text-align: right;">${(Number(l.final_km) || 0).toLocaleString('id-ID')}</td>
@@ -366,6 +372,8 @@ export default function AdminDashboard() {
               <th>Plat Kendaraan</th>
               <th>Model / Tipe</th>
               <th>Pengemudi</th>
+              <th>Tempat Pengisian</th>
+              <th>Alasan Darurat</th>
               <th>Jenis BBM</th>
               <th>KM Awal</th>
               <th>KM Akhir</th>
@@ -381,7 +389,7 @@ export default function AdminDashboard() {
           <tbody>
             ${tableRows}
             <tr class="total-row">
-              <td colspan="7" style="text-align: right;">TOTAL REKAPITULASI:</td>
+              <td colspan="9" style="text-align: right;">TOTAL REKAPITULASI:</td>
               <td style="text-align: right;">${totalKm.toLocaleString('id-ID')} KM</td>
               <td style="text-align: right;">${totalLiters.toLocaleString('id-ID')} L</td>
               <td></td>
@@ -553,13 +561,13 @@ export default function AdminDashboard() {
             </Link>
             <button
               onClick={() => setShowPrintModal(true)}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm hidden sm:flex"
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition items-center gap-1.5 shadow-sm hidden sm:flex"
             >
               🖨️ Cetak PDF Eksekutif
             </button>
             <button
               onClick={exportToExcel}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm hidden sm:flex"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition items-center gap-1.5 shadow-sm hidden sm:flex"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -572,15 +580,15 @@ export default function AdminDashboard() {
         {/* MAIN BODY CONTENT */}
         <main className="p-4 sm:p-6 space-y-6 overflow-y-auto print:p-0">
           
-          {/* BANNER PERINGATAN ANOMALI */}
-          {(pendingCount > 0 || highConsumptionLogs.length > 0 || criticalServiceCount > 0) && (
+          {/* BANNER PERINGATAN ANOMALI & TRANS-DARURAT */}
+          {(pendingCount > 0 || emergencyCount > 0 || highConsumptionLogs.length > 0 || criticalServiceCount > 0) && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm print:hidden">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">⚠️</span>
                 <div className="text-xs text-amber-900">
                   <span className="font-bold">Sistem Perhatian Operasional:</span>
                   <span className="block mt-0.5">
-                    Terdapat <strong className="underline">{pendingCount} laporan baru</strong> butuh verifikasi, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, serta <strong className="text-rose-700 underline">{criticalServiceCount} armada wajib servis segera</strong>.
+                    Terdapat <strong className="underline">{pendingCount} laporan baru</strong>, <strong className="text-amber-800 font-bold underline">{emergencyCount} pengisian darurat emperan</strong>, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, serta <strong className="text-rose-700 underline">{criticalServiceCount} armada wajib servis</strong>.
                   </span>
                 </div>
               </div>
@@ -749,6 +757,7 @@ export default function AdminDashboard() {
                         <th className="p-3.5">Tanggal</th>
                         <th className="p-3.5">Kendaraan</th>
                         <th className="p-3.5">Pengemudi</th>
+                        <th className="p-3.5">Tempat Pengisian</th>
                         <th className="p-3.5">Jenis BBM</th>
                         <th className="p-3.5">KM Odometer</th>
                         <th className="p-3.5">Volume</th>
@@ -765,6 +774,20 @@ export default function AdminDashboard() {
                           <td className="p-3.5 font-medium whitespace-nowrap">{log.date}</td>
                           <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.plate_number}</td>
                           <td className="p-3.5 whitespace-nowrap">{log.driver_name}</td>
+                          
+                          {/* BADGE SPBU VS DARURAT ECERAN */}
+                          <td className="p-3.5 whitespace-nowrap">
+                            {log.fill_location === 'ECERAN' ? (
+                              <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-2.5 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1 shadow-xs">
+                                ⚠️ DARURAT (ECERAN)
+                              </span>
+                            ) : (
+                              <span className="bg-slate-100 text-slate-700 font-semibold px-2.5 py-0.5 rounded-full text-[10px]">
+                                ⛽ SPBU RESMI
+                              </span>
+                            )}
+                          </td>
+
                           <td className="p-3.5 whitespace-nowrap">
                             <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg font-medium text-[11px]">
                               {log.fuel_type}
@@ -795,7 +818,12 @@ export default function AdminDashboard() {
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-slate-400 text-[11px]">-</span>
+                              <button
+                                onClick={() => setPreviewReceipt(log)}
+                                className="text-slate-400 hover:text-slate-600 text-[11px] underline"
+                              >
+                                Detail
+                              </button>
                             )}
                           </td>
                           <td className="p-3.5 whitespace-nowrap">
@@ -1034,7 +1062,7 @@ export default function AdminDashboard() {
                     <th className="p-2 border">Tanggal</th>
                     <th className="p-2 border">Armada</th>
                     <th className="p-2 border">Pengemudi</th>
-                    <th className="p-2 border">BBM</th>
+                    <th className="p-2 border">Tempat Pengisian</th>
                     <th className="p-2 border text-right">Volume</th>
                     <th className="p-2 border text-right">Total Biaya</th>
                     <th className="p-2 border text-center">Status</th>
@@ -1046,7 +1074,7 @@ export default function AdminDashboard() {
                       <td className="p-2 border">{l.date}</td>
                       <td className="p-2 border font-bold">{l.plate_number}</td>
                       <td className="p-2 border">{l.driver_name}</td>
-                      <td className="p-2 border">{l.fuel_type}</td>
+                      <td className="p-2 border">{l.fill_location === 'ECERAN' ? 'DARURAT (ECERAN)' : 'SPBU RESMI'}</td>
                       <td className="p-2 border text-right font-mono">{l.liters} L</td>
                       <td className="p-2 border text-right font-mono font-bold">Rp {l.total_cost.toLocaleString('id-ID')}</td>
                       <td className="p-2 border text-center font-bold">{l.status}</td>
@@ -1088,13 +1116,13 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MODAL PREVIEW STRUK */}
+      {/* MODAL PREVIEW STRUK & AUDIT DETAIL DARURAT */}
       {previewReceipt && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
               <div>
-                <h3 className="text-xs font-bold text-slate-900">Verifikasi Audit Struk BBM</h3>
+                <h3 className="text-xs font-bold text-slate-900">Audit Transaksi Pengisian BBM</h3>
                 <p className="text-[11px] text-slate-500">{previewReceipt.plate_number} • {previewReceipt.date} • {previewReceipt.driver_name}</p>
               </div>
               <button
@@ -1104,13 +1132,36 @@ export default function AdminDashboard() {
                 ✕
               </button>
             </div>
-            <div className="max-h-[55vh] overflow-y-auto rounded-xl border bg-slate-50 flex items-center justify-center p-2">
-              <img src={previewReceipt.receipt_image} alt="Foto Struk BBM" className="max-w-full h-auto rounded-lg" />
+
+            {/* DETAIL DARURAT INFO */}
+            {previewReceipt.fill_location === 'ECERAN' && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1 text-xs">
+                <span className="font-bold text-amber-900 flex items-center gap-1">
+                  <span>⚠️</span> STATUS: PENGISIAN DARURAT (ECERAN/PERTAMINI)
+                </span>
+                {previewReceipt.emergency_note && (
+                  <p className="text-amber-950 italic">
+                    Catatan Driver: "{previewReceipt.emergency_note}"
+                  </p>
+                )}
+                <div className="text-[11px] text-amber-900 font-mono pt-1 border-t border-amber-200/60 flex justify-between">
+                  <span>Harga per Liter:</span>
+                  <span className="font-bold">Rp {(Number(previewReceipt.unit_price) || 0).toLocaleString('id-ID')} / L</span>
+                </div>
+              </div>
+            )}
+
+            <div className="max-h-[45vh] overflow-y-auto rounded-xl border bg-slate-50 flex items-center justify-center p-2">
+              {previewReceipt.receipt_image ? (
+                <img src={previewReceipt.receipt_image} alt="Bukti Struk/Nota" className="max-w-full h-auto rounded-lg" />
+              ) : (
+                <div className="p-8 text-center text-xs text-slate-400">Tidak Ada Unggahan Foto Struk</div>
+              )}
             </div>
 
             <div className="space-y-2 pt-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Status Saat Ini:</span>
+                <span className="text-slate-500">Status Audit Saat Ini:</span>
                 {renderStatusBadge(previewReceipt.status)}
               </div>
 
@@ -1129,12 +1180,14 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <button
-                onClick={() => handleDownloadReceipt(previewReceipt.receipt_image, previewReceipt.plate_number, previewReceipt.date, previewReceipt.final_km)}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2.5 rounded-xl border border-slate-200 transition"
-              >
-                📥 Unduh Berkas Struk
-              </button>
+              {previewReceipt.receipt_image && (
+                <button
+                  onClick={() => handleDownloadReceipt(previewReceipt.receipt_image, previewReceipt.plate_number, previewReceipt.date, previewReceipt.final_km)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2.5 rounded-xl border border-slate-200 transition"
+                >
+                  📥 Unduh Berkas Struk
+                </button>
+              )}
             </div>
           </div>
         </div>
