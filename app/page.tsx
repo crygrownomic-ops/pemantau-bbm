@@ -1,322 +1,1150 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 const DEFAULT_VEHICLES = [
-  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', last_km: 45000 },
-  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', last_km: 32000 },
-  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', last_km: 18500 },
+  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320 },
+  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000 },
+  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500 },
 ]
 
-const DEFAULT_PRICES: Record<string, number> = {
-  'Pertalite': 10000,
-  'Pertamax': 12950,
-  'Pertamax Green 95': 13600,
-  'Pertamax Turbo': 14400,
-  'Biosolar / Solar': 6800,
-  'Dexlite': 14550,
-  'Pertamina Dex': 15100,
+const DEFAULT_LOGS = [
+  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18', status: 'VERIFIED' },
+  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 6800, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19', status: 'FLAGGED' },
+  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede Kurniawan', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', date: '2026-08-20', status: 'VERIFIED' },
+]
+
+function sanitizeVehicles(data: any) {
+  if (!Array.isArray(data) || data.length === 0) return DEFAULT_VEHICLES
+  return data.map((v, idx) => ({
+    id: v?.id ? String(v.id) : String(idx + 1),
+    plate_number: String(v?.plate_number || 'ARMADA').toUpperCase(),
+    model: String(v?.model || 'Kendaraan'),
+    monthly_budget: Number(v?.monthly_budget) || 0,
+    last_km: Number(v?.last_km) || 0,
+  }))
 }
 
-const DEFAULT_DRIVERS = [
-  { id: '1', name: 'Budi Santoso' },
-  { id: '2', name: 'Ahmad Supardi' },
-  { id: '3', name: 'Dede Kurniawan' },
-]
+function sanitizeLogs(data: any) {
+  if (!Array.isArray(data)) return DEFAULT_LOGS
+  return data.map((l, idx) => ({
+    id: l?.id || Date.now() + idx,
+    plate_number: String(l?.plate_number || 'ARMADA').toUpperCase(),
+    vehicle_model: String(l?.vehicle_model || '-'),
+    driver_name: String(l?.driver_name || 'Driver'),
+    initial_km: Number(l?.initial_km) || 0,
+    final_km: Number(l?.final_km) || 0,
+    distance_km: Number(l?.distance_km) || 0,
+    liters: Number(l?.liters) || 0,
+    unit_price: Number(l?.unit_price) || 0,
+    km_per_liter: l?.km_per_liter ? String(l.km_per_liter) : '0',
+    total_cost: Number(l?.total_cost) || 0,
+    fuel_type: String(l?.fuel_type || 'Pertalite'),
+    receipt_image: l?.receipt_image || '',
+    date: String(l?.date || new Date().toISOString().split('T')[0]),
+    status: String(l?.status || 'PENDING'),
+  }))
+}
 
-export default function Home() {
-  const [vehicles, setVehicles] = useState<any[]>(DEFAULT_VEHICLES)
-  const [fuelPrices, setFuelPrices] = useState<Record<string, number>>(DEFAULT_PRICES)
-  const [driverList, setDriverList] = useState<any[]>(DEFAULT_DRIVERS)
+function getMaintenanceSchedule(currentKm: number) {
+  const km = Number(currentKm) || 0
+  const oilInterval = 5000
+  const serviceInterval = 10000
 
-  const [selectedPlate, setSelectedPlate] = useState('')
-  const [driverName, setDriverName] = useState('')
-  const [fuelType, setFuelType] = useState('Pertalite')
-  const [initialKm, setInitialKm] = useState<number | ''>('')
-  const [finalKm, setFinalKm] = useState<number | ''>('')
-  const [liters, setLiters] = useState<number | ''>('')
-  const [receiptImage, setReceiptImage] = useState<string>('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [successMsg, setSuccessMsg] = useState(false)
+  const nextOilKm = Math.ceil((km + 1) / oilInterval) * oilInterval
+  const remainingOilKm = nextOilKm - km
+
+  const nextServiceKm = Math.ceil((km + 1) / serviceInterval) * serviceInterval
+  const remainingServiceKm = nextServiceKm - km
+
+  let status: 'CRITICAL' | 'WARNING' | 'OK' = 'OK'
+  if (remainingOilKm <= 300 || remainingServiceKm <= 300) {
+    status = 'CRITICAL'
+  } else if (remainingOilKm <= 1000 || remainingServiceKm <= 1000) {
+    status = 'WARNING'
+  }
+
+  return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, status }
+}
+
+export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState(false)
+
+  const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
+  const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const [selectedVehicle, setSelectedVehicle] = useState('ALL')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+
+  const [showPrintModal, setShowPrintModal] = useState(false)
+
+  const [adminPage, setAdminPage] = useState(1)
+  const logsPerPage = 5
+
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetPinInput, setResetPinInput] = useState('')
+  const [resetPinError, setResetPinError] = useState(false)
 
   useEffect(() => {
     try {
       const storedVehicles = localStorage.getItem('vehicle_budgets')
-      const storedPrices = localStorage.getItem('fuel_prices')
-      const storedDrivers = localStorage.getItem('driver_list')
+      const storedLogs = localStorage.getItem('fuel_logs')
 
       if (storedVehicles) {
         const parsedV = JSON.parse(storedVehicles)
-        setVehicles(parsedV)
-        if (parsedV.length > 0) {
-          setSelectedPlate(parsedV[0].plate_number)
-          setInitialKm(parsedV[0].last_km || 0)
-        }
-      } else {
-        setSelectedPlate(DEFAULT_VEHICLES[0].plate_number)
-        setInitialKm(DEFAULT_VEHICLES[0].last_km)
+        setVehicles(sanitizeVehicles(parsedV))
       }
-
-      if (storedPrices) setFuelPrices(JSON.parse(storedPrices))
-      if (storedDrivers) {
-        const parsedD = JSON.parse(storedDrivers)
-        setDriverList(parsedD)
-        if (parsedD.length > 0) setDriverName(parsedD[0].name)
-      } else {
-        setDriverName(DEFAULT_DRIVERS[0].name)
+      if (storedLogs) {
+        const parsedL = JSON.parse(storedLogs)
+        setLogs(sanitizeLogs(parsedL))
       }
     } catch (err) {
-      console.error('Error loading initial data:', err)
+      console.error('Error loading stored data:', err)
+      localStorage.removeItem('fuel_logs')
+      localStorage.removeItem('vehicle_budgets')
     }
   }, [])
 
-  const handleVehicleChange = (plate: string) => {
-    setSelectedPlate(plate)
-    const found = vehicles.find((v) => v.plate_number === plate)
-    if (found && found.last_km !== undefined) {
-      setInitialKm(found.last_km)
-    } else {
-      setInitialKm('')
-    }
-  }
+  useEffect(() => {
+    setAdminPage(1)
+  }, [selectedVehicle, startDate, endDate])
 
-  // Kompresi Gambar Kamera HP
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 800
-        const scaleSize = MAX_WIDTH / img.width
-        canvas.width = MAX_WIDTH
-        canvas.height = img.height * scaleSize
-
-        const ctx = canvas.getContext('2d')
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6)
-        setReceiptImage(compressedBase64)
-      }
-      img.src = event.target?.result as string
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const selectedVehicleObj = vehicles.find((v) => v.plate_number === selectedPlate)
-  const unitPrice = fuelPrices[fuelType] || 10000
-
-  const distance = Number(finalKm) && Number(initialKm) ? Math.max(0, Number(finalKm) - Number(initialKm)) : 0
-  const totalCost = Number(liters) ? Math.round(Number(liters) * unitPrice) : 0
-  const kmPerLiter = Number(liters) && Number(liters) > 0 ? (distance / Number(liters)).toFixed(2) : '0'
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedPlate || !driverName || !finalKm || !liters) {
-      alert('Mohon lengkapi seluruh kolom formulir!')
-      return
+    if (pinInput === '1234') {
+      setIsAuthenticated(true)
+      setPinError(false)
+    } else {
+      setPinError(true)
     }
+  }
 
-    if (Number(finalKm) <= Number(initialKm)) {
-      alert('KM Akhir Odometer harus lebih besar dari KM Awal!')
-      return
+  const handleUpdateStatus = (id: number, newStatus: 'VERIFIED' | 'FLAGGED') => {
+    const updatedLogs = logs.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+    setLogs(updatedLogs)
+    localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
+    if (previewReceipt && previewReceipt.id === id) {
+      setPreviewReceipt({ ...previewReceipt, status: newStatus })
     }
+  }
 
-    setIsSubmitting(true)
-
-    const newLog = {
-      id: Date.now(),
-      plate_number: selectedPlate,
-      vehicle_model: selectedVehicleObj?.model || 'Kendaraan',
-      driver_name: driverName,
-      initial_km: Number(initialKm),
-      final_km: Number(finalKm),
-      distance_km: distance,
-      liters: Number(liters),
-      unit_price: unitPrice,
-      km_per_liter: kmPerLiter,
-      total_cost: totalCost,
-      fuel_type: fuelType,
-      receipt_image: receiptImage,
-      date: new Date().toISOString().split('T')[0],
-      status: 'PENDING',
-    }
-
-    try {
-      const existingLogs = JSON.parse(localStorage.getItem('fuel_logs') || '[]')
-      const updatedLogs = [newLog, ...existingLogs]
+  const handleDeleteLog = (id: number) => {
+    if (confirm('Apakah Anda yakin ingin menghapus catatan transaksi ini?')) {
+      const updatedLogs = logs.filter((l) => l.id !== id)
+      setLogs(updatedLogs)
       localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
-
-      const updatedVehicles = vehicles.map((v) =>
-        v.plate_number === selectedPlate ? { ...v, last_km: Number(finalKm) } : v
-      )
-      setVehicles(updatedVehicles)
-      localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
-
-      setSuccessMsg(true)
-      setFinalKm('')
-      setLiters('')
-      setReceiptImage('')
-
-      setTimeout(() => setSuccessMsg(false), 3000)
-    } catch (err) {
-      alert('Gagal menyimpan laporan!')
-    } finally {
-      setIsSubmitting(false)
     }
+  }
+
+  const handleConfirmResetCache = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (resetPinInput === '1234') {
+      localStorage.removeItem('fuel_logs')
+      setLogs(DEFAULT_LOGS)
+      setShowResetModal(false)
+      setResetPinInput('')
+      setResetPinError(false)
+      alert('Cache berhasil dibersihkan!')
+    } else {
+      setResetPinError(true)
+    }
+  }
+
+  const handleDownloadReceipt = (receiptBase64: string, plateNumber: string, date: string, finalKm: number) => {
+    const cleanPlate = (plateNumber || 'ARMADA').replace(/\s+/g, '').toUpperCase()
+    const cleanDate = date || 'TANPATANGGAL'
+    const fileName = `${cleanPlate}_${cleanDate}_${finalKm || 0}.jpg`
+
+    const a = document.createElement('a')
+    a.href = receiptBase64
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
+  const renderEfficiencyBadge = (kmPerLiterVal: any) => {
+    const val = Number(kmPerLiterVal) || 0
+    if (val < 8) {
+      return (
+        <span className="bg-rose-100 text-rose-700 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse"></span>
+          {val} KM/L (Boros)
+        </span>
+      )
+    } else if (val < 12) {
+      return (
+        <span className="bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+          {val} KM/L (Normal)
+        </span>
+      )
+    } else {
+      return (
+        <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-[10px] inline-flex items-center gap-1.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+          {val} KM/L (Irit)
+        </span>
+      )
+    }
+  }
+
+  const renderStatusBadge = (status?: string) => {
+    if (status === 'VERIFIED') {
+      return <span className="bg-emerald-500 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] shadow-sm">VERIFIED</span>
+    } else if (status === 'FLAGGED') {
+      return <span className="bg-rose-500 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] shadow-sm">ANOMALI</span>
+    } else {
+      return <span className="bg-amber-500 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] shadow-sm">PENDING</span>
+    }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-5 text-center border border-slate-100">
+          <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center mx-auto text-xl font-bold shadow-md">
+            ⛽
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">Dashboard Admin</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Sistem Monitoring BBM Armada</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-3">
+            <input
+              type="password"
+              maxLength={4}
+              placeholder="••••"
+              className="w-full text-center text-2xl tracking-widest py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold bg-slate-50"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+            />
+
+            {pinError && (
+              <p className="text-xs text-rose-600 font-semibold">PIN tidak valid (Default: 1234)</p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md"
+            >
+              Verifikasi Akses
+            </button>
+          </form>
+
+          <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+            <Link href="/" className="hover:text-slate-800 font-medium transition">
+              ← Form Driver
+            </Link>
+            <button
+              onClick={() => setShowResetModal(true)}
+              className="text-rose-600 hover:text-rose-800 font-semibold"
+            >
+              Reset Cache
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const safeLogs = Array.isArray(logs) ? logs : []
+  const safeVehicles = Array.isArray(vehicles) ? vehicles : []
+
+  const filteredLogs = safeLogs.filter((log) => {
+    const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
+    const matchStart = !startDate || log.date >= startDate
+    const matchEnd = !endDate || log.date <= endDate
+    return matchVehicle && matchStart && matchEnd
+  })
+
+  const totalAdminPages = Math.ceil(filteredLogs.length / logsPerPage) || 1
+  const paginatedAdminLogs = filteredLogs.slice((adminPage - 1) * logsPerPage, adminPage * logsPerPage)
+
+  const pendingCount = safeLogs.filter((l) => !l.status || l.status === 'PENDING').length
+  const highConsumptionLogs = safeLogs.filter((l) => Number(l.km_per_liter) < 8)
+
+  const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+  const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+  const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+  const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
+
+  const vehicleStats = safeVehicles.map((v) => {
+    const vLogs = safeLogs.filter((l) => l.plate_number === v.plate_number)
+    const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+    const km = vLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+    const liters = vLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+    const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
+    const budget = Number(v.monthly_budget) || 1
+    const usagePercent = Math.min(Math.round((spentCost / budget) * 100), 100)
+    const isOverBudget = spentCost > budget
+
+    const maintenance = getMaintenanceSchedule(v.last_km)
+
+    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget, maintenance, totalLiters: liters, totalKm: km }
+  })
+
+  const criticalServiceCount = vehicleStats.filter((v) => v.maintenance.status === 'CRITICAL').length
+
+  const exportToExcel = () => {
+    const title = 'REKAPITULASI OPERASIONAL PENGISIAN BBM'
+    const periodStr = `Periode: ${startDate || 'Awal'} s/d ${endDate || 'Hari Ini'}`
+    const filterStr = `Filter Armada: ${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}`
+
+    let tableRows = ''
+    filteredLogs.forEach((l) => {
+      const effVal = Number(l.km_per_liter) || 0
+      const statusEff = effVal < 8 ? 'Boros (<8 KM/L)' : effVal < 12 ? 'Normal (8-12 KM/L)' : 'Irit (>12 KM/L)'
+      
+      tableRows += `
+        <tr>
+          <td style="text-align: center;">${l.date || '-'}</td>
+          <td style="font-weight: bold; text-align: center;">${l.plate_number || '-'}</td>
+          <td>${l.vehicle_model || '-'}</td>
+          <td>${l.driver_name || '-'}</td>
+          <td style="text-align: center;">${l.fuel_type || '-'}</td>
+          <td style="text-align: right;">${(Number(l.initial_km) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: right;">${(Number(l.final_km) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: right; font-weight: bold;">${(Number(l.distance_km) || 0).toLocaleString('id-ID')} KM</td>
+          <td style="text-align: right;">${(Number(l.liters) || 0).toLocaleString('id-ID')} L</td>
+          <td style="text-align: right;">Rp ${(Number(l.unit_price) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: right; font-weight: bold;">Rp ${(Number(l.total_cost) || 0).toLocaleString('id-ID')}</td>
+          <td style="text-align: center;">${effVal} KM/L</td>
+          <td style="text-align: center;">${statusEff}</td>
+          <td style="text-align: center; font-weight: bold;">${l.status || 'PENDING'}</td>
+        </tr>
+      `
+    })
+
+    const excelHTML = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+        <style>
+          body { font-family: Arial, sans-serif; }
+          .header-title { font-size: 16px; font-weight: bold; color: #0f172a; }
+          .header-meta { font-size: 11px; color: #475569; }
+          table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+          th { background-color: #0f172a; color: #ffffff; font-weight: bold; border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-size: 11px; }
+          td { border: 1px solid #cbd5e1; padding: 6px; font-size: 11px; }
+          .total-row { background-color: #f1f5f9; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header-title">${title}</div>
+        <div class="header-meta">${periodStr}</div>
+        <div class="header-meta">${filterStr}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Plat Kendaraan</th>
+              <th>Model / Tipe</th>
+              <th>Pengemudi</th>
+              <th>Jenis BBM</th>
+              <th>KM Awal</th>
+              <th>KM Akhir</th>
+              <th>Jarak Tempuh</th>
+              <th>Volume (Liter)</th>
+              <th>Harga / Liter</th>
+              <th>Total Biaya</th>
+              <th>Efisiensi</th>
+              <th>Kategori Efisiensi</th>
+              <th>Status Audit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+            <tr class="total-row">
+              <td colspan="7" style="text-align: right;">TOTAL REKAPITULASI:</td>
+              <td style="text-align: right;">${totalKm.toLocaleString('id-ID')} KM</td>
+              <td style="text-align: right;">${totalLiters.toLocaleString('id-ID')} L</td>
+              <td></td>
+              <td style="text-align: right;">Rp ${totalCost.toLocaleString('id-ID')}</td>
+              <td style="text-align: center;">${avgKmPerLiter} KM/L</td>
+              <td colspan="2"></td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `
+
+    const blob = new Blob(['\uFEFF' + excelHTML], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `REKAP_OPERASIONAL_BBM_${selectedVehicle.replace(/\s+/g, '')}_${new Date().toISOString().split('T')[0]}.xls`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleTriggerPrint = () => {
+    window.print()
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-between font-sans text-slate-800 p-4">
-      <div className="max-w-md w-full mx-auto space-y-4 my-auto">
-        
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 text-center space-y-1">
-          <div className="w-12 h-12 bg-amber-500 text-slate-900 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold shadow-md">
-            ⛽
+    <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
+      
+      {/* SIDEBAR NAVIGATION KIRI */}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between print:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div>
+          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-amber-500 text-slate-900 rounded-xl flex items-center justify-center font-bold text-lg shadow-md">
+                ⛽
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
+                <span className="text-[10px] text-amber-400 font-semibold tracking-wider uppercase">Enterprise Edition</span>
+              </div>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white">
+              ✕
+            </button>
           </div>
-          <h1 className="text-base font-bold text-slate-900 pt-1">Form Pengisian BBM Operasional</h1>
-          <p className="text-xs text-slate-500">Laporan pengisian BBM armada pengemudi</p>
+
+          <nav className="p-4 space-y-1">
+            <button
+              onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <span className="text-base">📊</span> Dashboard Utama
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <span className="text-base">📈</span> Analytics & Grafik
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('maintenance'); setSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'maintenance' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-base">🔧</span> Jadwal Servis Armada
+              </div>
+              {criticalServiceCount > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {criticalServiceCount}
+                </span>
+              )}
+            </button>
+
+            {/* RENAMED MENU: Pusat Kelola Operasional */}
+            <Link
+              href="/admin/settings"
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition group"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-base">⚙️</span>
+                <div className="text-left">
+                  <div className="font-bold group-hover:text-white text-slate-300">Pusat Kelola Operasional</div>
+                  <div className="text-[9px] text-slate-500">Armada, Supir & Tarif</div>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              href="/admin/backup"
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            >
+              <span className="text-base">💾</span> Pusat Backup (.JSON)
+            </Link>
+          </nav>
         </div>
 
-        {successMsg && (
-          <div className="p-4 bg-emerald-600 text-white font-bold rounded-2xl text-xs text-center shadow-lg animate-bounce">
-            ✓ Laporan BBM Berhasil Terkirim & Terdata!
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-          
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Pilih Armada Kendaraan</label>
-            <select
-              className="w-full p-3 border border-slate-300 rounded-xl text-xs font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-slate-900"
-              value={selectedPlate}
-              onChange={(e) => handleVehicleChange(e.target.value)}
-            >
-              {vehicles.map((v) => (
-                <option key={v.plate_number} value={v.plate_number}>
-                  {v.plate_number} - {v.model}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Nama Pengemudi (Driver)</label>
-            <select
-              className="w-full p-3 border border-slate-300 rounded-xl text-xs font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-slate-900"
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-            >
-              {driverList.map((d) => (
-                <option key={d.id} value={d.name}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Bahan Bakar</label>
-            <select
-              className="w-full p-3 border border-slate-300 rounded-xl text-xs font-semibold bg-slate-50 outline-none focus:ring-2 focus:ring-slate-900"
-              value={fuelType}
-              onChange={(e) => setFuelType(e.target.value)}
-            >
-              {Object.keys(fuelPrices).map((type) => (
-                <option key={type} value={type}>
-                  {type} (Rp {fuelPrices[type].toLocaleString('id-ID')}/L)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">KM Odometer Awal</label>
-              <input
-                type="number"
-                readOnly
-                className="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-500 cursor-not-allowed"
-                value={initialKm}
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">KM Odometer Akhir</label>
-              <input
-                type="number"
-                required
-                placeholder="45320"
-                className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-slate-900"
-                value={finalKm}
-                onChange={(e) => setFinalKm(e.target.value ? Number(e.target.value) : '')}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Volume Pengisian (Liter)</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              placeholder="35"
-              className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-slate-900"
-              value={liters}
-              onChange={(e) => setLiters(e.target.value ? Number(e.target.value) : '')}
-            />
-          </div>
-
-          {/* Kalkulasi Ringkas */}
-          <div className="p-3.5 bg-slate-900 text-white rounded-xl space-y-1 font-mono text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-400 font-sans">Jarak Tempuh:</span>
-              <span className="font-bold">{distance} KM</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-400 font-sans">Rasio Efisiensi:</span>
-              <span className="font-bold text-amber-400">{kmPerLiter} KM/L</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-800 pt-1">
-              <span className="text-slate-400 font-sans">Estimasi Biaya:</span>
-              <span className="font-bold text-emerald-400">Rp {totalCost.toLocaleString('id-ID')}</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Foto Struk SPBU (Kompresi Hemat Kuota)</label>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleImageUpload}
-              className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-900 file:text-white cursor-pointer"
-            />
-            {receiptImage && (
-              <div className="mt-2 relative">
-                <img src={receiptImage} alt="Struk Preview" className="h-28 rounded-xl object-cover border w-full" />
-                <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">✓ Foto Terkompresi</span>
-              </div>
-            )}
-          </div>
-
+        <div className="p-4 border-t border-slate-800 space-y-3">
           <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3.5 rounded-xl text-xs transition shadow-md"
+            onClick={() => setShowResetModal(true)}
+            className="w-full bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
           >
-            {isSubmitting ? 'Mengirim...' : 'Kirim Laporan BBM'}
+            ⚠️ Reset Cache
           </button>
-        </form>
+          <div className="text-[10px] text-slate-500 text-center">
+            Dev by <span className="font-bold text-slate-400">Urai Ikhsan Fadhilah</span>
+          </div>
+        </div>
+      </aside>
 
+      {/* KONTEN UTAMA */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* TOP BAR / HEADER */}
+        <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex justify-between items-center sticky top-0 z-30 shadow-sm print:hidden">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-700 text-xl p-1">
+              ☰
+            </button>
+            <h1 className="text-base sm:text-lg font-bold text-slate-900">
+              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics & Grafik Tren Konsumsi' : 'Jadwal Servis & Maintenance Armada'}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+            >
+              🖨️ Cetak PDF Eksekutif
+            </button>
+            <button
+              onClick={exportToExcel}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export Excel (.XLS)
+            </button>
+          </div>
+        </header>
+
+        {/* MAIN BODY CONTENT */}
+        <main className="p-4 sm:p-6 space-y-6 overflow-y-auto print:p-0">
+          
+          {/* BANNER PERINGATAN ANOMALI */}
+          {(pendingCount > 0 || highConsumptionLogs.length > 0 || criticalServiceCount > 0) && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm print:hidden">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div className="text-xs text-amber-900">
+                  <span className="font-bold">Sistem Perhatian Operasional:</span>
+                  <span className="block mt-0.5">
+                    Terdapat <strong className="underline">{pendingCount} laporan baru</strong> butuh verifikasi, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, serta <strong className="text-rose-700 underline">{criticalServiceCount} armada wajib servis segera</strong>.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'dashboard' && (
+            <>
+              {/* MERGED EXECUTIVE COMMAND BAR (SINGLE UNIFIED CONTAINER) */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden divide-y md:divide-y-0 md:divide-x divide-slate-100 grid grid-cols-1 md:grid-cols-4">
+                
+                {/* 1. Total Biaya */}
+                <div className="p-5 bg-gradient-to-br from-indigo-50/40 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Total Biaya Operasional</span>
+                    <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm shadow">💰</span>
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    Rp {(Number(totalCost) || 0).toLocaleString('id-ID')}
+                  </div>
+                  <span className="text-[10px] font-semibold text-indigo-600 block">Real-Time Total Pengeluaran BBM</span>
+                </div>
+
+                {/* 2. Rata-Rata Efisiensi */}
+                <div className="p-5 bg-gradient-to-br from-emerald-50/40 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Rata-Rata Efisiensi</span>
+                    <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm shadow">⚡</span>
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {avgKmPerLiter} <span className="text-xs font-sans font-medium text-slate-500">KM/L</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-600 block">Rasio Efisiensi Konsumsi Armada</span>
+                </div>
+
+                {/* 3. Total Konsumsi BBM */}
+                <div className="p-5 bg-gradient-to-br from-amber-50/40 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">Total Konsumsi BBM</span>
+                    <span className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center text-sm shadow">🛢️</span>
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-medium text-slate-500">Liter</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-amber-600 block">Total Volume Terdistribusi</span>
+                </div>
+
+                {/* 4. Total Laporan */}
+                <div className="p-5 bg-gradient-to-br from-slate-50/60 via-white to-white space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Laporan Pengisian</span>
+                    <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm shadow">📋</span>
+                  </div>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {filteredLogs.length} <span className="text-xs font-sans font-medium text-slate-500">Laporan</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500 block">Audit & Verifikasi Berkas</span>
+                </div>
+
+              </div>
+
+              {/* UNIFIED PAGU ANGGARAN BULANAN PANEL */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+                <div className="flex justify-between items-center border-b pb-3">
+                  <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Realisasi vs Pagu Anggaran Bulanan Armada</h2>
+                  <span className="text-[11px] text-slate-500 font-medium">Batas Maksimum Pengeluaran Operasional</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {vehicleStats.map((v) => (
+                    <div key={v.plate_number} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 hover:border-slate-300 transition shadow-xs">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-xs text-slate-900">{v.plate_number}</div>
+                          <div className="text-[11px] text-slate-500">{v.model}</div>
+                        </div>
+                        {v.isOverBudget ? (
+                          <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                            Exceeded
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                            Normal
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-slate-500 font-sans">Realisasi:</span>
+                          <span className={v.isOverBudget ? 'text-rose-600 font-bold' : 'text-slate-900 font-semibold'}>
+                            Rp {(Number(v.spentCost) || 0).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                          <span className="font-sans">Pagu Mandiri:</span>
+                          <span>Rp {(Number(v.monthly_budget) || 0).toLocaleString('id-ID')}</span>
+                        </div>
+
+                        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mt-2">
+                          <div
+                            className={`h-2 rounded-full transition-all duration-500 ${
+                              v.isOverBudget ? 'bg-rose-600' : 'bg-slate-900'
+                            }`}
+                            style={{ width: `${v.usagePercent}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
+                        <span className="text-slate-500">Efisiensi Rata-Rata:</span>
+                        {renderEfficiencyBadge(v.efficiency)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* TABEL REKAPITULASI AUDIT LOGS */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+                  <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian</h2>
+                  
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                      <span className="text-slate-500 font-medium">Dari:</span>
+                      <input
+                        type="date"
+                        className="bg-transparent font-medium text-slate-800 outline-none"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                      />
+                      <span className="text-slate-500 font-medium">s/d</span>
+                      <input
+                        type="date"
+                        className="bg-transparent font-medium text-slate-800 outline-none"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                      />
+                      {(startDate || endDate) && (
+                        <button
+                          onClick={() => {
+                            setStartDate('')
+                            setEndDate('')
+                          }}
+                          className="text-slate-400 hover:text-slate-700 ml-1 font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <select
+                      className="text-xs border border-slate-300 rounded-xl p-2 bg-white font-medium text-slate-700 outline-none"
+                      value={selectedVehicle}
+                      onChange={(e) => setSelectedVehicle(e.target.value)}
+                    >
+                      <option value="ALL">Semua Armada</option>
+                      {safeVehicles.map((v) => (
+                        <option key={v.plate_number} value={v.plate_number}>
+                          {v.plate_number} - {v.model}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="p-3.5">Tanggal</th>
+                        <th className="p-3.5">Kendaraan</th>
+                        <th className="p-3.5">Pengemudi</th>
+                        <th className="p-3.5">Jenis BBM</th>
+                        <th className="p-3.5">KM Odometer</th>
+                        <th className="p-3.5">Volume</th>
+                        <th className="p-3.5">Efisiensi</th>
+                        <th className="p-3.5">Audit Struk</th>
+                        <th className="p-3.5">Status Admin</th>
+                        <th className="p-3.5 text-right">Total Biaya</th>
+                        <th className="p-3.5 text-center">Aksi Verifikasi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedAdminLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-50/80 transition">
+                          <td className="p-3.5 font-medium whitespace-nowrap">{log.date}</td>
+                          <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.plate_number}</td>
+                          <td className="p-3.5 whitespace-nowrap">{log.driver_name}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg font-medium text-[11px]">
+                              {log.fuel_type}
+                            </span>
+                          </td>
+                          <td className="p-3.5 font-mono whitespace-nowrap">
+                            {(Number(log.initial_km) || 0).toLocaleString('id-ID')} → {(Number(log.final_km) || 0).toLocaleString('id-ID')} ({log.distance_km || 0} KM)
+                          </td>
+                          <td className="p-3.5 font-mono whitespace-nowrap">{log.liters || 0} L</td>
+                          <td className="p-3.5 font-mono whitespace-nowrap">
+                            {renderEfficiencyBadge(log.km_per_liter)}
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            {log.receipt_image ? (
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => setPreviewReceipt(log)}
+                                  className="text-[11px] text-blue-600 hover:text-blue-800 font-bold underline"
+                                >
+                                  Lihat
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadReceipt(log.receipt_image, log.plate_number, log.date, log.final_km)}
+                                  className="text-[10px] text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded border border-slate-200 font-mono"
+                                  title="Unduh Struk"
+                                >
+                                  📥
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">-</span>
+                            )}
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            {renderStatusBadge(log.status)}
+                          </td>
+                          <td className="p-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                            Rp {(Number(log.total_cost) || 0).toLocaleString('id-ID')}
+                          </td>
+                          <td className="p-3.5 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1">
+                              {log.status !== 'VERIFIED' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(log.id, 'VERIFIED')}
+                                  className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg shadow-sm"
+                                  title="Setujui Laporan"
+                                >
+                                  ✓ Verifikasi
+                                </button>
+                              )}
+                              {log.status !== 'FLAGGED' && (
+                                <button
+                                  onClick={() => handleUpdateStatus(log.id, 'FLAGGED')}
+                                  className="text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded-lg shadow-sm"
+                                  title="Tandai Anomali"
+                                >
+                                  ⚠ Anomali
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteLog(log.id)}
+                                className="text-[10px] text-rose-600 hover:text-rose-800 font-bold px-1.5 py-1 bg-rose-50 rounded-lg"
+                                title="Hapus Permanent"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-mono text-[11px]">
+                    Menampilkan {filteredLogs.length > 0 ? (adminPage - 1) * logsPerPage + 1 : 0} - {Math.min(adminPage * logsPerPage, filteredLogs.length)} dari {filteredLogs.length} transaksi
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      disabled={adminPage === 1}
+                      onClick={() => setAdminPage((prev) => prev - 1)}
+                      className="px-3 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-medium transition shadow-sm"
+                    >
+                      ← Prev
+                    </button>
+                    <span className="font-mono text-[11px] text-slate-700 px-2 font-bold">
+                      {adminPage} / {totalAdminPages}
+                    </span>
+                    <button
+                      disabled={adminPage === totalAdminPages || totalAdminPages === 0}
+                      onClick={() => setAdminPage((prev) => prev + 1)}
+                      className="px-3 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-medium transition shadow-sm"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                <h2 className="text-sm font-bold text-slate-900">Analisis Kinerja & Efisiensi Konsumsi BBM</h2>
+                <p className="text-xs text-slate-500">Visualisasi statistik rasio efisiensi KM/L dan distribusi pengeluaran biaya BBM per kendaraan</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Perbandingan Efisiensi Armada (KM/Liter)</h3>
+                  <div className="space-y-4 pt-2">
+                    {vehicleStats.map((v) => {
+                      const eff = v.efficiency
+                      const maxEff = 15
+                      const percent = Math.min(Math.round((eff / maxEff) * 100), 100)
+                      const isBoros = eff < 8
+
+                      return (
+                        <div key={v.plate_number} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>{v.plate_number} ({v.model})</span>
+                            <span className={isBoros ? 'text-rose-600 font-bold' : 'text-emerald-700 font-bold'}>{eff} KM/L</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                            <div
+                              className={`h-3 rounded-full transition-all duration-700 ${isBoros ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-emerald-500 to-teal-600'}`}
+                              style={{ width: `${percent}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Alokasi Biaya BBM Per Kendaraan</h3>
+                  <div className="space-y-4 pt-2">
+                    {vehicleStats.map((v) => {
+                      const costShare = totalCost > 0 ? Math.round((v.spentCost / totalCost) * 100) : 0
+
+                      return (
+                        <div key={v.plate_number} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>{v.plate_number}</span>
+                            <span className="font-mono text-slate-700">Rp {v.spentCost.toLocaleString('id-ID')} ({costShare}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                            <div
+                              className="h-3 rounded-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-700"
+                              style={{ width: `${costShare}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'maintenance' && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                <h2 className="text-sm font-bold text-slate-900">Modul Pengawas Servis & Ganti Oli Otomatis</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Sistem menghitung posisi Odometer terkini dari laporan driver untuk mendeteksi batas ganti oli berkala (Kelipatan 5.000 KM) dan servis umum (Kelipatan 10.000 KM).
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {vehicleStats.map((v) => (
+                  <div key={v.plate_number} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div className="flex justify-between items-start border-b pb-3">
+                      <div>
+                        <div className="font-bold text-sm text-slate-900">{v.plate_number}</div>
+                        <div className="text-xs text-slate-500">{v.model}</div>
+                      </div>
+                      {v.maintenance.status === 'CRITICAL' ? (
+                        <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse shadow-sm">
+                          🚨 WAJIB SERVIS SEGERA
+                        </span>
+                      ) : v.maintenance.status === 'WARNING' ? (
+                        <span className="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                          ⚠️ MENDEKATI SERVIS
+                        </span>
+                      ) : (
+                        <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                          ✓ PRIMA
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Odometer Terkini:</span>
+                        <span className="font-mono font-bold text-slate-900">{v.last_km.toLocaleString('id-ID')} KM</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                        <div className="flex justify-between text-[11px] font-semibold text-slate-700">
+                          <span>🛢️ Target Ganti Oli:</span>
+                          <span className="font-mono">{v.maintenance.nextOilKm.toLocaleString('id-ID')} KM</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                          <span>Sisa Jarak:</span>
+                          <span className={v.maintenance.remainingOilKm <= 300 ? 'text-rose-600 font-bold' : 'text-slate-800'}>
+                            {v.maintenance.remainingOilKm.toLocaleString('id-ID')} KM Lagi
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                        <div className="flex justify-between text-[11px] font-semibold text-slate-700">
+                          <span>🔧 Target Servis Berkala:</span>
+                          <span className="font-mono">{v.maintenance.nextServiceKm.toLocaleString('id-ID')} KM</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
+                          <span>Sisa Jarak:</span>
+                          <span className={v.maintenance.remainingServiceKm <= 300 ? 'text-rose-600 font-bold' : 'text-slate-800'}>
+                            {v.maintenance.remainingServiceKm.toLocaleString('id-ID')} KM Lagi
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </main>
       </div>
 
-      <footer className="py-2 text-center text-[10px] text-slate-500 font-medium">
-        Developed by <span className="font-bold text-slate-700">Urai Ikhsan Fadhilah</span>
-      </footer>
+      {/* MODAL CETAK PDF EXECUTIVE */}
+      {showPrintModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="border-b-2 border-slate-900 pb-4 text-center space-y-1">
+              <h2 className="text-base font-bold text-slate-900 tracking-wider uppercase">LAPORAN RINGKASAN EKSEKUTIF OPERASIONAL BBM</h2>
+              <p className="text-xs text-slate-600">Dokumen Resmi Audit Konsumsi & Biaya Bahan Bakar Armada Perusahaan</p>
+              <p className="text-[11px] text-slate-400 font-mono">Tanggal Cetak: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 text-center border p-3 rounded-xl bg-slate-50 text-xs font-mono">
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Biaya Operasional</span>
+                <span className="font-bold text-slate-900 text-sm">Rp {totalCost.toLocaleString('id-ID')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Volume Terdistribusi</span>
+                <span className="font-bold text-slate-900 text-sm">{totalLiters.toLocaleString('id-ID')} Liter</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Efisiensi Rata-Rata</span>
+                <span className="font-bold text-slate-900 text-sm">{avgKmPerLiter} KM/L</span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border">
+                <thead className="bg-slate-900 text-white font-bold text-[11px]">
+                  <tr>
+                    <th className="p-2 border">Tanggal</th>
+                    <th className="p-2 border">Armada</th>
+                    <th className="p-2 border">Pengemudi</th>
+                    <th className="p-2 border">BBM</th>
+                    <th className="p-2 border text-right">Volume</th>
+                    <th className="p-2 border text-right">Total Biaya</th>
+                    <th className="p-2 border text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-[11px]">
+                  {filteredLogs.map((l) => (
+                    <tr key={l.id}>
+                      <td className="p-2 border">{l.date}</td>
+                      <td className="p-2 border font-bold">{l.plate_number}</td>
+                      <td className="p-2 border">{l.driver_name}</td>
+                      <td className="p-2 border">{l.fuel_type}</td>
+                      <td className="p-2 border text-right font-mono">{l.liters} L</td>
+                      <td className="p-2 border text-right font-mono font-bold">Rp {l.total_cost.toLocaleString('id-ID')}</td>
+                      <td className="p-2 border text-center font-bold">{l.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 pt-6 text-center text-xs">
+              <div>
+                <p className="text-slate-500">Dibuat Oleh,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-900">Manajer Operasional</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Disetujui Oleh,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-900">Direktur / Management</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t print:hidden">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={handleTriggerPrint}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5"
+              >
+                🖨️ Cetak / Simpan PDF
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PREVIEW STRUK */}
+      {previewReceipt && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <div>
+                <h3 className="text-xs font-bold text-slate-900">Verifikasi Audit Struk BBM</h3>
+                <p className="text-[11px] text-slate-500">{previewReceipt.plate_number} • {previewReceipt.date} • {previewReceipt.driver_name}</p>
+              </div>
+              <button
+                onClick={() => setPreviewReceipt(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="max-h-[55vh] overflow-y-auto rounded-xl border bg-slate-50 flex items-center justify-center p-2">
+              <img src={previewReceipt.receipt_image} alt="Foto Struk BBM" className="max-w-full h-auto rounded-lg" />
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-500">Status Saat Ini:</span>
+                {renderStatusBadge(previewReceipt.status)}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleUpdateStatus(previewReceipt.id, 'VERIFIED')}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-sm"
+                >
+                  ✓ Setujui (Verified)
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus(previewReceipt.id, 'FLAGGED')}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-sm"
+                >
+                  ⚠ Tandai Anomali
+                </button>
+              </div>
+
+              <button
+                onClick={() => handleDownloadReceipt(previewReceipt.receipt_image, previewReceipt.plate_number, previewReceipt.date, previewReceipt.final_km)}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2.5 rounded-xl border border-slate-200 transition"
+              >
+                📥 Unduh Berkas Struk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL RESET CACHE BER-PIN */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 text-left">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className="text-center space-y-1">
+              <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center mx-auto text-lg font-bold">
+                ⚠️
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Konfirmasi Reset Cache</h3>
+              <p className="text-xs text-rose-600 font-medium leading-relaxed">
+                PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi lokal di browser ini!
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmResetCache} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1 text-center">Masukkan PIN Admin untuk Konfirmasi</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  placeholder="••••"
+                  className="w-full text-center text-lg tracking-widest py-2 border rounded-xl border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none font-mono font-bold"
+                  value={resetPinInput}
+                  onChange={(e) => setResetPinInput(e.target.value)}
+                />
+                {resetPinError && (
+                  <p className="text-[11px] text-rose-600 text-center font-medium mt-1">PIN Salah!</p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowResetModal(false)
+                    setResetPinInput('')
+                    setResetPinError(false)
+                  }}
+                  className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm"
+                >
+                  Ya, Reset
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
