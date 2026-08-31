@@ -10,10 +10,9 @@ const DEFAULT_VEHICLES = [
 ]
 
 const DEFAULT_LOGS = [
-  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-18', status: 'VERIFIED' },
-  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 12500, km_per_liter: 7.5, total_cost: 500000, fuel_type: 'Biosolar / Solar', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat 35 KM - Kehabisan Stok', date: '2026-08-19', status: 'FLAGGED' },
-  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede Kurniawan', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 727500, fuel_type: 'Dexlite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
-  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 1, plate_number: 'KB 1234 YK', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 47500, final_km: 47582, distance_km: 82, liters: 35.5, unit_price: 12500, km_per_liter: 2.31, total_cost: 443750, fuel_type: 'Pertalite', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat Habis Stok', date: '2026-08-31', status: 'PENDING' },
+  { id: 2, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Udin', initial_km: 45070, final_km: 45250, distance_km: 180, liters: 30, unit_price: 10000, km_per_liter: 6.0, total_cost: 300000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-26', status: 'VERIFIED' },
+  { id: 3, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Joko', initial_km: 0, final_km: 70, distance_km: 70, liters: 25.3, unit_price: 10000, km_per_liter: 2.77, total_cost: 253000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
 ]
 
 function sanitizeVehicles(data: any) {
@@ -82,7 +81,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
-  // STATE DROPDOWN SIDEBAR ACCORDION
+  // State Dropdown Sidebar Accordion
   const [isKelolaOpen, setIsKelolaOpen] = useState(false)
 
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
@@ -91,9 +90,6 @@ export default function AdminDashboard() {
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
   const [showPrintModal, setShowPrintModal] = useState(false)
-
-  const [adminPage, setAdminPage] = useState(1)
-  const logsPerPage = 5
 
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
@@ -124,10 +120,6 @@ export default function AdminDashboard() {
       localStorage.removeItem('vehicle_budgets')
     }
   }, [])
-
-  useEffect(() => {
-    setAdminPage(1)
-  }, [selectedVehicle, startDate, endDate])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -287,9 +279,6 @@ export default function AdminDashboard() {
     return matchVehicle && matchStart && matchEnd
   })
 
-  const totalAdminPages = Math.ceil(filteredLogs.length / logsPerPage) || 1
-  const paginatedAdminLogs = filteredLogs.slice((adminPage - 1) * logsPerPage, adminPage * logsPerPage)
-
   const pendingCount = safeLogs.filter((l) => !l.status || l.status === 'PENDING').length
   const emergencyCount = safeLogs.filter((l) => l.fill_location === 'ECERAN').length
   const highConsumptionLogs = safeLogs.filter((l) => Number(l.km_per_liter) < 8)
@@ -419,7 +408,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       
-      {/* SIDEBAR NAVIGATION KIRI REVISED WITH DROPDOWN ACCORDION */}
+      {/* SIDEBAR NAVIGATION KIRI */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between print:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
@@ -439,7 +428,6 @@ export default function AdminDashboard() {
 
           <nav className="p-4 space-y-1">
             
-            {/* TOMBOL PINTAS FORM DRIVER */}
             <Link
               href="/"
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-md hover:brightness-105 transition mb-3"
@@ -447,7 +435,6 @@ export default function AdminDashboard() {
               <span className="text-base">📱</span> Form Input BBM Driver
             </Link>
 
-            {/* MODUL NAVIGATION PERTAMA */}
             <button
               onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
@@ -491,7 +478,6 @@ export default function AdminDashboard() {
                 </span>
               </button>
 
-              {/* SUB-MENU DROPDOWN */}
               {isKelolaOpen && (
                 <div className="mt-1 pl-3 space-y-1 border-l-2 border-slate-700 ml-3 animate-fade-in">
                   <Link
@@ -553,7 +539,7 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* KONTEN UTAMA DENGAN WARNA WARNI VIBRANT */}
+      {/* KONTEN UTAMA */}
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* TOP BAR / HEADER */}
@@ -612,10 +598,8 @@ export default function AdminDashboard() {
 
           {activeTab === 'dashboard' && (
             <>
-              {/* MERGED EXECUTIVE COMMAND BAR DENGAN WARNA VIBRANT */}
+              {/* MERGED EXECUTIVE COMMAND BAR */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                
-                {/* CARD 1: TOTAL BIAYA (INDIGO/VIOLET) */}
                 <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-indigo-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Total Biaya Operasional</span>
@@ -627,7 +611,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-medium text-indigo-100 block">Akumulasi Real-Time Pengeluaran</span>
                 </div>
 
-                {/* CARD 2: RATA-RATA EFISIENSI (EMERALD/TEAL) */}
                 <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-emerald-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Rata-Rata Efisiensi</span>
@@ -639,7 +622,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-medium text-emerald-100 block">Rasio Efisiensi Seluruh Armada</span>
                 </div>
 
-                {/* CARD 3: TOTAL KONSUMSI BBM (AMBER/ORANGE) */}
                 <div className="p-5 bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-amber-400/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">Total Konsumsi BBM</span>
@@ -651,7 +633,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-bold text-slate-900 block">Total Volume BBM Terdistribusi</span>
                 </div>
 
-                {/* CARD 4: TOTAL LAPORAN (SKY/BLUE) */}
                 <div className="p-5 bg-gradient-to-br from-blue-600 to-sky-700 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-blue-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Total Transaksi</span>
@@ -662,10 +643,9 @@ export default function AdminDashboard() {
                   </div>
                   <span className="text-[10px] font-medium text-blue-100 block">Audit Transaksi Terverifikasi</span>
                 </div>
-
               </div>
 
-              {/* PAGU ANGGARAN BULANAN PANEL DENGAN COLOR ACCENT */}
+              {/* PAGU ANGGARAN BULANAN PANEL */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b pb-3">
                   <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -725,7 +705,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* TABEL REKAPITULASI AUDIT LOGS */}
+              {/* TABEL REKAPITULASI AUDIT LOGS WITH SCROLL BOX */}
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
                   <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -777,9 +757,10 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* SCROLL BOX CONTAINER WITH STICKY HEADER */}
+                <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
                   <table className="w-full text-left text-xs text-slate-600">
-                    <thead className="bg-slate-900 text-white font-bold border-b border-slate-800">
+                    <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
                       <tr>
                         <th className="p-3.5">Tanggal</th>
                         <th className="p-3.5">Kendaraan</th>
@@ -796,13 +777,12 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {paginatedAdminLogs.map((log) => (
+                      {filteredLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-slate-50/80 transition">
                           <td className="p-3.5 font-medium whitespace-nowrap">{log.date}</td>
                           <td className="p-3.5 font-bold text-slate-900 whitespace-nowrap">{log.plate_number}</td>
                           <td className="p-3.5 whitespace-nowrap font-medium text-slate-800">{log.driver_name}</td>
                           
-                          {/* BADGE SPBU VS DARURAT ECERAN */}
                           <td className="p-3.5 whitespace-nowrap">
                             {log.fill_location === 'ECERAN' ? (
                               <span className="bg-amber-500/10 text-amber-900 border border-amber-300 font-extrabold px-2.5 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1 shadow-xs">
@@ -894,29 +874,14 @@ export default function AdminDashboard() {
                   </table>
                 </div>
 
+                {/* FOOTER SCROLL BOX */}
                 <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs">
                   <span className="text-slate-500 font-mono text-[11px]">
-                    Menampilkan {filteredLogs.length > 0 ? (adminPage - 1) * logsPerPage + 1 : 0} - {Math.min(adminPage * logsPerPage, filteredLogs.length)} dari {filteredLogs.length} transaksi
+                    Menampilkan total <strong className="text-slate-900">{filteredLogs.length}</strong> transaksi
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      disabled={adminPage === 1}
-                      onClick={() => setAdminPage((prev) => prev - 1)}
-                      className="px-3 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-medium transition shadow-sm"
-                    >
-                      ← Prev
-                    </button>
-                    <span className="font-mono text-[11px] text-slate-700 px-2 font-bold">
-                      {adminPage} / {totalAdminPages}
-                    </span>
-                    <button
-                      disabled={adminPage === totalAdminPages || totalAdminPages === 0}
-                      onClick={() => setAdminPage((prev) => prev + 1)}
-                      className="px-3 py-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 disabled:opacity-40 rounded-lg font-medium transition shadow-sm"
-                    >
-                      Next →
-                    </button>
-                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium italic">
+                    💡 Gulung (scroll) ke bawah pada tabel untuk melihat seluruh data
+                  </span>
                 </div>
               </div>
             </>
@@ -1160,7 +1125,6 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* DETAIL DARURAT INFO */}
             {previewReceipt.fill_location === 'ECERAN' && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1 text-xs">
                 <span className="font-bold text-amber-900 flex items-center gap-1">
