@@ -3,6 +3,81 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
+// --- IKON VEKTOR SVG MODERN ---
+const Icons = {
+  Fuel: () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
+  Dashboard: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>
+  ),
+  Analytics: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+    </svg>
+  ),
+  Wrench: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  Settings: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+    </svg>
+  ),
+  Backup: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+    </svg>
+  ),
+  Wallet: () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+  ),
+  Zap: () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
+  Clipboard: () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+  ),
+  Alert: () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+  ),
+  Printer: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+    </svg>
+  ),
+  Mobile: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  ),
+  Lock: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  ),
+  Check: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
 const DEFAULT_VEHICLES = [
   { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320 },
   { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000 },
@@ -15,6 +90,11 @@ const DEFAULT_LOGS = [
   { id: 3, plate_number: 'KB 1234 YK', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 47500, final_km: 47582, distance_km: 82, liters: 35.5, unit_price: 12500, km_per_liter: 2.31, total_cost: 443750, fuel_type: 'Pertalite', fill_location: 'ECERAN', emergency_note: 'SPBU Terdekat Habis Stok', date: '2026-08-31', status: 'PENDING' },
   { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Udin', initial_km: 45070, final_km: 45250, distance_km: 180, liters: 30, unit_price: 10000, km_per_liter: 6.0, total_cost: 300000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-26', status: 'VERIFIED' },
   { id: 5, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Joko', initial_km: 0, final_km: 70, distance_km: 70, liters: 25.3, unit_price: 10000, km_per_liter: 2.77, total_cost: 253000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-20', status: 'VERIFIED' },
+]
+
+const DEFAULT_SERVICE_HISTORY = [
+  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
+  { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala 30.000 KM', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
 ]
 
 function sanitizeVehicles(data: any) {
@@ -55,6 +135,8 @@ function getMaintenanceSchedule(currentKm: number) {
   const km = Number(currentKm) || 0
   const oilInterval = 5000
   const serviceInterval = 10000
+  const brakeInterval = 20000
+  const tireInterval = 25000
 
   const nextOilKm = Math.ceil((km + 1) / oilInterval) * oilInterval
   const remainingOilKm = nextOilKm - km
@@ -62,14 +144,20 @@ function getMaintenanceSchedule(currentKm: number) {
   const nextServiceKm = Math.ceil((km + 1) / serviceInterval) * serviceInterval
   const remainingServiceKm = nextServiceKm - km
 
+  const nextBrakeKm = Math.ceil((km + 1) / brakeInterval) * brakeInterval
+  const remainingBrakeKm = nextBrakeKm - km
+
+  const nextTireKm = Math.ceil((km + 1) / tireInterval) * tireInterval
+  const remainingTireKm = nextTireKm - km
+
   let status: 'CRITICAL' | 'WARNING' | 'OK' = 'OK'
-  if (remainingOilKm <= 300 || remainingServiceKm <= 300) {
+  if (remainingOilKm <= 300 || remainingServiceKm <= 300 || remainingBrakeKm <= 500) {
     status = 'CRITICAL'
   } else if (remainingOilKm <= 1000 || remainingServiceKm <= 1000) {
     status = 'WARNING'
   }
 
-  return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, status }
+  return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, nextBrakeKm, remainingBrakeKm, nextTireKm, remainingTireKm, status }
 }
 
 export default function AdminDashboard() {
@@ -79,6 +167,7 @@ export default function AdminDashboard() {
 
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
+  const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICE_HISTORY)
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -94,6 +183,12 @@ export default function AdminDashboard() {
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
+  // STATE MODAL SERVIS SELESAI
+  const [selectedServiceVehicle, setSelectedServiceVehicle] = useState<any | null>(null)
+  const [serviceTypeInput, setServiceTypeInput] = useState('Ganti Oli & Filter Mesin')
+  const [serviceCostInput, setServiceCostInput] = useState('')
+  const [workshopInput, setWorkshopInput] = useState('')
+
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
       setIsAuthenticated(true)
@@ -104,19 +199,19 @@ export default function AdminDashboard() {
     try {
       const storedVehicles = localStorage.getItem('vehicle_budgets')
       const storedLogs = localStorage.getItem('fuel_logs')
+      const storedServices = localStorage.getItem('service_history')
 
       if (storedVehicles) {
-        const parsedV = JSON.parse(storedVehicles)
-        setVehicles(sanitizeVehicles(parsedV))
+        setVehicles(sanitizeVehicles(JSON.parse(storedVehicles)))
       }
       if (storedLogs) {
-        const parsedL = JSON.parse(storedLogs)
-        setLogs(sanitizeLogs(parsedL))
+        setLogs(sanitizeLogs(JSON.parse(storedLogs)))
+      }
+      if (storedServices) {
+        setServiceHistory(JSON.parse(storedServices))
       }
     } catch (err) {
       console.error('Error loading stored data:', err)
-      localStorage.removeItem('fuel_logs')
-      localStorage.removeItem('vehicle_budgets')
     }
   }, [])
 
@@ -155,11 +250,37 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleRecordServiceSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedServiceVehicle) return
+
+    const newServiceRecord = {
+      id: Date.now(),
+      plate_number: selectedServiceVehicle.plate_number,
+      service_type: serviceTypeInput,
+      cost: Number(serviceCostInput) || 0,
+      workshop: workshopInput || 'Bengkel Rekanan',
+      km_done: selectedServiceVehicle.last_km,
+      date: new Date().toISOString().split('T')[0],
+    }
+
+    const updatedHistory = [newServiceRecord, ...serviceHistory]
+    setServiceHistory(updatedHistory)
+    localStorage.setItem('service_history', JSON.stringify(updatedHistory))
+
+    alert(`Pencatatan Servis untuk ${selectedServiceVehicle.plate_number} berhasil disimpan!`)
+    setSelectedServiceVehicle(null)
+    setServiceCostInput('')
+    setWorkshopInput('')
+  }
+
   const handleConfirmResetCache = (e: React.FormEvent) => {
     e.preventDefault()
     if (resetPinInput === '1234') {
       localStorage.removeItem('fuel_logs')
+      localStorage.removeItem('service_history')
       setLogs(DEFAULT_LOGS)
+      setServiceHistory(DEFAULT_SERVICE_HISTORY)
       setShowResetModal(false)
       setResetPinInput('')
       setResetPinError(false)
@@ -223,11 +344,11 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-5 text-center border border-slate-100">
           <div className="w-12 h-12 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold shadow-lg">
-            ⛽
+            <Icons.Fuel />
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900">Dashboard Admin</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Sistem Monitoring BBM Armada</p>
+            <p className="text-xs text-slate-500 mt-0.5">Sistem Monitoring BBM & Maintenance Armada</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3">
@@ -246,15 +367,15 @@ export default function AdminDashboard() {
 
             <button
               type="submit"
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2"
             >
-              Verifikasi Akses Admin
+              <Icons.Lock /> Verifikasi Akses Admin
             </button>
           </form>
 
           <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
             <Link href="/" className="hover:text-amber-600 font-bold transition flex items-center gap-1">
-              📱 Form Driver BBM
+              <Icons.Mobile /> Form Driver BBM
             </Link>
             <button
               onClick={() => setShowResetModal(true)}
@@ -286,6 +407,7 @@ export default function AdminDashboard() {
   const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
   const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
   const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
+  const totalMaintenanceCost = serviceHistory.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
 
   const vehicleStats = safeVehicles.map((v) => {
     const vLogs = safeLogs.filter((l) => l.plate_number === v.plate_number)
@@ -407,13 +529,13 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       
-      {/* SIDEBAR NAVIGATION KIRI */}
+      {/* SIDEBAR NAVIGATION KIRI WITH VEKTOR ICONS & DROPDOWN ACCORDION */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between print:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 rounded-xl flex items-center justify-center font-extrabold text-lg shadow-md">
-                ⛽
+              <div className="w-9 h-9 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 rounded-xl flex items-center justify-center font-extrabold shadow-md">
+                <Icons.Fuel />
               </div>
               <div>
                 <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
@@ -431,21 +553,21 @@ export default function AdminDashboard() {
               href="/"
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-md hover:brightness-105 transition mb-3"
             >
-              <span className="text-base">📱</span> Form Input BBM Driver
+              <Icons.Mobile /> Form Input BBM Driver
             </Link>
 
             <button
               onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <span className="text-base">📊</span> Dashboard Utama
+              <Icons.Dashboard /> Dashboard Utama
             </button>
 
             <button
               onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <span className="text-base">📈</span> Analytics & Grafik
+              <Icons.Analytics /> Analytics & Grafik
             </button>
 
             <button
@@ -453,7 +575,7 @@ export default function AdminDashboard() {
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'maintenance' ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <div className="flex items-center gap-3">
-                <span className="text-base">🔧</span> Jadwal Servis Armada
+                <Icons.Wrench /> Servis & Maintenance
               </div>
               {criticalServiceCount > 0 && (
                 <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
@@ -470,7 +592,7 @@ export default function AdminDashboard() {
                 className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition group"
               >
                 <span className="uppercase text-[10px] tracking-wider text-amber-400 font-extrabold flex items-center gap-2">
-                  <span>⚙️</span> Pusat Kelola Operasional
+                  <Icons.Settings /> Pusat Kelola Operasional
                 </span>
                 <span className="text-slate-500 group-hover:text-white transition-transform text-xs font-bold">
                   {isKelolaOpen ? '▲' : '▼'}
@@ -514,7 +636,7 @@ export default function AdminDashboard() {
               href="/admin/backup"
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-3 border-t border-slate-800 mt-2"
             >
-              <span className="text-base">💾</span> Pusat Backup (.JSON)
+              <Icons.Backup /> Pusat Backup (.JSON)
             </Link>
           </nav>
         </div>
@@ -524,13 +646,13 @@ export default function AdminDashboard() {
             onClick={handleLogout}
             className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
           >
-            🔒 Kunci Akses Admin
+            <Icons.Lock /> Kunci Akses Admin
           </button>
           <button
             onClick={() => setShowResetModal(true)}
             className="w-full bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 py-1.5 rounded-xl text-[11px] font-semibold transition flex items-center justify-center gap-1.5"
           >
-            ⚠️ Reset Cache
+            <Icons.Alert /> Reset Cache
           </button>
           <div className="text-[10px] text-slate-500 text-center pt-1">
             Dev by <span className="font-bold text-slate-400">Urai Ikhsan Fadhilah</span>
@@ -548,7 +670,7 @@ export default function AdminDashboard() {
               ☰
             </button>
             <h1 className="text-base sm:text-lg font-bold text-slate-900">
-              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics & Grafik Tren Konsumsi' : 'Jadwal Servis & Maintenance Armada'}
+              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics & Grafik Tren Konsumsi' : 'Jadwal Servis & Pemeliharaan Armada'}
             </h1>
           </div>
 
@@ -557,21 +679,18 @@ export default function AdminDashboard() {
               href="/"
               className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
             >
-              📱 Form Driver
+              <Icons.Mobile /> Form Driver
             </Link>
             <button
               onClick={() => setShowPrintModal(true)}
               className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition hidden sm:flex items-center gap-1.5 shadow-sm"
             >
-              🖨️ Cetak PDF Eksekutif
+              <Icons.Printer /> Cetak PDF Eksekutif
             </button>
             <button
               onClick={exportToExcel}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition hidden sm:flex items-center gap-1.5 shadow-sm"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
               Export Excel (.XLS)
             </button>
           </div>
@@ -584,7 +703,7 @@ export default function AdminDashboard() {
           {(pendingCount > 0 || emergencyCount > 0 || highConsumptionLogs.length > 0 || criticalServiceCount > 0) && (
             <div className="p-4 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-300/80 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm print:hidden">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">⚠️</span>
+                <div className="text-amber-600"><Icons.Alert /></div>
                 <div className="text-xs text-amber-950">
                   <span className="font-bold uppercase tracking-wider text-[11px] text-amber-800">Perhatian Audit Operasional:</span>
                   <span className="block mt-0.5">
@@ -597,12 +716,14 @@ export default function AdminDashboard() {
 
           {activeTab === 'dashboard' && (
             <>
-              {/* MERGED EXECUTIVE COMMAND BAR */}
+              {/* MERGED EXECUTIVE COMMAND BAR DENGAN IKON VEKTOR */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-indigo-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Total Biaya Operasional</span>
-                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm">💰</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+                      <Icons.Wallet />
+                    </span>
                   </div>
                   <div className="text-2xl font-extrabold font-mono text-white">
                     Rp {(Number(totalCost) || 0).toLocaleString('id-ID')}
@@ -613,7 +734,9 @@ export default function AdminDashboard() {
                 <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-emerald-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Rata-Rata Efisiensi</span>
-                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm">⚡</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+                      <Icons.Zap />
+                    </span>
                   </div>
                   <div className="text-2xl font-extrabold font-mono text-white">
                     {avgKmPerLiter} <span className="text-xs font-sans font-medium text-emerald-100">KM/L</span>
@@ -624,7 +747,9 @@ export default function AdminDashboard() {
                 <div className="p-5 bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-amber-400/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">Total Konsumsi BBM</span>
-                    <span className="w-8 h-8 rounded-xl bg-slate-950/20 backdrop-blur-md text-slate-950 flex items-center justify-center text-sm">🛢️</span>
+                    <span className="w-8 h-8 rounded-xl bg-slate-950/20 backdrop-blur-md text-slate-950 flex items-center justify-center">
+                      <Icons.Fuel />
+                    </span>
                   </div>
                   <div className="text-2xl font-extrabold font-mono text-slate-950">
                     {(Number(totalLiters) || 0).toLocaleString('id-ID')} <span className="text-xs font-sans font-semibold text-slate-800">Liter</span>
@@ -635,7 +760,9 @@ export default function AdminDashboard() {
                 <div className="p-5 bg-gradient-to-br from-blue-600 to-sky-700 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-blue-500/30">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Total Transaksi</span>
-                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm">📋</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
+                      <Icons.Clipboard />
+                    </span>
                   </div>
                   <div className="text-2xl font-extrabold font-mono text-white">
                     {filteredLogs.length} <span className="text-xs font-sans font-medium text-blue-100">Laporan</span>
@@ -756,7 +883,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* SCROLL BOX CONTAINER DENGAN KETINGGIAN 3 BARIS (max-h-[210px]) */}
                 <div className="overflow-x-auto max-h-[210px] overflow-y-auto">
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
@@ -839,7 +965,6 @@ export default function AdminDashboard() {
                             Rp {(Number(log.total_cost) || 0).toLocaleString('id-ID')}
                           </td>
 
-                          {/* DROPDOWN AKSI VERIFIKASI RINGKAS */}
                           <td className="p-3.5 text-center whitespace-nowrap">
                             <select
                               className="text-[11px] font-bold border border-slate-300 rounded-lg px-2.5 py-1 bg-white text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer transition shadow-xs"
@@ -863,7 +988,6 @@ export default function AdminDashboard() {
                   </table>
                 </div>
 
-                {/* FOOTER SCROLL BOX */}
                 <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs">
                   <span className="text-slate-500 font-mono text-[11px]">
                     Menampilkan total <strong className="text-slate-900">{filteredLogs.length}</strong> transaksi
@@ -938,78 +1062,228 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* MODUL SERVIS & MAINTENANCE ARMADA DISEMPURNAKAN */}
           {activeTab === 'maintenance' && (
             <div className="space-y-6">
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">Modul Pengawas Servis & Ganti Oli Otomatis</h2>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Sistem menghitung posisi Odometer terkini dari laporan driver untuk mendeteksi batas ganti oli berkala (Kelipatan 5.000 KM) dan servis umum (Kelipatan 10.000 KM).
-                </p>
+              
+              {/* HEADER MAITENANCE INFO */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Icons.Wrench /> Modul Pengawas Servis & Maintenance Otomatis
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Menghitung sisa KM menuju jadwal servis berkala, ganti oli, pemeriksaan rem, dan rotasi ban berdasarkan Odometer real-time.
+                  </p>
+                </div>
+
+                <div className="bg-indigo-50 border border-indigo-200/80 p-3 rounded-xl text-xs font-mono text-indigo-900 flex items-center gap-3">
+                  <div>
+                    <span className="text-[10px] text-indigo-500 block font-sans">Total Biaya Pemeliharaan:</span>
+                    <strong className="text-sm font-bold text-indigo-950">Rp {totalMaintenanceCost.toLocaleString('id-ID')}</strong>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* CARDS JADWAL SERVIS PER VEHICLE */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {vehicleStats.map((v) => (
-                  <div key={v.plate_number} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                    <div className="flex justify-between items-start border-b pb-3">
-                      <div>
-                        <div className="font-bold text-sm text-slate-900">{v.plate_number}</div>
-                        <div className="text-xs text-slate-500">{v.model}</div>
+                  <div key={v.plate_number} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start border-b pb-3">
+                        <div>
+                          <div className="font-bold text-sm text-slate-900">{v.plate_number}</div>
+                          <div className="text-xs text-slate-500">{v.model}</div>
+                        </div>
+                        {v.maintenance.status === 'CRITICAL' ? (
+                          <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse shadow-sm">
+                            🚨 WAJIB SERVIS
+                          </span>
+                        ) : v.maintenance.status === 'WARNING' ? (
+                          <span className="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                            ⚠️ MENDEKATI SERVIS
+                          </span>
+                        ) : (
+                          <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                            ✓ KONDISI PRIMA
+                          </span>
+                        )}
                       </div>
-                      {v.maintenance.status === 'CRITICAL' ? (
-                        <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse shadow-sm">
-                          🚨 WAJIB SERVIS SEGERA
-                        </span>
-                      ) : v.maintenance.status === 'WARNING' ? (
-                        <span className="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-                          ⚠️ MENDEKATI SERVIS
-                        </span>
-                      ) : (
-                        <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-                          ✓ PRIMA
-                        </span>
-                      )}
+
+                      <div className="space-y-3 pt-3">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-500 font-medium">Odometer Terkini:</span>
+                          <span className="font-mono font-bold text-slate-900">{v.last_km.toLocaleString('id-ID')} KM</span>
+                        </div>
+
+                        {/* SUB CHECKLIST MAINTENANCE */}
+                        <div className="space-y-2">
+                          {/* OLI */}
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-800 block text-[11px]">🛢️ Ganti Oli Mesin</span>
+                              <span className="text-[10px] text-slate-500 font-mono">Target: {v.maintenance.nextOilKm.toLocaleString('id-ID')} KM</span>
+                            </div>
+                            <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-md ${v.maintenance.remainingOilKm <= 300 ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700'}`}>
+                              {v.maintenance.remainingOilKm.toLocaleString('id-ID')} KM Lagi
+                            </span>
+                          </div>
+
+                          {/* SERVIS */}
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-800 block text-[11px]">🔧 Servis Berkala Mesin</span>
+                              <span className="text-[10px] text-slate-500 font-mono">Target: {v.maintenance.nextServiceKm.toLocaleString('id-ID')} KM</span>
+                            </div>
+                            <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-md ${v.maintenance.remainingServiceKm <= 300 ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700'}`}>
+                              {v.maintenance.remainingServiceKm.toLocaleString('id-ID')} KM Lagi
+                            </span>
+                          </div>
+
+                          {/* KAMPAS REM */}
+                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-bold text-slate-800 block text-[11px]">🛑 Cek Kampas Rem</span>
+                              <span className="text-[10px] text-slate-500 font-mono">Target: {v.maintenance.nextBrakeKm.toLocaleString('id-ID')} KM</span>
+                            </div>
+                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
+                              {v.maintenance.remainingBrakeKm.toLocaleString('id-ID')} KM Lagi
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Odometer Terkini:</span>
-                        <span className="font-mono font-bold text-slate-900">{v.last_km.toLocaleString('id-ID')} KM</span>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                        <div className="flex justify-between text-[11px] font-semibold text-slate-700">
-                          <span>🛢️ Target Ganti Oli:</span>
-                          <span className="font-mono">{v.maintenance.nextOilKm.toLocaleString('id-ID')} KM</span>
-                        </div>
-                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                          <span>Sisa Jarak:</span>
-                          <span className={v.maintenance.remainingOilKm <= 300 ? 'text-rose-600 font-bold' : 'text-slate-800'}>
-                            {v.maintenance.remainingOilKm.toLocaleString('id-ID')} KM Lagi
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                        <div className="flex justify-between text-[11px] font-semibold text-slate-700">
-                          <span>🔧 Target Servis Berkala:</span>
-                          <span className="font-mono">{v.maintenance.nextServiceKm.toLocaleString('id-ID')} KM</span>
-                        </div>
-                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                          <span>Sisa Jarak:</span>
-                          <span className={v.maintenance.remainingServiceKm <= 300 ? 'text-rose-600 font-bold' : 'text-slate-800'}>
-                            {v.maintenance.remainingServiceKm.toLocaleString('id-ID')} KM Lagi
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    {/* ACTION BUTTON CATAT SERVIS */}
+                    <button
+                      onClick={() => setSelectedServiceVehicle(v)}
+                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 mt-2"
+                    >
+                      <Icons.Wrench /> Catat / Reset Servis Selesai
+                    </button>
                   </div>
                 ))}
               </div>
+
+              {/* TABEL HISTORI PERBAIKAN BENGKEL */}
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-3">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                    Riwayat Pengerjaan Servis & Catatan Bengkel
+                  </h3>
+                  <span className="text-[11px] text-slate-500 font-mono">Total {serviceHistory.length} Pengerjaan</span>
+                </div>
+
+                <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
+                  <table className="w-full text-left text-xs text-slate-600">
+                    <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="p-3">Tanggal</th>
+                        <th className="p-3">Kendaraan</th>
+                        <th className="p-3">Jenis Pengerjaan</th>
+                        <th className="p-3">Bengkel Rekanan</th>
+                        <th className="p-3">KM Pengerjaan</th>
+                        <th className="p-3 text-right">Biaya Servis</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {serviceHistory.map((s) => (
+                        <tr key={s.id} className="hover:bg-slate-50 transition">
+                          <td className="p-3 font-mono">{s.date}</td>
+                          <td className="p-3 font-bold text-slate-900">{s.plate_number}</td>
+                          <td className="p-3 font-medium text-slate-800">{s.service_type}</td>
+                          <td className="p-3">{s.workshop}</td>
+                          <td className="p-3 font-mono">{s.km_done.toLocaleString('id-ID')} KM</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-900">
+                            Rp {(Number(s.cost) || 0).toLocaleString('id-ID')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           )}
 
         </main>
       </div>
+
+      {/* MODAL CATAT SERVIS SELESAI */}
+      {selectedServiceVehicle && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Catat Servis Armada Selesai</h3>
+                <p className="text-xs text-slate-500">{selectedServiceVehicle.plate_number} • {selectedServiceVehicle.model}</p>
+              </div>
+              <button onClick={() => setSelectedServiceVehicle(null)} className="text-slate-400 hover:text-slate-600 font-bold">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordServiceSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Jenis Pengerjaan Servis</label>
+                <select
+                  className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-medium text-slate-800 outline-none"
+                  value={serviceTypeInput}
+                  onChange={(e) => setServiceTypeInput(e.target.value)}
+                >
+                  <option value="Ganti Oli & Filter Mesin">🛢️ Ganti Oli & Filter Mesin (Interval 5.000 KM)</option>
+                  <option value="Servis Berkala Mesin">🔧 Servis Berkala Mesin (Interval 10.000 KM)</option>
+                  <option value="Penggantian Kampas Rem">🛑 Penggantian Kampas Rem (Interval 20.000 KM)</option>
+                  <option value="Rotasi / Ganti Ban">🛞 Rotasi / Ganti Ban (Interval 25.000 KM)</option>
+                  <option value="Servis Total (Overhaul)">⚙️ Servis Major / Overhaul Total</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Bengkel / Rekanan</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Auto2000 Grogol / Bengkel Resmi"
+                  className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-medium text-slate-800 outline-none"
+                  value={workshopInput}
+                  onChange={(e) => setWorkshopInput(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Biaya Pengerjaan (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="Contoh: 450000"
+                  className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-mono font-bold text-slate-800 outline-none"
+                  value={serviceCostInput}
+                  onChange={(e) => setServiceCostInput(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedServiceVehicle(null)}
+                  className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl shadow-md"
+                >
+                  Simpan Servis
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL CETAK PDF EXECUTIVE */}
       {showPrintModal && (
@@ -1089,7 +1363,7 @@ export default function AdminDashboard() {
                 onClick={() => window.print()}
                 className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5"
               >
-                🖨️ Cetak / Simpan PDF
+                <Icons.Printer /> Cetak / Simpan PDF
               </button>
             </div>
 
@@ -1179,11 +1453,11 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5 space-y-4">
             <div className="text-center space-y-1">
               <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center mx-auto text-lg font-bold">
-                ⚠️
+                <Icons.Alert />
               </div>
               <h3 className="text-sm font-bold text-slate-900">Konfirmasi Reset Cache</h3>
               <p className="text-xs text-rose-600 font-medium leading-relaxed">
-                PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi lokal di browser ini!
+                PERINGATAN: Tindakan ini akan MENGHAPUS SELURUH riwayat transaksi & maintenance lokal di browser ini!
               </p>
             </div>
 
