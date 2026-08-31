@@ -10,10 +10,10 @@ const DEFAULT_VEHICLES = [
 ]
 
 const DEFAULT_LOGS = [
-  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18', status: 'VERIFIED' },
-  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 6800, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19', status: 'FLAGGED' },
-  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20', status: 'VERIFIED' },
-  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 44580, final_km: 45000, distance_km: 420, liters: 35, unit_price: 10000, km_per_liter: 12.0, total_cost: 350000, fuel_type: 'Pertalite', date: '2026-08-18', status: 'VERIFIED' },
+  { id: 2, plate_number: 'B 5678 XYZ', vehicle_model: 'Daihatsu Gran Max', driver_name: 'Ahmad Supardi', initial_km: 31700, final_km: 32000, distance_km: 300, liters: 40, unit_price: 6800, km_per_liter: 7.5, total_cost: 1850000, fuel_type: 'Biosolar / Solar', date: '2026-08-19', status: 'FLAGGED' },
+  { id: 3, plate_number: 'B 9012 DEF', vehicle_model: 'Isuzu Traga', driver_name: 'Dede Kurniawan', initial_km: 17950, final_km: 18500, distance_km: 550, liters: 50, unit_price: 14550, km_per_liter: 11.0, total_cost: 2700000, fuel_type: 'Dexlite', date: '2026-08-20', status: 'VERIFIED' },
+  { id: 4, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 45000, final_km: 45320, distance_km: 320, liters: 27.23, unit_price: 10000, km_per_liter: 11.75, total_cost: 272300, fuel_type: 'Pertalite', date: '2026-08-20', status: 'VERIFIED' },
 ]
 
 function sanitizeVehicles(data: any) {
@@ -48,7 +48,6 @@ function sanitizeLogs(data: any) {
   }))
 }
 
-// Fungsi Kalkulasi Pengingat Servis & Ganti Oli
 function getMaintenanceSchedule(currentKm: number) {
   const km = Number(currentKm) || 0
   const oilInterval = 5000
@@ -78,14 +77,17 @@ export default function AdminDashboard() {
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
 
-  // State Tab Navigasi Admin
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'maintenance'>('dashboard')
+  // Tab Navigasi Admin
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+
+  // State Modal Cetak PDF Eksekutif
+  const [showPrintModal, setShowPrintModal] = useState(false)
 
   const [adminPage, setAdminPage] = useState(1)
   const logsPerPage = 5
@@ -291,7 +293,7 @@ export default function AdminDashboard() {
 
     const maintenance = getMaintenanceSchedule(v.last_km)
 
-    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget, maintenance }
+    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget, maintenance, totalLiters: liters, totalKm: km }
   })
 
   const criticalServiceCount = vehicleStats.filter((v) => v.maintenance.status === 'CRITICAL').length
@@ -391,13 +393,16 @@ export default function AdminDashboard() {
     URL.revokeObjectURL(url)
   }
 
+  const handleTriggerPrint = () => {
+    window.print()
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       
       {/* SIDEBAR NAVIGATION KIRI */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between print:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
-          {/* Logo & Header Sidebar */}
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-500 text-slate-900 rounded-xl flex items-center justify-center font-bold text-lg shadow-md">
@@ -413,13 +418,19 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          {/* Menu Items */}
           <nav className="p-4 space-y-1">
             <button
               onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'dashboard' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <span className="text-base">📊</span> Dashboard Utama
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('analytics'); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'analytics' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <span className="text-base">📈</span> Analytics & Grafik
             </button>
 
             <button
@@ -452,7 +463,6 @@ export default function AdminDashboard() {
           </nav>
         </div>
 
-        {/* Footer Sidebar */}
         <div className="p-4 border-t border-slate-800 space-y-3">
           <button
             onClick={() => setShowResetModal(true)}
@@ -470,17 +480,23 @@ export default function AdminDashboard() {
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* TOP BAR / HEADER */}
-        <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+        <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex justify-between items-center sticky top-0 z-30 shadow-sm print:hidden">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-700 text-xl p-1">
               ☰
             </button>
             <h1 className="text-base sm:text-lg font-bold text-slate-900">
-              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : 'Jadwal Servis & Maintenance Armada'}
+              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics & Grafik Tren Konsumsi' : 'Jadwal Servis & Maintenance Armada'}
             </h1>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+            >
+              🖨️ Cetak PDF Eksekutif
+            </button>
             <button
               onClick={exportToExcel}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm"
@@ -494,11 +510,11 @@ export default function AdminDashboard() {
         </header>
 
         {/* MAIN BODY CONTENT */}
-        <main className="p-4 sm:p-6 space-y-6 overflow-y-auto">
+        <main className="p-4 sm:p-6 space-y-6 overflow-y-auto print:p-0">
           
           {/* BANNER PERINGATAN ANOMALI */}
           {(pendingCount > 0 || highConsumptionLogs.length > 0 || criticalServiceCount > 0) && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm print:hidden">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">⚠️</span>
                 <div className="text-xs text-amber-900">
@@ -511,11 +527,10 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'dashboard' ? (
+          {activeTab === 'dashboard' && (
             <>
               {/* KARTU METRIK VISUAL GRADASI BERWARNA */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Total Biaya */}
                 <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-5 rounded-2xl text-white shadow-lg shadow-indigo-200/50">
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-semibold text-indigo-100">Total Biaya Operasional</span>
@@ -527,7 +542,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] text-indigo-200 mt-1 block">Real-Time Transaksi BBM</span>
                 </div>
 
-                {/* Efisiensi Armada */}
                 <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-5 rounded-2xl text-white shadow-lg shadow-emerald-200/50">
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-semibold text-emerald-100">Rata-Rata Efisiensi</span>
@@ -539,7 +553,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] text-emerald-200 mt-1 block">Rasio Konsumsi Keseluruhan</span>
                 </div>
 
-                {/* Total Konsumsi */}
                 <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-5 rounded-2xl text-white shadow-lg shadow-amber-200/50">
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-semibold text-amber-100">Total Konsumsi BBM</span>
@@ -551,7 +564,6 @@ export default function AdminDashboard() {
                   <span className="text-[10px] text-amber-200 mt-1 block">Volume BBM Terdistribusi</span>
                 </div>
 
-                {/* Total Laporan */}
                 <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-5 rounded-2xl text-white shadow-lg shadow-slate-300/50">
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-semibold text-slate-300">Total Laporan Pengisian</span>
@@ -790,7 +802,76 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </>
-          ) : (
+          )}
+
+          {activeTab === 'analytics' && (
+            /* TAB ANALYTICS & GRAFIK TREN VISUAL */
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                <h2 className="text-sm font-bold text-slate-900">Analisis Kinerja & Efisiensi Konsumsi BBM</h2>
+                <p className="text-xs text-slate-500">Visualisasi statistik rasio efisiensi KM/L dan distribusi pengeluaran biaya BBM per kendaraan</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* GRAFIK EFISIENSI PER ARMADA */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Perbandingan Efisiensi Armada (KM/Liter)</h3>
+                  <div className="space-y-4 pt-2">
+                    {vehicleStats.map((v) => {
+                      const eff = v.efficiency
+                      const maxEff = 15
+                      const percent = Math.min(Math.round((eff / maxEff) * 100), 100)
+                      const isBoros = eff < 8
+
+                      return (
+                        <div key={v.plate_number} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>{v.plate_number} ({v.model})</span>
+                            <span className={isBoros ? 'text-rose-600 font-bold' : 'text-emerald-700 font-bold'}>{eff} KM/L</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                            <div
+                              className={`h-3 rounded-full transition-all duration-700 ${isBoros ? 'bg-gradient-to-r from-rose-500 to-red-600' : 'bg-gradient-to-r from-emerald-500 to-teal-600'}`}
+                              style={{ width: `${percent}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* GRAFIK DISTRIBUSI BIAYA OPERASIONAL */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Alokasi Biaya BBM Per Kendaraan</h3>
+                  <div className="space-y-4 pt-2">
+                    {vehicleStats.map((v) => {
+                      const costShare = totalCost > 0 ? Math.round((v.spentCost / totalCost) * 100) : 0
+
+                      return (
+                        <div key={v.plate_number} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span>{v.plate_number}</span>
+                            <span className="font-mono text-slate-700">Rp {v.spentCost.toLocaleString('id-ID')} ({costShare}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                            <div
+                              className="h-3 rounded-full bg-gradient-to-r from-indigo-500 to-blue-600 transition-all duration-700"
+                              style={{ width: `${costShare}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'maintenance' && (
             /* TAB MODUL JADWAL SERVIS & MAINTENANCE ARMADA */
             <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
@@ -829,7 +910,6 @@ export default function AdminDashboard() {
                         <span className="font-mono font-bold text-slate-900">{v.last_km.toLocaleString('id-ID')} KM</span>
                       </div>
 
-                      {/* Info Ganti Oli */}
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
                         <div className="flex justify-between text-[11px] font-semibold text-slate-700">
                           <span>🛢️ Target Ganti Oli:</span>
@@ -843,7 +923,6 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* Info Servis Berkala */}
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
                         <div className="flex justify-between text-[11px] font-semibold text-slate-700">
                           <span>🔧 Target Servis Berkala:</span>
@@ -865,6 +944,98 @@ export default function AdminDashboard() {
 
         </main>
       </div>
+
+      {/* MODAL CETAK PDF EXECUTIVE */}
+      {showPrintModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+            
+            {/* Kop Surat Perusahaan */}
+            <div className="border-b-2 border-slate-900 pb-4 text-center space-y-1">
+              <h2 className="text-base font-bold text-slate-900 tracking-wider uppercase">LAPORAN RINGKASAN EKSEKUTIF OPERASIONAL BBM</h2>
+              <p className="text-xs text-slate-600">Dokumen Resmi Audit Konsumsi & Biaya Bahan Bakar Armada Perusahaan</p>
+              <p className="text-[11px] text-slate-400 font-mono">Tanggal Cetak: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+
+            {/* Ringkasan Angka */}
+            <div className="grid grid-cols-3 gap-3 text-center border p-3 rounded-xl bg-slate-50 text-xs font-mono">
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Biaya Operasional</span>
+                <span className="font-bold text-slate-900 text-sm">Rp {totalCost.toLocaleString('id-ID')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Volume Terdistribusi</span>
+                <span className="font-bold text-slate-900 text-sm">{totalLiters.toLocaleString('id-ID')} Liter</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Efisiensi Rata-Rata</span>
+                <span className="font-bold text-slate-900 text-sm">{avgKmPerLiter} KM/L</span>
+              </div>
+            </div>
+
+            {/* Tabel Laporan Ringkas */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border">
+                <thead className="bg-slate-900 text-white font-bold text-[11px]">
+                  <tr>
+                    <th className="p-2 border">Tanggal</th>
+                    <th className="p-2 border">Armada</th>
+                    <th className="p-2 border">Pengemudi</th>
+                    <th className="p-2 border">BBM</th>
+                    <th className="p-2 border text-right">Volume</th>
+                    <th className="p-2 border text-right">Total Biaya</th>
+                    <th className="p-2 border text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-[11px]">
+                  {filteredLogs.map((l) => (
+                    <tr key={l.id}>
+                      <td className="p-2 border">{l.date}</td>
+                      <td className="p-2 border font-bold">{l.plate_number}</td>
+                      <td className="p-2 border">{l.driver_name}</td>
+                      <td className="p-2 border">{l.fuel_type}</td>
+                      <td className="p-2 border text-right font-mono">{l.liters} L</td>
+                      <td className="p-2 border text-right font-mono font-bold">Rp {l.total_cost.toLocaleString('id-ID')}</td>
+                      <td className="p-2 border text-center font-bold">{l.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Kolom Tanda Tangan Resmi */}
+            <div className="grid grid-cols-2 gap-8 pt-6 text-center text-xs">
+              <div>
+                <p className="text-slate-500">Dibuat Oleh,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-900">Manajer Operasional</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Disetujui Oleh,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-900">Direktur / Management</p>
+              </div>
+            </div>
+
+            {/* Tombol Aksi */}
+            <div className="flex justify-end gap-2 pt-4 border-t print:hidden">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={handleTriggerPrint}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5"
+              >
+                🖨️ Cetak / Simpan PDF
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* MODAL PREVIEW STRUK */}
       {previewReceipt && (
