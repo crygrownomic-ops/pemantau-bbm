@@ -3,21 +3,17 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
-const DEFAULT_VEHICLES = [
-  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', last_km: 45320 },
-  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', last_km: 32000 },
-  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', last_km: 18500 },
-]
-
 export default function DriverPortal() {
-  const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
+  const [drivers, setDrivers] = useState<any[]>([])
+  const [vehicles, setVehicles] = useState<any[]>([])
+  const [fuels, setFuels] = useState<any[]>([])
   const [recentLogs, setRecentLogs] = useState<any[]>([])
 
+  const [selectedDriver, setSelectedDriver] = useState('')
   const [selectedPlate, setSelectedPlate] = useState('')
-  const [driverName, setDriverName] = useState('')
   const [initialKm, setInitialKm] = useState<number | ''>('')
   const [finalKm, setFinalKm] = useState<number | ''>('')
-  const [fuelType, setFuelType] = useState('Pertalite')
+  const [selectedFuel, setSelectedFuel] = useState('')
   const [liters, setLiters] = useState<number | ''>('')
   const [totalCost, setTotalCost] = useState<number | ''>('')
   const [fillLocation, setFillLocation] = useState<'SPBU' | 'ECERAN'>('SPBU')
@@ -26,27 +22,40 @@ export default function DriverPortal() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState(false)
 
+  // SINKRONISASI DATA DARI MASTER OPERASIONAL
   useEffect(() => {
     try {
+      const storedDrivers = localStorage.getItem('master_drivers')
       const storedVehicles = localStorage.getItem('vehicle_budgets')
-      if (storedVehicles) {
-        const parsed = JSON.parse(storedVehicles)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setVehicles(parsed)
-          setSelectedPlate(parsed[0].plate_number)
-          setInitialKm(parsed[0].last_km || 0)
-        }
-      } else {
-        setSelectedPlate(DEFAULT_VEHICLES[0].plate_number)
-        setInitialKm(DEFAULT_VEHICLES[0].last_km)
+      const storedFuels = localStorage.getItem('master_fuel_prices')
+      const storedLogs = localStorage.getItem('fuel_logs')
+
+      if (storedDrivers) {
+        const parsedD = JSON.parse(storedDrivers)
+        setDrivers(parsedD)
+        if (parsedD.length > 0) setSelectedDriver(parsedD[0].name)
       }
 
-      const storedLogs = localStorage.getItem('fuel_logs')
+      if (storedVehicles) {
+        const parsedV = JSON.parse(storedVehicles)
+        setVehicles(parsedV)
+        if (parsedV.length > 0) {
+          setSelectedPlate(parsedV[0].plate_number)
+          setInitialKm(parsedV[0].last_km || 0)
+        }
+      }
+
+      if (storedFuels) {
+        const parsedF = JSON.parse(storedFuels)
+        setFuels(parsedF)
+        if (parsedF.length > 0) setSelectedFuel(parsedF[0].name)
+      }
+
       if (storedLogs) {
         setRecentLogs(JSON.parse(storedLogs))
       }
     } catch (e) {
-      console.error('Error loading data', e)
+      console.error(e)
     }
   }, [])
 
@@ -55,6 +64,17 @@ export default function DriverPortal() {
     const found = vehicles.find((v) => v.plate_number === plate)
     if (found) {
       setInitialKm(found.last_km || 0)
+    }
+  }
+
+  // OTOMATIS HITUNG BIAYA SAAT LITER DIAJUKAN TERHADAP TARIF BBM
+  const handleLitersChange = (val: number | '') => {
+    setLiters(val)
+    if (val && selectedFuel) {
+      const fuelObj = fuels.find((f) => f.name === selectedFuel)
+      if (fuelObj) {
+        setTotalCost(Math.round(val * fuelObj.price))
+      }
     }
   }
 
@@ -98,7 +118,7 @@ export default function DriverPortal() {
       id: Date.now(),
       plate_number: selectedPlate,
       vehicle_model: targetVehicle?.model || 'Kendaraan',
-      driver_name: driverName.trim(),
+      driver_name: selectedDriver,
       initial_km: initKmNum,
       final_km: finalKmNum,
       distance_km: distanceKm,
@@ -106,7 +126,7 @@ export default function DriverPortal() {
       unit_price: unitPrice,
       km_per_liter: kmPerLiter,
       total_cost: costNum,
-      fuel_type: fuelType,
+      fuel_type: selectedFuel,
       fill_location: fillLocation,
       emergency_note: fillLocation === 'ECERAN' ? emergencyNote : '',
       receipt_image: receiptImage,
@@ -172,10 +192,26 @@ export default function DriverPortal() {
               <span className="w-2 h-2 rounded-full bg-amber-400"></span>
               Form Laporan Pengisian BBM
             </h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">Isi data pengisian sesuai struk / odometer kendaraan</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Pilih nama driver & armada yang terdaftar di Master Data</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Pilih Nama Pengemudi (Driver)</label>
+              <select
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-bold outline-none focus:border-amber-400 transition"
+                value={selectedDriver}
+                onChange={(e) => setSelectedDriver(e.target.value)}
+                required
+              >
+                {drivers.map((d) => (
+                  <option key={d.id} value={d.name}>
+                    {d.name} — ({d.sim_type})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Armada Kendaraan</label>
               <select
@@ -185,23 +221,11 @@ export default function DriverPortal() {
                 required
               >
                 {vehicles.map((v) => (
-                  <option key={v.plate_number} value={v.plate_number}>
+                  <option key={v.id} value={v.plate_number}>
                     {v.plate_number} — {v.model}
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Nama Pengemudi (Driver)</label>
-              <input
-                type="text"
-                placeholder="Contoh: Budi Santoso"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-medium outline-none focus:border-amber-400 transition"
-                value={driverName}
-                onChange={(e) => setDriverName(e.target.value)}
-                required
-              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -229,17 +253,20 @@ export default function DriverPortal() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Jenis Bahan Bakar</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Jenis Bahan Bakar (Katalog Master)</label>
               <select
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-medium outline-none focus:border-amber-400 transition"
-                value={fuelType}
-                onChange={(e) => setFuelType(e.target.value)}
+                value={selectedFuel}
+                onChange={(e) => {
+                  setSelectedFuel(e.target.value)
+                  if (liters) handleLitersChange(Number(liters))
+                }}
               >
-                <option value="Pertalite">Pertalite (Subsidi)</option>
-                <option value="Pertamax">Pertamax</option>
-                <option value="Pertamax Turbo">Pertamax Turbo</option>
-                <option value="Dexlite">Dexlite</option>
-                <option value="Solar / Bio Solar">Solar / Bio Solar</option>
+                {fuels.map((f) => (
+                  <option key={f.id} value={f.name}>
+                    {f.name} — Rp {f.price.toLocaleString('id-ID')}/L
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -252,7 +279,7 @@ export default function DriverPortal() {
                   placeholder="Contoh: 25.5"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono font-bold outline-none focus:border-amber-400 transition"
                   value={liters}
-                  onChange={(e) => setLiters(e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) => handleLitersChange(e.target.value ? Number(e.target.value) : '')}
                   required
                 />
               </div>
@@ -261,7 +288,7 @@ export default function DriverPortal() {
                 <label className="block text-xs font-bold text-slate-300 mb-1">Total Biaya (Rp) *</label>
                 <input
                   type="number"
-                  placeholder="Contoh: 250000"
+                  placeholder="Estimasi Otomatis"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono font-bold outline-none focus:border-amber-400 transition"
                   value={totalCost}
                   onChange={(e) => setTotalCost(e.target.value ? Number(e.target.value) : '')}
@@ -355,9 +382,6 @@ export default function DriverPortal() {
                 </div>
               </div>
             ))}
-            {recentLogs.length === 0 && (
-              <p className="text-[11px] text-slate-500 text-center py-3 italic">Belum ada riwayat pengiriman BBM.</p>
-            )}
           </div>
         </div>
       </main>
