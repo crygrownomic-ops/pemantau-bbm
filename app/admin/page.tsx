@@ -39,11 +39,6 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Mobile: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-    </svg>
-  ),
   Settings: ({ className = "w-4 h-4" }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -55,6 +50,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
     </svg>
   ),
+  Lock: ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  ),
 }
 
 // ==========================================
@@ -63,7 +63,6 @@ const Icons = {
 function ExecutiveCards({ totalCost, avgKmPerLiter, totalLiters, totalMaintenanceCost, vehicleStats }: any) {
   return (
     <div className="space-y-6">
-      {/* METRIK UTAMA */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl shadow-lg space-y-2">
           <div className="flex justify-between items-center">
@@ -98,7 +97,6 @@ function ExecutiveCards({ totalCost, avgKmPerLiter, totalLiters, totalMaintenanc
         </div>
       </div>
 
-      {/* REALISASI & KONTROL ANGGARAN PER ARMADA */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
         <div className="flex justify-between items-center border-b pb-3">
           <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -127,7 +125,6 @@ function ExecutiveCards({ totalCost, avgKmPerLiter, totalLiters, totalMaintenanc
                 )}
               </div>
 
-              {/* PROGRESS BAR ANGGARAN */}
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500 font-medium">Penggunaan Anggaran:</span>
@@ -143,7 +140,6 @@ function ExecutiveCards({ totalCost, avgKmPerLiter, totalLiters, totalMaintenanc
                 </div>
               </div>
 
-              {/* RINCIAN BIAYA */}
               <div className="pt-2 border-t border-slate-200/80 grid grid-cols-2 gap-2 text-[11px]">
                 <div>
                   <span className="text-slate-400 block text-[10px]">Biaya BBM:</span>
@@ -184,7 +180,6 @@ function FuelLogsTable({
 }: any) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-0">
-      {/* FILTER PANEL */}
       <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
         <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -192,7 +187,6 @@ function FuelLogsTable({
         </h2>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* RENTANG TANGGAL */}
           <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
             <span className="text-slate-500 font-medium text-[11px]">Dari:</span>
             <input
@@ -221,7 +215,6 @@ function FuelLogsTable({
             )}
           </div>
 
-          {/* FILTER ARMADA */}
           <select
             className="text-xs border border-slate-300 rounded-xl p-2 bg-white font-medium text-slate-700 outline-none"
             value={selectedVehicle}
@@ -237,7 +230,6 @@ function FuelLogsTable({
         </div>
       </div>
 
-      {/* TABEL DATA */}
       <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
         <table className="w-full text-left text-xs text-slate-600">
           <thead className="bg-slate-900 text-white font-bold sticky top-0 z-10">
@@ -514,7 +506,7 @@ function MaintenanceTab({ vehicleStats, serviceHistory, totalMaintenanceCost, on
 }
 
 // ==========================================
-// 6. DASHBOARD UTAMA
+// 6. DASHBOARD UTAMA DENGAN OTORISASI AKUN
 // ==========================================
 const DEFAULT_VEHICLES = [
   { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320, kir_expiry: '2026-10-15' },
@@ -557,7 +549,10 @@ const DEFAULT_SERVICE_HISTORY = [
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [pinInput, setPinInput] = useState('')
+  const [usernameInput, setUsernameInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
+  const [authError, setAuthError] = useState(false)
+
   const [vehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICE_HISTORY)
@@ -578,11 +573,13 @@ export default function AdminDashboard() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (pinInput === '1234') {
+    // OTORISASI USERNAME & PASSWORD KHUSUS MANAJEMEN
+    if (usernameInput.trim().toLowerCase() === 'admin' && passwordInput === 'admin123') {
       setIsAuthenticated(true)
       localStorage.setItem('admin_authenticated', 'true')
+      setAuthError(false)
     } else {
-      alert('PIN Salah! Gunakan PIN default: 1234')
+      setAuthError(true)
     }
   }
 
@@ -609,33 +606,65 @@ export default function AdminDashboard() {
     setServiceHistory([{ ...record, id: Date.now() }, ...serviceHistory])
   }
 
+  // TAMPILAN LOGIN FORM (OTORISASI MANAGEMENT)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100 font-sans">
-        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-slate-900 text-center space-y-4">
-          <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto text-slate-950 font-bold shadow-md">
-            <Icons.Fuel className="w-6 h-6" />
+        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-slate-900 space-y-5 border border-slate-100">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold shadow-md">
+              <Icons.Lock className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">Otorisasi Akses Manajemen</h1>
+              <p className="text-xs text-slate-500">FleetOps 360 Enterprise Control Center</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold">Dashboard Admin</h1>
-            <p className="text-xs text-slate-500">FleetOps 360 Control Center</p>
-          </div>
+
           <form onSubmit={handleLogin} className="space-y-3">
-            <input
-              type="password"
-              maxLength={4}
-              placeholder="••••"
-              className="w-full text-center text-2xl tracking-widest py-2.5 border rounded-xl font-mono font-bold bg-slate-50 outline-none"
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-            />
-            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-xs shadow-md">
-              Verifikasi Akses Admin
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Username Admin</label>
+              <input
+                type="text"
+                placeholder="Masukkan username"
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-xs font-medium bg-slate-50 outline-none focus:ring-2 focus:ring-amber-500"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-xs font-medium bg-slate-50 outline-none focus:ring-2 focus:ring-amber-500"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                required
+              />
+            </div>
+
+            {authError && (
+              <p className="text-[11px] text-rose-600 font-semibold text-center bg-rose-50 p-2 rounded-lg border border-rose-200">
+                ⚠️ Username atau Password tidak valid!
+              </p>
+            )}
+
+            <button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs shadow-md transition">
+              Masuk Dashboard Admin
             </button>
           </form>
-          <Link href="/driver" className="text-xs text-amber-600 font-bold block pt-1">
-            ← Ke Portal Driver
-          </Link>
+
+          <div className="text-center space-y-2 pt-2 border-t border-slate-100">
+            <Link href="/driver" className="text-xs text-amber-600 hover:text-amber-700 font-bold block">
+              ← Kembali ke Portal Driver
+            </Link>
+            <span className="text-[10px] text-slate-400 font-medium block">
+              Dev by Urai Ikhsan Fadhilah
+            </span>
+          </div>
         </div>
       </div>
     )
@@ -742,7 +771,7 @@ export default function AdminDashboard() {
           </nav>
         </div>
 
-        <div className="space-y-2 border-t border-slate-800 pt-3">
+        <div className="space-y-2 border-t border-slate-800 pt-3 text-center">
           <Link
             href="/driver"
             className="block w-full text-center bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-xl shadow-md transition"
@@ -755,6 +784,9 @@ export default function AdminDashboard() {
           >
             Kunci Akses Admin
           </button>
+          <span className="text-[10px] text-slate-500 font-medium block pt-1">
+            Dev by Urai Ikhsan Fadhilah
+          </span>
         </div>
       </aside>
 
