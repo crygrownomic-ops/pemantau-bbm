@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, Suspense } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { AdminSidebar } from '@/components/admin/AdminSidebar'
 
 const INITIAL_DRIVERS = [
   {
@@ -49,9 +49,9 @@ const INITIAL_FUELS = [
 
 function SettingsContent() {
   const searchParams = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'drivers' | 'vehicles' | 'prices') || 'drivers'
+  const tabParam = (searchParams.get('tab') as 'drivers' | 'vehicles' | 'prices') || 'drivers'
 
-  const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices'>(tabParam)
 
   const [drivers, setDrivers] = useState<any[]>(INITIAL_DRIVERS)
   const [vehicles, setVehicles] = useState<any[]>(INITIAL_VEHICLES)
@@ -87,6 +87,10 @@ function SettingsContent() {
     price: 10000,
     category: 'Non-Subsidi',
   })
+
+  useEffect(() => {
+    setActiveTab(tabParam)
+  }, [tabParam])
 
   useEffect(() => {
     try {
@@ -203,56 +207,8 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
-      <aside className="w-64 bg-slate-900 text-slate-300 p-5 space-y-5 flex flex-col justify-between">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-            <div className="w-9 h-9 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-bold shadow-md">
-              ⚙️
-            </div>
-            <div>
-              <h1 className="text-xs font-bold text-white tracking-wide uppercase">FLEETOPS 360</h1>
-              <span className="text-[10px] text-amber-400 font-semibold block">Pusat Kelola Operasional</span>
-            </div>
-          </div>
-
-          <nav className="space-y-1.5 text-xs">
-            <button
-              onClick={() => setActiveTab('drivers')}
-              className={`w-full text-left p-3 rounded-xl font-bold transition ${
-                activeTab === 'drivers' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
-              }`}
-            >
-              👤 Master Driver ({drivers.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('vehicles')}
-              className={`w-full text-left p-3 rounded-xl font-bold transition ${
-                activeTab === 'vehicles' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
-              }`}
-            >
-              🚛 Master Armada ({vehicles.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('prices')}
-              className={`w-full text-left p-3 rounded-xl font-bold transition ${
-                activeTab === 'prices' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
-              }`}
-            >
-              ⛽ Katalog Tarif BBM ({fuels.length})
-            </button>
-          </nav>
-        </div>
-
-        <div className="space-y-2 border-t border-slate-800 pt-4">
-          <Link
-            href="/admin"
-            className="block w-full text-center bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2.5 rounded-xl shadow-md transition"
-          >
-            ← Kembali ke Dashboard Admin
-          </Link>
-          <span className="text-[10px] text-slate-500 text-center block">Dev by Urai Ikhsan Fadhilah</span>
-        </div>
-      </aside>
+      {/* SEKARANG MENGGUNAKAN KOMPONEN ADMINSIDEBAR DARI FOLDER COMPONENTS */}
+      <AdminSidebar currentRoute="/admin/settings" activeTab={activeTab} />
 
       <main className="flex-1 p-6 space-y-6 overflow-y-auto">
         {activeTab === 'drivers' && (
