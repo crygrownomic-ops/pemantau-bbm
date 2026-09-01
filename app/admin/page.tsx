@@ -57,7 +57,6 @@ function getMaintenanceSchedule(currentKm: number, kirExpiryDate?: string) {
   return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, daysToKir, isKirCritical, status }
 }
 
-// KOMPONEN MAINTENANCE TAB (INLINE)
 function MaintenanceTabContent({ vehicleStats, serviceHistory, totalMaintenanceCost, onAddServiceRecord }: any) {
   const [serviceStartDate, setServiceStartDate] = useState('')
   const [serviceEndDate, setServiceEndDate] = useState('')
