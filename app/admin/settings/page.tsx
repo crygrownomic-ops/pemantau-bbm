@@ -145,16 +145,14 @@ export default function SettingsPage() {
 
   // State Modal Preview Biodata Driver
   const [selectedDriverProfile, setSelectedDriverProfile] = useState<any | null>(null)
-
   const [savedSuccess, setSavedSuccess] = useState(false)
 
-  // Cek Autentikasi Login dari LocalStorage & Tab URL
+  // INGAT PERMANEN: Cek Autentikasi Login dari LocalStorage & Tab URL
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (localStorage.getItem('admin_authenticated') === 'true') {
         setIsAuthenticated(true)
       }
-
       const params = new URLSearchParams(window.location.search)
       const tabParam = params.get('tab')
       if (tabParam && ['drivers', 'vehicles', 'prices', 'company'].includes(tabParam)) {
@@ -390,14 +388,15 @@ export default function SettingsPage() {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-5 text-center">
-          <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-xl flex items-center justify-center mx-auto text-xl font-bold">
-            ⚙️
+          <div className="w-12 h-12 bg-slate-900 text-amber-400 rounded-2xl flex items-center justify-center mx-auto shadow-md">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
           </div>
           <div>
             <h1 className="text-base font-bold text-slate-900">Autentikasi Master Data</h1>
             <p className="text-xs text-slate-500 mt-0.5">Masukkan PIN Administrator</p>
           </div>
-
           <form onSubmit={handleLogin} className="space-y-3">
             <input
               type="password"
@@ -407,11 +406,9 @@ export default function SettingsPage() {
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
             />
-
             {pinError && (
               <p className="text-xs text-rose-600 font-semibold">PIN tidak valid (Default: 1234)</p>
             )}
-
             <button
               type="submit"
               className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md"
@@ -419,7 +416,6 @@ export default function SettingsPage() {
               Verifikasi Akses
             </button>
           </form>
-
           <Link href="/admin" className="inline-block text-xs text-slate-500 hover:text-slate-800 font-medium transition pt-1">
             ← Kembali ke Dashboard
           </Link>
@@ -446,13 +442,15 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       
-      {/* SIDEBAR NAVIGATION KIRI */}
+      {/* SIDEBAR NAVIGATION KIRI DENGAN IKON VEKTOR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div>
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-500 text-slate-900 rounded-xl flex items-center justify-center font-bold text-lg shadow-md">
-                ⚙️
+                <svg className="w-5 h-5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
               </div>
               <div>
                 <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
@@ -467,12 +465,19 @@ export default function SettingsPage() {
           <nav className="p-4 space-y-1">
             <Link
               href="/admin"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition group"
             >
-              <span className="text-base">📊</span> Dashboard Utama
+              <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Dashboard Utama
             </Link>
 
-            <div className="pt-3 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+            {/* HEADER PUSAT KELOLA OPERASIONAL DENGAN VEKTOR */}
+            <div className="pt-3 pb-1 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
               Pusat Kelola Operasional
             </div>
 
@@ -480,8 +485,11 @@ export default function SettingsPage() {
               onClick={() => { setActiveTab('drivers'); setSidebarOpen(false); }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'drivers' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">👨‍✈️</span> Master & Biodata Driver
+              <div className="flex items-center gap-2.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Master Biodata Driver
               </div>
               {expiredSimCount > 0 ? (
                 <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -498,8 +506,12 @@ export default function SettingsPage() {
               onClick={() => { setActiveTab('vehicles'); setSidebarOpen(false); }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'vehicles' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-base">🚚</span> Armada Kendaraan
+              <div className="flex items-center gap-2.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1h2.586a1 1 0 00.707-.293l3.414-3.414a1 1 0 00.293-.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                </svg>
+                Armada Kendaraan
               </div>
               <span className="bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
                 {vehicles.length}
@@ -508,23 +520,32 @@ export default function SettingsPage() {
 
             <button
               onClick={() => { setActiveTab('prices'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'prices' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'prices' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <span className="text-base">⛽</span> Tarif Bahan Bakar
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Tarif Bahan Bakar
             </button>
 
             <button
               onClick={() => { setActiveTab('company'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'company' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${activeTab === 'company' ? 'bg-amber-500 text-slate-950 shadow-md font-bold' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
-              <span className="text-base">🏢</span> Profil Perusahaan
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h3m-3 0V11m0 5h3m-3 0h-3m3 0a2 2 0 100-4 2 2 0 000 4zm-4 5a2 2 0 100-4 2 2 0 000 4z" />
+              </svg>
+              Profil Perusahaan
             </button>
 
             <Link
               href="/admin/backup"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-3 border-t border-slate-800 mt-2"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition pt-3 border-t border-slate-800 mt-2 group"
             >
-              <span className="text-base">💾</span> Pusat Backup (.JSON)
+              <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Pusat Backup (.JSON)
             </Link>
           </nav>
         </div>
@@ -552,7 +573,6 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <Link
               href="/admin"
@@ -565,7 +585,6 @@ export default function SettingsPage() {
 
         {/* MAIN BODY CONTENT */}
         <main className="p-4 sm:p-6 space-y-6 overflow-y-auto">
-
           {savedSuccess && (
             <div className="p-3 bg-emerald-600 text-white rounded-2xl text-xs font-bold flex items-center justify-between shadow-md animate-bounce">
               <span>✓ Perubahan Data Operasional Berhasil Disimpan!</span>
@@ -578,12 +597,14 @@ export default function SettingsPage() {
           {/* TAB 1: MASTER DATA & BIODATA PENGEMUDI */}
           {activeTab === 'drivers' && (
             <div className="space-y-6">
-
               {/* Form Input / Edit Biodata Driver */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b pb-3">
                   <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-                    <span>👨‍✈️</span> {editingDriverId ? 'Edit Biodata & Evaluasi Driver' : 'Form Input Biodata Driver Baru'}
+                    <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    {editingDriverId ? 'Edit Biodata & Evaluasi Driver' : 'Form Input Biodata Driver Baru'}
                   </h2>
                   {editingDriverId && (
                     <button
@@ -798,11 +819,9 @@ export default function SettingsPage() {
                               <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Non-Aktif</span>
                             )}
                           </div>
-
                           <div className="text-[11px] text-slate-500">
                             NIK: <span className="font-mono text-slate-700">{d.nik || '-'}</span> • Kontak: <span className="font-mono text-slate-700">{d.phone}</span>
                           </div>
-
                           <div className="text-[11px] text-slate-500">
                             {d.sim_type} ({d.sim_number || '-'}) • Masa Berlaku SIM: <span className={`font-mono font-bold ${isExpired ? 'text-rose-600' : 'text-slate-800'}`}>{d.sim_expiry}</span>
                             {isExpired && <span className="ml-2 bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">SIM EXPIRED</span>}
@@ -841,7 +860,6 @@ export default function SettingsPage() {
                   })}
                 </div>
               </div>
-
             </div>
           )}
 
@@ -850,7 +868,11 @@ export default function SettingsPage() {
             <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
                 <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-                  <span>🚚</span> {editingVehicleId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
+                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1h2.586a1 1 0 00.707-.293l3.414-3.414a1 1 0 00.293-.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                  </svg>
+                  {editingVehicleId ? 'Edit Data Kendaraan' : 'Tambah Armada Kendaraan Baru'}
                 </h2>
 
                 <form onSubmit={handleSaveVehicle} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -980,7 +1002,6 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
-
             </div>
           )}
 
@@ -988,8 +1009,12 @@ export default function SettingsPage() {
           {activeTab === 'prices' && (
             <form onSubmit={handleSavePrices} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
               <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-                <span>⛽</span> Tarif Bahan Bakar Per Liter Terkini
+                <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Tarif Bahan Bakar Per Liter Terkini
               </h2>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 {Object.keys(prices).map((type) => (
                   <div key={type} className="flex flex-col space-y-1">
@@ -1022,7 +1047,10 @@ export default function SettingsPage() {
             <form onSubmit={handleSaveCompany} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
               <div>
                 <h2 className="text-xs font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-                  <span>🏢</span> Identitas & Branding Perusahaan
+                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h3m-3 0V11m0 5h3m-3 0h-3m3 0a2 2 0 100-4 2 2 0 000 4zm-4 5a2 2 0 100-4 2 2 0 000 4z" />
+                  </svg>
+                  Identitas & Branding Perusahaan
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">Data profil ini akan otomatis tercetak pada Kop Laporan Eksekutif PDF & Berkas Ekspor Excel</p>
               </div>
@@ -1062,7 +1090,6 @@ export default function SettingsPage() {
                       onChange={(e) => setCompany({ ...company, address: e.target.value })}
                     />
                   </div>
-
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Telepon / WhatsApp Layanan</label>
                     <input
@@ -1164,7 +1191,6 @@ export default function SettingsPage() {
                   "{selectedDriverProfile.evaluation_notes || 'Belum ada catatan evaluasi khusus untuk pengemudi ini.'}"
                 </p>
               </div>
-
             </div>
 
             <div className="flex justify-between items-center pt-2 border-t">
@@ -1184,7 +1210,6 @@ export default function SettingsPage() {
                 Tutup Kartu Profil
               </button>
             </div>
-
           </div>
         </div>
       )}

@@ -12,7 +12,7 @@ const Icons = {
   ),
   Dashboard: () => (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2h-2a2 2 0 01-2-2v-2z" />
     </svg>
   ),
   Analytics: () => (
@@ -70,13 +70,39 @@ const Icons = {
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
     </svg>
-  )
+  ),
+  Users: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 100 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  ),
+  Truck: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8h4l3 3v5a1 1 0 01-1 1h-1m-6 0a1 1 0 001-1v-4" />
+    </svg>
+  ),
+  Price: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Company: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  ),
+  DocumentCheck: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 }
 
 const DEFAULT_VEHICLES = [
-  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320 },
-  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000 },
-  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500 },
+  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320, kir_expiry: '2026-10-15' },
+  { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000, kir_expiry: '2026-09-10' },
+  { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500, kir_expiry: '2026-12-01' },
 ]
 
 const DEFAULT_LOGS = [
@@ -88,8 +114,17 @@ const DEFAULT_LOGS = [
 ]
 
 const DEFAULT_SERVICE_HISTORY = [
-  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
-  { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala 30.000 KM', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
+<<<<<<< HEAD
+  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter Mesin', parts_replaced: 'Oli Shell Helix 4L, Filter Oli Denso', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
+  { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala Mesin', parts_replaced: 'Busi Iridium (4pcs), Filter Udara', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
+  { id: 3, plate_number: 'B 5678 XYZ', service_type: 'Pengujian Uji KIR Berkala', parts_replaced: 'Stiker Uji & Buku KIR Dishub', cost: 350000, workshop: 'Dinas Perhubungan', km_done: 31500, date: '2026-03-10' },
+  { id: 4, plate_number: 'B 9012 DEF', service_type: 'Perbaikan Darurat / Sparepart', parts_replaced: 'Aki GS Astra 45Ah, Tali Kipas/V-Belt', cost: 850000, workshop: 'Bengkel Kakubakti', km_done: 18000, date: '2026-08-05' },
+=======
+  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter Mesin', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
+  { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala Mesin', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
+  { id: 3, plate_number: 'B 5678 XYZ', service_type: 'Pengujian Uji KIR Berkala', cost: 350000, workshop: 'Dinas Perhubungan', km_done: 31500, date: '2026-03-10' },
+  { id: 4, plate_number: 'B 9012 DEF', service_type: 'Perbaikan Darurat / Sparepart', cost: 850000, workshop: 'Bengkel Kakubakti', km_done: 18000, date: '2026-08-05' },
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
 ]
 
 function sanitizeVehicles(data: any) {
@@ -100,6 +135,7 @@ function sanitizeVehicles(data: any) {
     model: String(v?.model || 'Kendaraan'),
     monthly_budget: Number(v?.monthly_budget) || 0,
     last_km: Number(v?.last_km) || 0,
+    kir_expiry: String(v?.kir_expiry || '2026-12-31'),
   }))
 }
 
@@ -126,7 +162,7 @@ function sanitizeLogs(data: any) {
   }))
 }
 
-function getMaintenanceSchedule(currentKm: number) {
+function getMaintenanceSchedule(currentKm: number, kirExpiryDate?: string) {
   const km = Number(currentKm) || 0
   const oilInterval = 5000
   const serviceInterval = 10000
@@ -145,14 +181,26 @@ function getMaintenanceSchedule(currentKm: number) {
   const nextTireKm = Math.ceil((km + 1) / tireInterval) * tireInterval
   const remainingTireKm = nextTireKm - km
 
+  let daysToKir = 999
+  let isKirCritical = false
+  if (kirExpiryDate) {
+    const today = new Date()
+    const exp = new Date(kirExpiryDate)
+    const diffTime = exp.getTime() - today.getTime()
+    daysToKir = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (daysToKir <= 30) {
+      isKirCritical = true
+    }
+  }
+
   let status: 'CRITICAL' | 'WARNING' | 'OK' = 'OK'
-  if (remainingOilKm <= 300 || remainingServiceKm <= 300 || remainingBrakeKm <= 500) {
+  if (remainingOilKm <= 300 || remainingServiceKm <= 300 || remainingBrakeKm <= 500 || isKirCritical) {
     status = 'CRITICAL'
-  } else if (remainingOilKm <= 1000 || remainingServiceKm <= 1000) {
+  } else if (remainingOilKm <= 1000 || remainingServiceKm <= 1000 || daysToKir <= 60) {
     status = 'WARNING'
   }
 
-  return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, nextBrakeKm, remainingBrakeKm, nextTireKm, remainingTireKm, status }
+  return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, nextBrakeKm, remainingBrakeKm, nextTireKm, remainingTireKm, daysToKir, isKirCritical, status }
 }
 
 export default function AdminDashboard() {
@@ -168,21 +216,32 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isKelolaOpen, setIsKelolaOpen] = useState(false)
 
+  // FILTER UNTUK TABEL BBM
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+
+  // FILTER UNTUK TABEL SERVIS & KIR
+  const [serviceStartDate, setServiceStartDate] = useState('')
+  const [serviceEndDate, setServiceEndDate] = useState('')
+  const [serviceSelectedVehicle, setServiceSelectedVehicle] = useState('ALL')
 
   const [showPrintModal, setShowPrintModal] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
-  // STATE MODAL SERVIS SELESAI
+<<<<<<< HEAD
+  // STATE MODAL SERVIS / PERBAIKAN / SPAREPART / KIR
+=======
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
   const [selectedServiceVehicle, setSelectedServiceVehicle] = useState<any | null>(null)
   const [serviceTypeInput, setServiceTypeInput] = useState('Ganti Oli & Filter Mesin')
+  const [partsReplacedInput, setPartsReplacedInput] = useState('')
   const [serviceCostInput, setServiceCostInput] = useState('')
   const [workshopInput, setWorkshopInput] = useState('')
+  const [newKirExpiryInput, setNewKirExpiryInput] = useState('')
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
@@ -253,8 +312,9 @@ export default function AdminDashboard() {
       id: Date.now(),
       plate_number: selectedServiceVehicle.plate_number,
       service_type: serviceTypeInput,
+      parts_replaced: partsReplacedInput.trim() || '-',
       cost: Number(serviceCostInput) || 0,
-      workshop: workshopInput || 'Bengkel Rekanan',
+      workshop: workshopInput || 'Bengkel / Dishub',
       km_done: selectedServiceVehicle.last_km,
       date: new Date().toISOString().split('T')[0],
     }
@@ -263,10 +323,20 @@ export default function AdminDashboard() {
     setServiceHistory(updatedHistory)
     localStorage.setItem('service_history', JSON.stringify(updatedHistory))
 
-    alert(`Pencatatan Servis untuk ${selectedServiceVehicle.plate_number} berhasil disimpan!`)
+    if (serviceTypeInput === 'Pengujian Uji KIR Berkala' && newKirExpiryInput) {
+      const updatedVehicles = vehicles.map((v) =>
+        v.plate_number === selectedServiceVehicle.plate_number ? { ...v, kir_expiry: newKirExpiryInput } : v
+      )
+      setVehicles(updatedVehicles)
+      localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
+    }
+
+    alert(`Pencatatan Servis/Perbaikan untuk ${selectedServiceVehicle.plate_number} berhasil disimpan!`)
     setSelectedServiceVehicle(null)
+    setPartsReplacedInput('')
     setServiceCostInput('')
     setWorkshopInput('')
+    setNewKirExpiryInput('')
   }
 
   const handleConfirmResetCache = (e: React.FormEvent) => {
@@ -343,7 +413,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900">Dashboard Admin</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Sistem Monitoring BBM & Maintenance Armada</p>
+            <p className="text-xs text-slate-500 mt-0.5">FleetOps 360 • System Control Center</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-3">
@@ -387,10 +457,19 @@ export default function AdminDashboard() {
   const safeLogs = Array.isArray(logs) ? logs : []
   const safeVehicles = Array.isArray(vehicles) ? vehicles : []
 
+  // FILTER LOGS BBM
   const filteredLogs = safeLogs.filter((log) => {
     const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
     const matchStart = !startDate || log.date >= startDate
     const matchEnd = !endDate || log.date <= endDate
+    return matchVehicle && matchStart && matchEnd
+  })
+
+  // FILTER RIWAYAT SERVIS / KIR / PERBAIKAN
+  const filteredServiceHistory = serviceHistory.filter((s) => {
+    const matchVehicle = serviceSelectedVehicle === 'ALL' || s.plate_number === serviceSelectedVehicle
+    const matchStart = !serviceStartDate || s.date >= serviceStartDate
+    const matchEnd = !serviceEndDate || s.date <= serviceEndDate
     return matchVehicle && matchStart && matchEnd
   })
 
@@ -407,6 +486,11 @@ export default function AdminDashboard() {
   const vehicleStats = safeVehicles.map((v) => {
     const vLogs = safeLogs.filter((l) => l.plate_number === v.plate_number)
     const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+    
+    const vServices = serviceHistory.filter((s) => s.plate_number === v.plate_number)
+    const spentMaintenance = vServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
+    const totalOperationalCost = spentCost + spentMaintenance
+
     const km = vLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
     const liters = vLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
     const efficiency = liters > 0 ? (km / liters).toFixed(1) : '0'
@@ -414,15 +498,27 @@ export default function AdminDashboard() {
     const usagePercent = Math.min(Math.round((spentCost / budget) * 100), 100)
     const isOverBudget = spentCost > budget
 
-    const maintenance = getMaintenanceSchedule(v.last_km)
+    const maintenance = getMaintenanceSchedule(v.last_km, v.kir_expiry)
 
-    return { ...v, spentCost, efficiency: Number(efficiency), usagePercent, isOverBudget, monthly_budget: budget, maintenance, totalLiters: liters, totalKm: km }
+    return { 
+      ...v, 
+      spentCost, 
+      spentMaintenance, 
+      totalOperationalCost, 
+      efficiency: Number(efficiency), 
+      usagePercent, 
+      isOverBudget, 
+      monthly_budget: budget, 
+      maintenance, 
+      totalLiters: liters, 
+      totalKm: km 
+    }
   })
 
   const criticalServiceCount = vehicleStats.filter((v) => v.maintenance.status === 'CRITICAL').length
 
   const exportToExcel = () => {
-    const title = 'REKAPITULASI OPERASIONAL PENGISIAN BBM'
+    const title = 'REKAPITULASI OPERASIONAL PENGISIAN BBM & PERBAIKAN'
     const periodStr = `Periode: ${startDate || 'Awal'} s/d ${endDate || 'Hari Ini'}`
     const filterStr = `Filter Armada: ${selectedVehicle === 'ALL' ? 'Semua Armada' : selectedVehicle}`
 
@@ -533,7 +629,7 @@ export default function AdminDashboard() {
                 <Icons.Fuel />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-white tracking-wide">PEMANTAU BBM</h2>
+                <h2 className="text-sm font-bold text-white tracking-wide">FLEETOPS 360</h2>
                 <span className="text-[10px] text-amber-400 font-bold tracking-wider uppercase">Enterprise Edition</span>
               </div>
             </div>
@@ -600,28 +696,28 @@ export default function AdminDashboard() {
                     href="/admin/settings?tab=drivers"
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
                   >
-                    <span>👨‍✈️</span> Master Biodata Driver
+                    <Icons.Users /> Master Biodata Driver
                   </Link>
 
                   <Link
                     href="/admin/settings?tab=vehicles"
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
                   >
-                    <span>🚚</span> Armada Kendaraan
+                    <Icons.Truck /> Armada Kendaraan
                   </Link>
 
                   <Link
                     href="/admin/settings?tab=prices"
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
                   >
-                    <span>⛽</span> Tarif Bahan Bakar
+                    <Icons.Price /> Tarif Bahan Bakar
                   </Link>
 
                   <Link
                     href="/admin/settings?tab=company"
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition"
                   >
-                    <span>🏢</span> Profil Perusahaan
+                    <Icons.Company /> Profil Perusahaan
                   </Link>
                 </div>
               )}
@@ -665,7 +761,7 @@ export default function AdminDashboard() {
               ☰
             </button>
             <h1 className="text-base sm:text-lg font-bold text-slate-900">
-              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics & Grafik Tren Konsumsi' : 'Jadwal Servis & Pemeliharaan Armada'}
+              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics & Grafik Tren Konsumsi' : 'Jadwal Servis, KIR & Perbaikan Armada'}
             </h1>
           </div>
 
@@ -702,7 +798,7 @@ export default function AdminDashboard() {
                 <div className="text-xs text-amber-950">
                   <span className="font-bold uppercase tracking-wider text-[11px] text-amber-800">Perhatian Audit Operasional:</span>
                   <span className="block mt-0.5">
-                    Terdapat <strong className="text-indigo-900 underline">{pendingCount} laporan baru</strong>, <strong className="text-amber-800 underline">{emergencyCount} pengisian darurat emperan</strong>, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, dan <strong className="text-rose-700 underline">{criticalServiceCount} armada wajib servis</strong>.
+                    Terdapat <strong className="text-indigo-900 underline">{pendingCount} laporan baru</strong>, <strong className="text-amber-800 underline">{emergencyCount} pengisian darurat emperan</strong>, <strong className="text-rose-700 underline">{highConsumptionLogs.length} transaksi boros (&lt; 8 KM/L)</strong>, dan <strong className="text-rose-700 underline">{criticalServiceCount} armada butuh servis/KIR</strong>.
                   </span>
                 </div>
               </div>
@@ -715,7 +811,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-indigo-500/30">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Total Biaya Operasional</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Total Biaya BBM</span>
                     <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
                       <Icons.Wallet />
                     </span>
@@ -723,7 +819,7 @@ export default function AdminDashboard() {
                   <div className="text-2xl font-extrabold font-mono text-white">
                     Rp {(Number(totalCost) || 0).toLocaleString('id-ID')}
                   </div>
-                  <span className="text-[10px] font-medium text-indigo-100 block">Akumulasi Real-Time Pengeluaran</span>
+                  <span className="text-[10px] font-medium text-indigo-100 block">Akumulasi Pengeluaran Bahan Bakar</span>
                 </div>
 
                 <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-emerald-500/30">
@@ -752,28 +848,28 @@ export default function AdminDashboard() {
                   <span className="text-[10px] font-bold text-slate-900 block">Total Volume BBM Terdistribusi</span>
                 </div>
 
-                <div className="p-5 bg-gradient-to-br from-blue-600 to-sky-700 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-blue-500/30">
+                <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-950 text-white rounded-2xl shadow-lg relative overflow-hidden space-y-2 border border-slate-700/50">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Total Transaksi</span>
-                    <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white">
-                      <Icons.Clipboard />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Biaya Maintenance & KIR</span>
+                    <span className="w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-400">
+                      <Icons.Wrench />
                     </span>
                   </div>
-                  <div className="text-2xl font-extrabold font-mono text-white">
-                    {filteredLogs.length} <span className="text-xs font-sans font-medium text-blue-100">Laporan</span>
+                  <div className="text-2xl font-extrabold font-mono text-amber-400">
+                    Rp {totalMaintenanceCost.toLocaleString('id-ID')}
                   </div>
-                  <span className="text-[10px] font-medium text-blue-100 block">Audit Transaksi Terverifikasi</span>
+                  <span className="text-[10px] font-medium text-slate-400 block">Total Servis, Perbaikan & Legalitas KIR</span>
                 </div>
               </div>
 
-              {/* PAGU ANGGARAN BULANAN PANEL */}
+              {/* PAGU ANGGARAN BULANAN & AKUMULASI EVALUASI TCO */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b pb-3">
                   <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-                    Realisasi vs Pagu Anggaran Bulanan Armada
+                    Realisasi Anggaran BBM & Total Pengeluaran Per Armada
                   </h2>
-                  <span className="text-[11px] text-slate-500 font-medium">Batas Maksimum Pengeluaran Operasional</span>
+                  <span className="text-[11px] text-slate-500 font-medium">Pengeluaran BBM + Perbaikan/KIR</span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -795,16 +891,24 @@ export default function AdminDashboard() {
                         )}
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-1.5 pt-1">
                         <div className="flex justify-between text-xs font-mono">
-                          <span className="text-slate-500 font-sans">Realisasi:</span>
+                          <span className="text-slate-500 font-sans">Biaya BBM:</span>
                           <span className={v.isOverBudget ? 'text-rose-600 font-bold' : 'text-slate-900 font-semibold'}>
                             Rp {(Number(v.spentCost) || 0).toLocaleString('id-ID')}
                           </span>
                         </div>
-                        <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                          <span className="font-sans">Pagu Mandiri:</span>
-                          <span>Rp {(Number(v.monthly_budget) || 0).toLocaleString('id-ID')}</span>
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-slate-500 font-sans">Perbaikan & KIR:</span>
+                          <span className="text-amber-700 font-bold">
+                            Rp {(Number(v.spentMaintenance) || 0).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs font-mono pt-1 border-t border-slate-200">
+                          <span className="text-slate-900 font-extrabold font-sans">Total Operasional:</span>
+                          <span className="text-indigo-900 font-extrabold">
+                            Rp {(Number(v.totalOperationalCost) || 0).toLocaleString('id-ID')}
+                          </span>
                         </div>
 
                         <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mt-2">
@@ -818,8 +922,10 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="pt-2 border-t border-slate-200/80 flex justify-between items-center text-xs">
-                        <span className="text-slate-500 font-medium">Rasio Efisiensi:</span>
-                        {renderEfficiencyBadge(v.efficiency)}
+                        <span className="text-slate-500 font-medium">Jatuh Tempo KIR:</span>
+                        <span className={`font-mono font-bold text-[11px] ${v.maintenance.isKirCritical ? 'text-rose-600' : 'text-slate-700'}`}>
+                          {v.kir_expiry} ({v.maintenance.daysToKir} Hari)
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -1057,30 +1163,38 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* MODUL SERVIS & MAINTENANCE ARMADA DISEMPURNAKAN */}
+<<<<<<< HEAD
+          {/* MODUL SERVIS, KIR & PERBAIKAN ARMADA WITH SPAREPART DETAILS */}
+=======
+          {/* MODUL SERVIS, KIR & PERBAIKAN ARMADA WITH SCROLL LOCK & SEARCH FILTER */}
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
           {activeTab === 'maintenance' && (
             <div className="space-y-6">
               
-              {/* HEADER MAITENANCE INFO */}
+              {/* HEADER MAINTENANCE INFO */}
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Icons.Wrench /> Modul Pengawas Servis & Maintenance Otomatis
+                    <Icons.Wrench /> Modul Pengawas Servis, Legalitas KIR & Perbaikan
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Menghitung sisa KM menuju jadwal servis berkala, ganti oli, pemeriksaan rem, dan rotasi ban berdasarkan Odometer real-time.
+<<<<<<< HEAD
+                    Monitoring jatuh tempo Uji KIR berkala, rincian penggantian sparepart, serta estimasi sisa KM servis berkala.
+=======
+                    Monitoring jatuh tempo Uji KIR berkala, perbaikan mesin/sparepart, serta estimasi sisa KM servis berkala.
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                   </p>
                 </div>
 
                 <div className="bg-indigo-50 border border-indigo-200/80 p-3 rounded-xl text-xs font-mono text-indigo-900 flex items-center gap-3">
                   <div>
-                    <span className="text-[10px] text-indigo-500 block font-sans">Total Biaya Pemeliharaan:</span>
+                    <span className="text-[10px] text-indigo-500 block font-sans">Total Biaya Perawatan & Legalitas:</span>
                     <strong className="text-sm font-bold text-indigo-950">Rp {totalMaintenanceCost.toLocaleString('id-ID')}</strong>
                   </div>
                 </div>
               </div>
 
-              {/* CARDS JADWAL SERVIS PER VEHICLE */}
+              {/* CARDS JADWAL SERVIS & UJI KIR PER VEHICLE */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {vehicleStats.map((v) => (
                   <div key={v.plate_number} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
@@ -1092,11 +1206,11 @@ export default function AdminDashboard() {
                         </div>
                         {v.maintenance.status === 'CRITICAL' ? (
                           <span className="bg-rose-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse shadow-sm">
-                            🚨 WAJIB SERVIS
+                            🚨 BUTUH TINDAKAN
                           </span>
                         ) : v.maintenance.status === 'WARNING' ? (
                           <span className="bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-                            ⚠️ MENDEKATI SERVIS
+                            ⚠️ PERLU DIKONTROL
                           </span>
                         ) : (
                           <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
@@ -1111,8 +1225,22 @@ export default function AdminDashboard() {
                           <span className="font-mono font-bold text-slate-900">{v.last_km.toLocaleString('id-ID')} KM</span>
                         </div>
 
-                        {/* SUB CHECKLIST MAINTENANCE */}
+                        {/* SUB CHECKLIST MAINTENANCE & LEGALITAS KIR */}
                         <div className="space-y-2">
+                          
+                          {/* JATUH TEMPO UJI KIR */}
+                          <div className={`p-2.5 rounded-xl border flex justify-between items-center text-xs ${v.maintenance.isKirCritical ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100'}`}>
+                            <div>
+                              <span className="font-bold text-slate-800 block text-[11px] flex items-center gap-1">
+                                <Icons.DocumentCheck /> Legalitas Uji KIR
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-mono">Exp: {v.kir_expiry}</span>
+                            </div>
+                            <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-md ${v.maintenance.isKirCritical ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-200 text-slate-700'}`}>
+                              {v.maintenance.daysToKir} Hari Lagi
+                            </span>
+                          </div>
+
                           {/* OLI */}
                           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
                             <div>
@@ -1120,83 +1248,139 @@ export default function AdminDashboard() {
                               <span className="text-[10px] text-slate-500 font-mono">Target: {v.maintenance.nextOilKm.toLocaleString('id-ID')} KM</span>
                             </div>
                             <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-md ${v.maintenance.remainingOilKm <= 300 ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700'}`}>
-                              {v.maintenance.remainingOilKm.toLocaleString('id-ID')} KM Lagi
+                              {v.maintenance.remainingOilKm.toLocaleString('id-ID')} KM
                             </span>
                           </div>
 
-                          {/* SERVIS */}
+                          {/* SERVIS BERKALA */}
                           <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
                             <div>
                               <span className="font-bold text-slate-800 block text-[11px]">🔧 Servis Berkala Mesin</span>
                               <span className="text-[10px] text-slate-500 font-mono">Target: {v.maintenance.nextServiceKm.toLocaleString('id-ID')} KM</span>
                             </div>
                             <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-md ${v.maintenance.remainingServiceKm <= 300 ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-700'}`}>
-                              {v.maintenance.remainingServiceKm.toLocaleString('id-ID')} KM Lagi
+                              {v.maintenance.remainingServiceKm.toLocaleString('id-ID')} KM
                             </span>
                           </div>
 
-                          {/* KAMPAS REM */}
-                          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
-                            <div>
-                              <span className="font-bold text-slate-800 block text-[11px]">🛑 Cek Kampas Rem</span>
-                              <span className="text-[10px] text-slate-500 font-mono">Target: {v.maintenance.nextBrakeKm.toLocaleString('id-ID')} KM</span>
-                            </div>
-                            <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
-                              {v.maintenance.remainingBrakeKm.toLocaleString('id-ID')} KM Lagi
-                            </span>
-                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* ACTION BUTTON CATAT SERVIS */}
+                    {/* ACTION BUTTON CATAT SERVIS / PERBAIKAN / KIR */}
                     <button
                       onClick={() => setSelectedServiceVehicle(v)}
                       className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5 mt-2"
                     >
-                      <Icons.Wrench /> Catat / Reset Servis Selesai
+                      <Icons.Wrench /> Catat Servis / Perbaikan / Uji KIR
                     </button>
                   </div>
                 ))}
               </div>
 
-              {/* TABEL HISTORI PERBAIKAN BENGKEL */}
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-3">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+<<<<<<< HEAD
+              {/* TABEL HISTORI PERBAIKAN BENGKEL & RINCIAN SPAREPART */}
+=======
+              {/* TABEL HISTORI PERBAIKAN BENGKEL - DILENGKAPI SCROLL LOCK & FILTER TANGGAL */}
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
                   <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-                    Riwayat Pengerjaan Servis & Catatan Bengkel
+                    Riwayat Pengerjaan Servis, Uji KIR & Perbaikan Bengkel
                   </h3>
-                  <span className="text-[11px] text-slate-500 font-mono">Total {serviceHistory.length} Pengerjaan</span>
+                  
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <div className="flex items-center gap-1 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                      <span className="text-slate-500 font-medium">Dari:</span>
+                      <input
+                        type="date"
+                        className="bg-transparent font-medium text-slate-800 outline-none"
+                        value={serviceStartDate}
+                        onChange={(e) => setServiceStartDate(e.target.value)}
+                      />
+                      <span className="text-slate-500 font-medium">s/d</span>
+                      <input
+                        type="date"
+                        className="bg-transparent font-medium text-slate-800 outline-none"
+                        value={serviceEndDate}
+                        onChange={(e) => setServiceEndDate(e.target.value)}
+                      />
+                      {(serviceStartDate || serviceEndDate) && (
+                        <button
+                          onClick={() => {
+                            setServiceStartDate('')
+                            setServiceEndDate('')
+                          }}
+                          className="text-slate-400 hover:text-slate-700 ml-1 font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <select
+                      className="text-xs border border-slate-300 rounded-xl p-2 bg-white font-medium text-slate-700 outline-none"
+                      value={serviceSelectedVehicle}
+                      onChange={(e) => setServiceSelectedVehicle(e.target.value)}
+                    >
+                      <option value="ALL">Semua Armada</option>
+                      {safeVehicles.map((v) => (
+                        <option key={v.plate_number} value={v.plate_number}>
+                          {v.plate_number} - {v.model}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
+<<<<<<< HEAD
+                <div className="overflow-x-auto max-h-[190px] overflow-y-auto">
+=======
+                <div className="overflow-x-auto max-h-[180px] overflow-y-auto">
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
                       <tr>
                         <th className="p-3">Tanggal</th>
                         <th className="p-3">Kendaraan</th>
                         <th className="p-3">Jenis Pengerjaan</th>
-                        <th className="p-3">Bengkel Rekanan</th>
+<<<<<<< HEAD
+                        <th className="p-3">Komponen / Sparepart Diganti</th>
+=======
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
+                        <th className="p-3">Bengkel / Rekanan</th>
                         <th className="p-3">KM Pengerjaan</th>
-                        <th className="p-3 text-right">Biaya Servis</th>
+                        <th className="p-3 text-right">Biaya (Rp)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {serviceHistory.map((s) => (
+                      {filteredServiceHistory.map((s) => (
                         <tr key={s.id} className="hover:bg-slate-50 transition">
-                          <td className="p-3 font-mono">{s.date}</td>
-                          <td className="p-3 font-bold text-slate-900">{s.plate_number}</td>
-                          <td className="p-3 font-medium text-slate-800">{s.service_type}</td>
-                          <td className="p-3">{s.workshop}</td>
-                          <td className="p-3 font-mono">{s.km_done.toLocaleString('id-ID')} KM</td>
-                          <td className="p-3 text-right font-mono font-bold text-slate-900">
+                          <td className="p-3 font-mono whitespace-nowrap">{s.date}</td>
+                          <td className="p-3 font-bold text-slate-900 whitespace-nowrap">{s.plate_number}</td>
+                          <td className="p-3 font-medium text-slate-800 whitespace-nowrap">{s.service_type}</td>
+                          <td className="p-3 font-medium text-indigo-900 bg-indigo-50/50">
+                            {s.parts_replaced || '-'}
+                          </td>
+                          <td className="p-3 whitespace-nowrap">{s.workshop}</td>
+                          <td className="p-3 font-mono whitespace-nowrap">{s.km_done.toLocaleString('id-ID')} KM</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
                             Rp {(Number(s.cost) || 0).toLocaleString('id-ID')}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="p-3 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-mono text-[11px]">
+                    Menampilkan total <strong className="text-slate-900">{filteredServiceHistory.length}</strong> catatan pengerjaan
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-medium italic">
+                    💡 Gulung (scroll) ke bawah pada tabel untuk melihat data lainnya
+                  </span>
                 </div>
               </div>
 
@@ -1206,13 +1390,21 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* MODAL CATAT SERVIS SELESAI */}
+<<<<<<< HEAD
+      {/* MODAL CATAT SERVIS / PERBAIKAN / UJI KIR / SPAREPART */}
+=======
+      {/* MODAL CATAT SERVIS / PERBAIKAN / UJI KIR SELESAI */}
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
       {selectedServiceVehicle && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Catat Servis Armada Selesai</h3>
+<<<<<<< HEAD
+                <h3 className="text-sm font-bold text-slate-900">Catat Perawatan & Sparepart Armada</h3>
+=======
+                <h3 className="text-sm font-bold text-slate-900">Catat Perawatan / Biaya Armada</h3>
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                 <p className="text-xs text-slate-500">{selectedServiceVehicle.plate_number} • {selectedServiceVehicle.model}</p>
               </div>
               <button onClick={() => setSelectedServiceVehicle(null)} className="text-slate-400 hover:text-slate-600 font-bold">
@@ -1222,7 +1414,7 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleRecordServiceSubmit} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Jenis Pengerjaan Servis</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Kategori Pengerjaan / Biaya</label>
                 <select
                   className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-medium text-slate-800 outline-none"
                   value={serviceTypeInput}
@@ -1230,17 +1422,62 @@ export default function AdminDashboard() {
                 >
                   <option value="Ganti Oli & Filter Mesin">🛢️ Ganti Oli & Filter Mesin (Interval 5.000 KM)</option>
                   <option value="Servis Berkala Mesin">🔧 Servis Berkala Mesin (Interval 10.000 KM)</option>
+                  <option value="Pengujian Uji KIR Berkala">📜 Pengujian Uji KIR Berkala (Legalitas Dishub)</option>
+                  <option value="Perbaikan Darurat / Sparepart">🛠️ Perbaikan / Penggantian Sparepart Non-Rutin</option>
                   <option value="Penggantian Kampas Rem">🛑 Penggantian Kampas Rem (Interval 20.000 KM)</option>
                   <option value="Rotasi / Ganti Ban">🛞 Rotasi / Ganti Ban (Interval 25.000 KM)</option>
-                  <option value="Servis Total (Overhaul)">⚙️ Servis Major / Overhaul Total</option>
                 </select>
               </div>
 
+              {serviceTypeInput === 'Pengujian Uji KIR Berkala' && (
+                <div>
+                  <label className="block text-xs font-semibold text-amber-800 mb-1">Tanggal Kadaluarsa Uji KIR Baru</label>
+                  <input
+                    type="date"
+                    className="w-full text-xs border border-amber-300 rounded-xl p-2.5 bg-amber-50 font-medium text-slate-900 outline-none"
+                    value={newKirExpiryInput}
+                    onChange={(e) => setNewKirExpiryInput(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Bengkel / Rekanan</label>
+<<<<<<< HEAD
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Rincian Komponen / Sparepart yang Diganti</label>
                 <input
                   type="text"
-                  placeholder="Contoh: Auto2000 Grogol / Bengkel Resmi"
+                  placeholder="Contoh: Aki GS Astra 45Ah, Kampas Rem Depan, V-Belt"
+                  className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-medium text-slate-800 outline-none"
+                  value={partsReplacedInput}
+                  onChange={(e) => setPartsReplacedInput(e.target.value)}
+                  required
+                />
+              </div>
+
+              {serviceTypeInput === 'Pengujian Uji KIR Berkala' && (
+                <div>
+                  <label className="block text-xs font-semibold text-amber-800 mb-1">Tanggal Kadaluarsa Uji KIR Baru</label>
+                  <input
+                    type="date"
+                    className="w-full text-xs border border-amber-300 rounded-xl p-2.5 bg-amber-50 font-medium text-slate-900 outline-none"
+                    value={newKirExpiryInput}
+                    onChange={(e) => setNewKirExpiryInput(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Bengkel / Penyedia Jasa</label>
+                <input
+                  type="text"
+=======
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Bengkel / Penyedia Jasa</label>
+                <input
+                  type="text"
+>>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
+                  placeholder="Contoh: Bengkel Rekanan / Dinas Perhub"
                   className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-medium text-slate-800 outline-none"
                   value={workshopInput}
                   onChange={(e) => setWorkshopInput(e.target.value)}
@@ -1249,7 +1486,7 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Biaya Pengerjaan (Rp)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Total Biaya (Rp)</label>
                 <input
                   type="number"
                   placeholder="Contoh: 450000"
@@ -1272,7 +1509,7 @@ export default function AdminDashboard() {
                   type="submit"
                   className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 rounded-xl shadow-md"
                 >
-                  Simpan Servis
+                  Simpan Catatan
                 </button>
               </div>
             </form>
@@ -1285,23 +1522,27 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="border-b-2 border-slate-900 pb-4 text-center space-y-1">
-              <h2 className="text-base font-bold text-slate-900 tracking-wider uppercase">LAPORAN RINGKASAN EKSEKUTIF OPERASIONAL BBM</h2>
-              <p className="text-xs text-slate-600">Dokumen Resmi Audit Konsumsi & Biaya Bahan Bakar Armada Perusahaan</p>
+              <h2 className="text-base font-bold text-slate-900 tracking-wider uppercase">LAPORAN RINGKASAN EKSEKUTIF OPERASIONAL BBM & MAINTENANCE</h2>
+              <p className="text-xs text-slate-600">Dokumen Resmi Audit Konsumsi, Biaya Perbaikan & Legalitas KIR Armada Perusahaan</p>
               <p className="text-[11px] text-slate-400 font-mono">Tanggal Cetak: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-center border p-3 rounded-xl bg-slate-50 text-xs font-mono">
+            <div className="grid grid-cols-4 gap-3 text-center border p-3 rounded-xl bg-slate-50 text-xs font-mono">
               <div>
-                <span className="text-[10px] text-slate-500 block font-sans">Total Biaya Operasional</span>
-                <span className="font-bold text-slate-900 text-sm">Rp {totalCost.toLocaleString('id-ID')}</span>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Biaya BBM</span>
+                <span className="font-bold text-slate-900 text-xs">Rp {totalCost.toLocaleString('id-ID')}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block font-sans">Total Volume Terdistribusi</span>
-                <span className="font-bold text-slate-900 text-sm">{totalLiters.toLocaleString('id-ID')} Liter</span>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Perbaikan/KIR</span>
+                <span className="font-bold text-amber-800 text-xs">Rp {totalMaintenanceCost.toLocaleString('id-ID')}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 block font-sans">Efisiensi Rata-Rata</span>
-                <span className="font-bold text-slate-900 text-sm">{avgKmPerLiter} KM/L</span>
+                <span className="text-[10px] text-slate-500 block font-sans">Total Volume BBM</span>
+                <span className="font-bold text-slate-900 text-xs">{totalLiters.toLocaleString('id-ID')} L</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block font-sans">Rata-Rata Efisiensi</span>
+                <span className="font-bold text-slate-900 text-xs">{avgKmPerLiter} KM/L</span>
               </div>
             </div>
 
