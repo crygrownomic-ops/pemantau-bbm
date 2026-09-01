@@ -2,239 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Icons } from '@/components/ui/Icons'
+import ExecutiveCards from '@/components/admin/ExecutiveCards'
+import FuelLogsTable from '@/components/admin/FuelLogsTable'
+import AnalyticsTab from '@/components/admin/AnalyticsTab'
+import MaintenanceTab from '@/components/admin/MaintenanceTab'
 
-// ==========================================
-// 1. INLINE ICONS
-// ==========================================
-const Icons = {
-  Fuel: ({ className = "w-5 h-5" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-    </svg>
-  ),
-  Dashboard: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2h-2a2 2 0 01-2-2v-2z" />
-    </svg>
-  ),
-  Analytics: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-    </svg>
-  ),
-  Wrench: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  ),
-  Truck: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8h4l3 3v5a1 1 0 01-1 1h-1m-6 0a1 1 0 001-1v-4" />
-    </svg>
-  ),
-  Price: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  Mobile: ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-    </svg>
-  ),
-}
-
-// ==========================================
-// 2. INLINE EXECUTIVE CARDS
-// ==========================================
-function ExecutiveCards({ totalCost, avgKmPerLiter, totalLiters, totalMaintenanceCost }: any) {
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="p-5 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl shadow-lg space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">Total Biaya BBM</span>
-            <Icons.Price className="w-5 h-5 text-indigo-200" />
-          </div>
-          <div className="text-2xl font-extrabold font-mono">Rp {totalCost.toLocaleString('id-ID')}</div>
-        </div>
-        <div className="p-5 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">Rata-Rata Efisiensi</span>
-            <Icons.Fuel className="w-5 h-5 text-emerald-200" />
-          </div>
-          <div className="text-2xl font-extrabold font-mono">{avgKmPerLiter} <span className="text-xs font-sans">KM/L</span></div>
-        </div>
-        <div className="p-5 bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 rounded-2xl shadow-lg space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Total Konsumsi BBM</span>
-            <Icons.Truck className="w-5 h-5" />
-          </div>
-          <div className="text-2xl font-extrabold font-mono">{totalLiters.toLocaleString('id-ID')} <span className="text-xs font-sans">Liter</span></div>
-        </div>
-        <div className="p-5 bg-gradient-to-br from-slate-800 to-slate-950 text-white rounded-2xl shadow-lg space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Biaya Maintenance & KIR</span>
-            <Icons.Wrench className="w-5 h-5 text-amber-400" />
-          </div>
-          <div className="text-2xl font-extrabold font-mono text-amber-400">Rp {totalMaintenanceCost.toLocaleString('id-ID')}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ==========================================
-// 3. INLINE FUEL LOGS TABLE
-// ==========================================
-function FuelLogsTable({ filteredLogs, safeVehicles, selectedVehicle, setSelectedVehicle, handleDeleteLog }: any) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-        <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase">Rincian Transaksi Pengisian BBM</h2>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <select className="text-xs border rounded-xl p-2 bg-white" value={selectedVehicle} onChange={(e) => setSelectedVehicle(e.target.value)}>
-            <option value="ALL">Semua Armada</option>
-            {safeVehicles.map((v: any) => (
-              <option key={v.plate_number} value={v.plate_number}>{v.plate_number} - {v.model}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div className="overflow-x-auto max-h-[250px] overflow-y-auto">
-        <table className="w-full text-left text-xs text-slate-600">
-          <thead className="bg-slate-900 text-white font-bold sticky top-0 z-10">
-            <tr>
-              <th className="p-3">Tanggal</th>
-              <th className="p-3">Kendaraan</th>
-              <th className="p-3">Pengemudi</th>
-              <th className="p-3">Jenis BBM</th>
-              <th className="p-3">Odometer</th>
-              <th className="p-3">Volume</th>
-              <th className="p-3 text-right">Total Biaya</th>
-              <th className="p-3 text-center">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredLogs.map((log: any) => (
-              <tr key={log.id} className="hover:bg-slate-50">
-                <td className="p-3 font-mono">{log.date}</td>
-                <td className="p-3 font-bold text-slate-900">{log.plate_number}</td>
-                <td className="p-3">{log.driver_name}</td>
-                <td className="p-3">{log.fuel_type}</td>
-                <td className="p-3 font-mono">{log.initial_km} → {log.final_km} KM</td>
-                <td className="p-3 font-mono">{log.liters} L</td>
-                <td className="p-3 text-right font-mono font-bold text-slate-900">Rp {(Number(log.total_cost) || 0).toLocaleString('id-ID')}</td>
-                <td className="p-3 text-center">
-                  <button onClick={() => handleDeleteLog(log.id)} className="text-rose-600 hover:underline font-bold text-[11px]">Hapus</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-// ==========================================
-// 4. INLINE ANALYTICS TAB
-// ==========================================
-function AnalyticsTab({ vehicleStats }: any) {
-  return (
-    <div className="space-y-6">
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-        <h2 className="text-sm font-bold text-slate-900">Analisis Kinerja & Efisiensi BBM</h2>
-        <p className="text-xs text-slate-500">Statistik rasio efisiensi KM/L per armada</p>
-      </div>
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        {vehicleStats.map((v: any) => (
-          <div key={v.plate_number} className="space-y-1">
-            <div className="flex justify-between text-xs font-semibold">
-              <span>{v.plate_number} ({v.model})</span>
-              <span className="font-bold text-emerald-700">{v.efficiency} KM/L</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ==========================================
-// 5. INLINE MAINTENANCE TAB
-// ==========================================
-function MaintenanceTabContent({ vehicleStats, serviceHistory, totalMaintenanceCost, onAddServiceRecord }: any) {
-  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null)
-  const [serviceTypeInput, setServiceTypeInput] = useState('Ganti Oli & Filter Mesin')
-  const [partsReplacedInput, setPartsReplacedInput] = useState('')
-  const [serviceCostInput, setServiceCostInput] = useState('')
-  const [workshopInput, setWorkshopInput] = useState('')
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedVehicle) return
-    onAddServiceRecord({
-      plate_number: selectedVehicle.plate_number,
-      service_type: serviceTypeInput,
-      parts_replaced: partsReplacedInput.trim() || '-',
-      cost: Number(serviceCostInput) || 0,
-      workshop: workshopInput || 'Bengkel',
-      km_done: selectedVehicle.last_km,
-      date: new Date().toISOString().split('T')[0],
-    })
-    setSelectedVehicle(null)
-    setPartsReplacedInput('')
-    setServiceCostInput('')
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-        <div>
-          <h2 className="text-sm font-bold text-slate-900">Modul Perawatan & Sparepart</h2>
-          <p className="text-xs text-slate-500">Jadwal servis, Uji KIR, dan perbaikan armada</p>
-        </div>
-        <div className="text-xs font-bold text-indigo-900 bg-indigo-50 p-3 rounded-xl">
-          Total: Rp {totalMaintenanceCost.toLocaleString('id-ID')}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {vehicleStats.map((v: any) => (
-          <div key={v.plate_number} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div className="font-bold text-sm text-slate-900">{v.plate_number} - {v.model}</div>
-            <div className="text-xs text-slate-500">KM: {v.last_km.toLocaleString('id-ID')}</div>
-            <button onClick={() => setSelectedVehicle(v)} className="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-xl">
-              Catat Servis / Sparepart
-            </button>
-          </div>
-        ))}
-      </div>
-      {selectedVehicle && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-3">
-            <h3 className="text-xs font-bold text-slate-900">Input Servis {selectedVehicle.plate_number}</h3>
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-              <input type="text" placeholder="Sparepart diganti" className="w-full border p-2 rounded-xl" value={partsReplacedInput} onChange={(e) => setPartsReplacedInput(e.target.value)} required />
-              <input type="text" placeholder="Bengkel" className="w-full border p-2 rounded-xl" value={workshopInput} onChange={(e) => setWorkshopInput(e.target.value)} required />
-              <input type="number" placeholder="Biaya (Rp)" className="w-full border p-2 rounded-xl" value={serviceCostInput} onChange={(e) => setServiceCostInput(e.target.value)} required />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setSelectedVehicle(null)} className="w-1/2 bg-slate-100 p-2 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white p-2 rounded-xl">Simpan</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ==========================================
-// 6. MAIN ADMIN DASHBOARD
-// ==========================================
 const DEFAULT_VEHICLES = [
   { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320, kir_expiry: '2026-10-15' },
   { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000, kir_expiry: '2026-09-10' },
@@ -242,24 +15,81 @@ const DEFAULT_VEHICLES = [
 ]
 
 const DEFAULT_LOGS = [
-  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Ahmad Supardi', initial_km: 45250, final_km: 45750, distance_km: 500, liters: 15, unit_price: 10000, km_per_liter: 33.33, total_cost: 150000, fuel_type: 'Pertalite', date: '2026-08-31', status: 'PENDING' },
+  { id: 1, plate_number: 'B 1234 ABC', vehicle_model: 'Toyota Avanza', driver_name: 'Ahmad Supardi', initial_km: 45250, final_km: 45750, distance_km: 500, liters: 15, unit_price: 10000, km_per_liter: 33.33, total_cost: 150000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-31', status: 'PENDING' },
+  { id: 2, plate_number: 'KB 1234 YK', vehicle_model: 'Toyota Avanza', driver_name: 'Budi Santoso', initial_km: 47582, final_km: 47896, distance_km: 314, liters: 30, unit_price: 10000, km_per_liter: 10.47, total_cost: 300000, fuel_type: 'Pertalite', fill_location: 'SPBU', emergency_note: '', date: '2026-08-31', status: 'PENDING' },
 ]
 
 const DEFAULT_SERVICE_HISTORY = [
-  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli', parts_replaced: 'Oli Shell', cost: 450000, workshop: 'Bengkel A', km_done: 40000, date: '2026-06-15' },
+  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter Mesin', parts_replaced: 'Oli Shell Helix 4L, Filter Oli Denso', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
+  { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala Mesin', parts_replaced: 'Busi Iridium (4pcs), Filter Udara', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
 ]
+
+function getMaintenanceSchedule(currentKm: number, kirExpiryDate?: string) {
+  const km = Number(currentKm) || 0
+  const oilInterval = 5000
+  const serviceInterval = 10000
+
+  const nextOilKm = Math.ceil((km + 1) / oilInterval) * oilInterval
+  const remainingOilKm = nextOilKm - km
+
+  const nextServiceKm = Math.ceil((km + 1) / serviceInterval) * serviceInterval
+  const remainingServiceKm = nextServiceKm - km
+
+  let daysToKir = 999
+  let isKirCritical = false
+  if (kirExpiryDate) {
+    const today = new Date()
+    const exp = new Date(kirExpiryDate)
+    const diffTime = exp.getTime() - today.getTime()
+    daysToKir = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (daysToKir <= 30) isKirCritical = true
+  }
+
+  let status: 'CRITICAL' | 'WARNING' | 'OK' = 'OK'
+  if (remainingOilKm <= 300 || remainingServiceKm <= 300 || isKirCritical) {
+    status = 'CRITICAL'
+  } else if (remainingOilKm <= 1000 || remainingServiceKm <= 1000 || daysToKir <= 60) {
+    status = 'WARNING'
+  }
+
+  return { nextOilKm, remainingOilKm, nextServiceKm, remainingServiceKm, daysToKir, isKirCritical, status }
+}
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pinInput, setPinInput] = useState('')
-  const [vehicles] = useState(DEFAULT_VEHICLES)
+  const [pinError, setPinError] = useState(false)
+
+  const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICE_HISTORY)
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'maintenance'>('dashboard')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isKelolaOpen, setIsKelolaOpen] = useState(false)
+
+  const [selectedVehicle, setSelectedVehicle] = useState('ALL')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
       setIsAuthenticated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const storedVehicles = localStorage.getItem('vehicle_budgets')
+      const storedLogs = localStorage.getItem('fuel_logs')
+      const storedServices = localStorage.getItem('service_history')
+
+      if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
+      if (storedLogs) setLogs(JSON.parse(storedLogs))
+      if (storedServices) setServiceHistory(JSON.parse(storedServices))
+    } catch (err) {
+      console.error(err)
     }
   }, [])
 
@@ -268,81 +98,266 @@ export default function AdminDashboard() {
     if (pinInput === '1234') {
       setIsAuthenticated(true)
       localStorage.setItem('admin_authenticated', 'true')
+      setPinError(false)
     } else {
-      alert('PIN Salah! Gunakan: 1234')
+      setPinError(true)
     }
   }
 
-  const handleDeleteLog = (id: number) => {
-    setLogs(logs.filter((l) => l.id !== id))
+  const handleLogout = () => {
+    if (confirm('Kunci kembali akses Admin?')) {
+      localStorage.removeItem('admin_authenticated')
+      setIsAuthenticated(false)
+    }
   }
 
-  const handleAddServiceRecord = (record: any) => {
-    setServiceHistory([{ ...record, id: Date.now() }, ...serviceHistory])
+  const handleUpdateStatus = (id: number, newStatus: 'VERIFIED' | 'FLAGGED') => {
+    const updatedLogs = logs.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+    setLogs(updatedLogs)
+    localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
+    if (previewReceipt && previewReceipt.id === id) setPreviewReceipt({ ...previewReceipt, status: newStatus })
+  }
+
+  const handleDeleteLog = (id: number) => {
+    if (confirm('Apakah Anda yakin ingin menghapus catatan ini?')) {
+      const updatedLogs = logs.filter((l) => l.id !== id)
+      setLogs(updatedLogs)
+      localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
+    }
+  }
+
+  const handleAddServiceRecord = (record: any, newKirExpiry?: string) => {
+    const newRecord = { ...record, id: Date.now() }
+    const updatedHistory = [newRecord, ...serviceHistory]
+    setServiceHistory(updatedHistory)
+    localStorage.setItem('service_history', JSON.stringify(updatedHistory))
+
+    if (newKirExpiry) {
+      const updatedVehicles = vehicles.map((v) =>
+        v.plate_number === record.plate_number ? { ...v, kir_expiry: newKirExpiry } : v
+      )
+      setVehicles(updatedVehicles)
+      localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
+    }
+
+    alert('Catatan Servis / Perbaikan berhasil disimpan!')
+  }
+
+  const handleDownloadReceipt = (receiptBase64: string, plateNumber: string, date: string, finalKm: number) => {
+    const cleanPlate = (plateNumber || 'ARMADA').replace(/\s+/g, '').toUpperCase()
+    const a = document.createElement('a')
+    a.href = receiptBase64
+    a.download = `${cleanPlate}_${date || 'NO_DATE'}_${finalKm || 0}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100 font-sans">
-        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-slate-900 text-center space-y-4">
-          <h1 className="text-lg font-bold">Akses Admin FleetOps 360</h1>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-5 text-center border border-slate-100">
+          <div className="w-12 h-12 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold shadow-lg">
+            <Icons.Fuel />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">Dashboard Admin</h1>
+            <p className="text-xs text-slate-500 mt-0.5">FleetOps 360 • System Control Center</p>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-3">
             <input
               type="password"
               maxLength={4}
-              placeholder="PIN (1234)"
-              className="w-full text-center text-xl py-2 border rounded-xl font-mono font-bold"
+              placeholder="••••"
+              className="w-full text-center text-2xl tracking-widest py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-mono font-bold bg-slate-50"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
             />
-            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-2 rounded-xl text-xs">
-              Masuk
+
+            {pinError && <p className="text-xs text-rose-600 font-semibold">PIN tidak valid (Default: 1234)</p>}
+
+            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-xs shadow-md">
+              Verifikasi Akses Admin
             </button>
           </form>
-          <Link href="/driver" className="text-xs text-amber-600 font-bold block">
-            ← Ke Portal Driver
-          </Link>
+
+          <div className="pt-2 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+            <Link href="/driver" className="hover:text-amber-600 font-bold transition flex items-center gap-1">
+              <Icons.Mobile /> Portal Driver
+            </Link>
+          </div>
         </div>
       </div>
     )
   }
 
-  const totalCost = logs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
-  const totalLiters = logs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
-  const totalKm = logs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+  const filteredLogs = logs.filter((log) => {
+    const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
+    const matchStart = !startDate || log.date >= startDate
+    const matchEnd = !endDate || log.date <= endDate
+    return matchVehicle && matchStart && matchEnd
+  })
+
+  const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+  const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+  const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
   const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
   const totalMaintenanceCost = serviceHistory.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
 
   const vehicleStats = vehicles.map((v) => {
     const vLogs = logs.filter((l) => l.plate_number === v.plate_number)
+    const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+    const vServices = serviceHistory.filter((s) => s.plate_number === v.plate_number)
+    const spentMaintenance = vServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
+    const totalOperationalCost = spentCost + spentMaintenance
+
     const km = vLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
     const liters = vLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
     const efficiency = liters > 0 ? Number((km / liters).toFixed(1)) : 0
-    return { ...v, efficiency }
+    const budget = Number(v.monthly_budget) || 1
+    const usagePercent = Math.min(Math.round((spentCost / budget) * 100), 100)
+    const isOverBudget = spentCost > budget
+    const maintenance = getMaintenanceSchedule(v.last_km, v.kir_expiry)
+
+    return { ...v, spentCost, spentMaintenance, totalOperationalCost, efficiency, usagePercent, isOverBudget, maintenance }
   })
+
+  const criticalServiceCount = vehicleStats.filter((v) => v.maintenance.status === 'CRITICAL').length
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
-      <aside className="w-64 bg-slate-900 text-slate-300 p-4 space-y-4">
-        <div className="font-extrabold text-white text-sm">FLEETOPS 360</div>
-        <nav className="space-y-1 text-xs">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left p-2 rounded-xl ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white font-bold' : ''}`}>Dashboard</button>
-          <button onClick={() => setActiveTab('analytics')} className={`w-full text-left p-2 rounded-xl ${activeTab === 'analytics' ? 'bg-indigo-600 text-white font-bold' : ''}`}>Analytics</button>
-          <button onClick={() => setActiveTab('maintenance')} className={`w-full text-left p-2 rounded-xl ${activeTab === 'maintenance' ? 'bg-indigo-600 text-white font-bold' : ''}`}>Servis & Maintenance</button>
-        </nav>
-        <Link href="/driver" className="block text-xs text-amber-400 font-bold pt-4">Portal Driver ➔</Link>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static flex flex-col justify-between ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div>
+          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 rounded-xl flex items-center justify-center font-extrabold shadow-md">
+                <Icons.Fuel />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-white tracking-wide">FLEETOPS 360</h2>
+                <span className="text-[10px] text-amber-400 font-bold tracking-wider uppercase">Enterprise Edition</span>
+              </div>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400">✕</button>
+          </div>
+
+          <nav className="p-4 space-y-1">
+            <Link href="/driver" className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-md mb-3">
+              <Icons.Mobile /> Form Input BBM Driver
+            </Link>
+
+            <button onClick={() => { setActiveTab('dashboard'); setSidebarOpen(false) }} className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400'}`}>
+              <Icons.Dashboard /> Dashboard Utama
+            </button>
+
+            <button onClick={() => { setActiveTab('analytics'); setSidebarOpen(false) }} className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${activeTab === 'analytics' ? 'bg-indigo-600 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400'}`}>
+              <Icons.Analytics /> Analytics & Grafik
+            </button>
+
+            <button onClick={() => { setActiveTab('maintenance'); setSidebarOpen(false) }} className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold ${activeTab === 'maintenance' ? 'bg-indigo-600 text-white font-bold shadow-md' : 'hover:bg-slate-800 text-slate-400'}`}>
+              <div className="flex items-center gap-3"><Icons.Wrench /> Servis & Maintenance</div>
+              {criticalServiceCount > 0 && <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">{criticalServiceCount}</span>}
+            </button>
+
+            <div className="pt-3">
+              <button onClick={() => setIsKelolaOpen(!isKelolaOpen)} className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">
+                <span className="uppercase text-[10px] tracking-wider text-amber-400 font-extrabold flex items-center gap-2"><Icons.Settings /> Pusat Kelola Operasional</span>
+                <span>{isKelolaOpen ? '▲' : '▼'}</span>
+              </button>
+
+              {isKelolaOpen && (
+                <div className="mt-1 pl-3 space-y-1 border-l-2 border-slate-700 ml-3">
+                  <Link href="/settings?tab=drivers" className="block px-3 py-1.5 text-xs text-slate-300 hover:text-amber-400">Master Driver</Link>
+                  <Link href="/settings?tab=vehicles" className="block px-3 py-1.5 text-xs text-slate-300 hover:text-amber-400">Armada Kendaraan</Link>
+                  <Link href="/settings?tab=prices" className="block px-3 py-1.5 text-xs text-slate-300 hover:text-amber-400">Tarif BBM</Link>
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+
+        <div className="p-4 border-t border-slate-800 space-y-2">
+          <button onClick={handleLogout} className="w-full bg-slate-800 text-slate-300 py-2 rounded-xl text-xs font-semibold">Kunci Akses Admin</button>
+          <div className="text-[10px] text-slate-500 text-center">Dev by Urai Ikhsan Fadhilah</div>
+        </div>
       </aside>
 
-      <main className="flex-1 p-6 space-y-6">
-        {activeTab === 'dashboard' && (
-          <>
-            <ExecutiveCards totalCost={totalCost} avgKmPerLiter={avgKmPerLiter} totalLiters={totalLiters} totalMaintenanceCost={totalMaintenanceCost} vehicleStats={vehicleStats} />
-            <FuelLogsTable filteredLogs={logs} safeVehicles={vehicles} selectedVehicle="ALL" setSelectedVehicle={() => {}} handleDeleteLog={handleDeleteLog} />
-          </>
-        )}
-        {activeTab === 'analytics' && <AnalyticsTab vehicleStats={vehicleStats} totalCost={totalCost} />}
-        {activeTab === 'maintenance' && <MaintenanceTabContent vehicleStats={vehicleStats} serviceHistory={serviceHistory} totalMaintenanceCost={totalMaintenanceCost} onAddServiceRecord={handleAddServiceRecord} />}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex justify-between items-center sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-700 text-xl">☰</button>
+            <h1 className="text-lg font-bold text-slate-900">
+              {activeTab === 'dashboard' ? 'Monitoring Operasional BBM' : activeTab === 'analytics' ? 'Analytics Kinerja BBM' : 'Jadwal Servis, KIR & Perbaikan Armada'}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link href="/driver" className="bg-amber-500 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl">Portal Driver</Link>
+          </div>
+        </header>
+
+        <main className="p-6 space-y-6 overflow-y-auto">
+          {activeTab === 'dashboard' && (
+            <>
+              <ExecutiveCards
+                totalCost={totalCost}
+                avgKmPerLiter={avgKmPerLiter}
+                totalLiters={totalLiters}
+                totalMaintenanceCost={totalMaintenanceCost}
+                vehicleStats={vehicleStats}
+              />
+              <FuelLogsTable
+                filteredLogs={filteredLogs}
+                safeVehicles={vehicles}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                selectedVehicle={selectedVehicle}
+                setSelectedVehicle={setSelectedVehicle}
+                setPreviewReceipt={setPreviewReceipt}
+                handleUpdateStatus={handleUpdateStatus}
+                handleDeleteLog={handleDeleteLog}
+                handleDownloadReceipt={handleDownloadReceipt}
+              />
+            </>
+          )}
+
+          {activeTab === 'analytics' && <AnalyticsTab vehicleStats={vehicleStats} totalCost={totalCost} />}
+
+          {activeTab === 'maintenance' && (
+            <MaintenanceTab
+              vehicleStats={vehicleStats}
+              serviceHistory={serviceHistory}
+              totalMaintenanceCost={totalMaintenanceCost}
+              onAddServiceRecord={handleAddServiceRecord}
+            />
+          )}
+        </main>
+      </div>
+
+      {previewReceipt && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-xs font-bold text-slate-900">Detail Audit Struk BBM</h3>
+              <button onClick={() => setPreviewReceipt(null)} className="text-slate-400 font-bold">✕</button>
+            </div>
+            <div className="max-h-[45vh] overflow-y-auto rounded-xl border bg-slate-50 p-2 flex items-center justify-center">
+              {previewReceipt.receipt_image ? (
+                <img src={previewReceipt.receipt_image} alt="Struk" className="max-w-full h-auto rounded-lg" />
+              ) : (
+                <span className="text-xs text-slate-400">Tidak ada foto struk</span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => handleUpdateStatus(previewReceipt.id, 'VERIFIED')} className="bg-emerald-600 text-white text-xs font-bold py-2 rounded-xl">✓ Setujui</button>
+              <button onClick={() => handleUpdateStatus(previewReceipt.id, 'FLAGGED')} className="bg-amber-600 text-white text-xs font-bold py-2 rounded-xl">⚠ Tandai Anomali</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
