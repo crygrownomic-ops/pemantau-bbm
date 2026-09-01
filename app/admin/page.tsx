@@ -114,17 +114,10 @@ const DEFAULT_LOGS = [
 ]
 
 const DEFAULT_SERVICE_HISTORY = [
-<<<<<<< HEAD
   { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter Mesin', parts_replaced: 'Oli Shell Helix 4L, Filter Oli Denso', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
   { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala Mesin', parts_replaced: 'Busi Iridium (4pcs), Filter Udara', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
   { id: 3, plate_number: 'B 5678 XYZ', service_type: 'Pengujian Uji KIR Berkala', parts_replaced: 'Stiker Uji & Buku KIR Dishub', cost: 350000, workshop: 'Dinas Perhubungan', km_done: 31500, date: '2026-03-10' },
   { id: 4, plate_number: 'B 9012 DEF', service_type: 'Perbaikan Darurat / Sparepart', parts_replaced: 'Aki GS Astra 45Ah, Tali Kipas/V-Belt', cost: 850000, workshop: 'Bengkel Kakubakti', km_done: 18000, date: '2026-08-05' },
-=======
-  { id: 1, plate_number: 'B 1234 ABC', service_type: 'Ganti Oli & Filter Mesin', cost: 450000, workshop: 'Auto2000 Grogol', km_done: 40000, date: '2026-06-15' },
-  { id: 2, plate_number: 'B 5678 XYZ', service_type: 'Servis Berkala Mesin', cost: 1200000, workshop: 'Bengkel Resmi Daihatsu', km_done: 30000, date: '2026-07-02' },
-  { id: 3, plate_number: 'B 5678 XYZ', service_type: 'Pengujian Uji KIR Berkala', cost: 350000, workshop: 'Dinas Perhubungan', km_done: 31500, date: '2026-03-10' },
-  { id: 4, plate_number: 'B 9012 DEF', service_type: 'Perbaikan Darurat / Sparepart', cost: 850000, workshop: 'Bengkel Kakubakti', km_done: 18000, date: '2026-08-05' },
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
 ]
 
 function sanitizeVehicles(data: any) {
@@ -232,10 +225,7 @@ export default function AdminDashboard() {
   const [resetPinInput, setResetPinInput] = useState('')
   const [resetPinError, setResetPinError] = useState(false)
 
-<<<<<<< HEAD
   // STATE MODAL SERVIS / PERBAIKAN / SPAREPART / KIR
-=======
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
   const [selectedServiceVehicle, setSelectedServiceVehicle] = useState<any | null>(null)
   const [serviceTypeInput, setServiceTypeInput] = useState('Ganti Oli & Filter Mesin')
   const [partsReplacedInput, setPartsReplacedInput] = useState('')
@@ -1163,11 +1153,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-<<<<<<< HEAD
           {/* MODUL SERVIS, KIR & PERBAIKAN ARMADA WITH SPAREPART DETAILS */}
-=======
-          {/* MODUL SERVIS, KIR & PERBAIKAN ARMADA WITH SCROLL LOCK & SEARCH FILTER */}
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
           {activeTab === 'maintenance' && (
             <div className="space-y-6">
               
@@ -1178,11 +1164,7 @@ export default function AdminDashboard() {
                     <Icons.Wrench /> Modul Pengawas Servis, Legalitas KIR & Perbaikan
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-<<<<<<< HEAD
                     Monitoring jatuh tempo Uji KIR berkala, rincian penggantian sparepart, serta estimasi sisa KM servis berkala.
-=======
-                    Monitoring jatuh tempo Uji KIR berkala, perbaikan mesin/sparepart, serta estimasi sisa KM servis berkala.
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                   </p>
                 </div>
 
@@ -1278,11 +1260,7 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-<<<<<<< HEAD
               {/* TABEL HISTORI PERBAIKAN BENGKEL & RINCIAN SPAREPART */}
-=======
-              {/* TABEL HISTORI PERBAIKAN BENGKEL - DILENGKAPI SCROLL LOCK & FILTER TANGGAL */}
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
                   <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -1334,21 +1312,14 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-<<<<<<< HEAD
                 <div className="overflow-x-auto max-h-[190px] overflow-y-auto">
-=======
-                <div className="overflow-x-auto max-h-[180px] overflow-y-auto">
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                   <table className="w-full text-left text-xs text-slate-600">
                     <thead className="bg-slate-900 text-white font-bold border-b border-slate-800 sticky top-0 z-10 shadow-sm">
                       <tr>
                         <th className="p-3">Tanggal</th>
                         <th className="p-3">Kendaraan</th>
                         <th className="p-3">Jenis Pengerjaan</th>
-<<<<<<< HEAD
                         <th className="p-3">Komponen / Sparepart Diganti</th>
-=======
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                         <th className="p-3">Bengkel / Rekanan</th>
                         <th className="p-3">KM Pengerjaan</th>
                         <th className="p-3 text-right">Biaya (Rp)</th>
@@ -1390,21 +1361,13 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-<<<<<<< HEAD
       {/* MODAL CATAT SERVIS / PERBAIKAN / UJI KIR / SPAREPART */}
-=======
-      {/* MODAL CATAT SERVIS / PERBAIKAN / UJI KIR SELESAI */}
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
       {selectedServiceVehicle && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <div>
-<<<<<<< HEAD
                 <h3 className="text-sm font-bold text-slate-900">Catat Perawatan & Sparepart Armada</h3>
-=======
-                <h3 className="text-sm font-bold text-slate-900">Catat Perawatan / Biaya Armada</h3>
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                 <p className="text-xs text-slate-500">{selectedServiceVehicle.plate_number} • {selectedServiceVehicle.model}</p>
               </div>
               <button onClick={() => setSelectedServiceVehicle(null)} className="text-slate-400 hover:text-slate-600 font-bold">
@@ -1429,21 +1392,7 @@ export default function AdminDashboard() {
                 </select>
               </div>
 
-              {serviceTypeInput === 'Pengujian Uji KIR Berkala' && (
-                <div>
-                  <label className="block text-xs font-semibold text-amber-800 mb-1">Tanggal Kadaluarsa Uji KIR Baru</label>
-                  <input
-                    type="date"
-                    className="w-full text-xs border border-amber-300 rounded-xl p-2.5 bg-amber-50 font-medium text-slate-900 outline-none"
-                    value={newKirExpiryInput}
-                    onChange={(e) => setNewKirExpiryInput(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
-
               <div>
-<<<<<<< HEAD
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Rincian Komponen / Sparepart yang Diganti</label>
                 <input
                   type="text"
@@ -1472,11 +1421,6 @@ export default function AdminDashboard() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Bengkel / Penyedia Jasa</label>
                 <input
                   type="text"
-=======
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Bengkel / Penyedia Jasa</label>
-                <input
-                  type="text"
->>>>>>> be21a992ea33894888d736e7b4c7bfd73259f642
                   placeholder="Contoh: Bengkel Rekanan / Dinas Perhub"
                   className="w-full text-xs border border-slate-300 rounded-xl p-2.5 bg-slate-50 font-medium text-slate-800 outline-none"
                   value={workshopInput}
