@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
-// ==========================================
-// DATA DEFAULT (JIKA LOCALSTORAGE KOSONG)
-// ==========================================
 const INITIAL_DRIVERS = [
   {
     id: 'D1',
@@ -27,7 +24,7 @@ const INITIAL_DRIVERS = [
     sim_type: 'SIM A',
     sim_number: '8123-4567-0002',
     sim_expiry: '2026-11-10',
-    emergency_contact_name: 'Rudi Santoso (Adak)',
+    emergency_contact_name: 'Rudi Santoso (Adik)',
     emergency_contact_phone: '085611223344',
     photo: '',
     status: 'ACTIVE',
@@ -48,23 +45,20 @@ const INITIAL_FUELS = [
   { id: 'F5', name: 'Bio Solar', price: 6800, category: 'Subsidi' },
 ]
 
-export default function SettingsPage() {
+function SettingsContent() {
   const searchParams = useSearchParams()
   const initialTab = (searchParams.get('tab') as 'drivers' | 'vehicles' | 'prices') || 'drivers'
 
   const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices'>(initialTab)
 
-  // STATES MASTER DATA
   const [drivers, setDrivers] = useState<any[]>(INITIAL_DRIVERS)
   const [vehicles, setVehicles] = useState<any[]>(INITIAL_VEHICLES)
   const [fuels, setFuels] = useState<any[]>(INITIAL_FUELS)
 
-  // MODAL STATES
   const [showDriverModal, setShowDriverModal] = useState(false)
   const [showVehicleModal, setShowVehicleModal] = useState(false)
   const [showFuelModal, setShowFuelModal] = useState(false)
 
-  // FORM INPUT DRIVER
   const [driverForm, setDriverForm] = useState({
     name: '',
     phone: '',
@@ -76,7 +70,6 @@ export default function SettingsPage() {
     photo: '',
   })
 
-  // FORM INPUT VEHICLE
   const [vehicleForm, setVehicleForm] = useState({
     plate_number: '',
     model: '',
@@ -87,14 +80,12 @@ export default function SettingsPage() {
     stnk_expiry: '',
   })
 
-  // FORM INPUT FUEL
   const [fuelForm, setFuelForm] = useState({
     name: '',
     price: 10000,
     category: 'Non-Subsidi',
   })
 
-  // SINKRONISASI INITIAL LOCALSTORAGE
   useEffect(() => {
     try {
       const storedDrivers = localStorage.getItem('master_drivers')
@@ -114,7 +105,6 @@ export default function SettingsPage() {
     }
   }, [])
 
-  // HANDLERS DRIVER
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -153,7 +143,6 @@ export default function SettingsPage() {
     }
   }
 
-  // HANDLERS VEHICLE
   const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault()
     const newVehicle = { ...vehicleForm, id: `V${Date.now()}` }
@@ -182,7 +171,6 @@ export default function SettingsPage() {
     }
   }
 
-  // HANDLERS FUEL
   const handleSaveFuel = (e: React.FormEvent) => {
     e.preventDefault()
     const newFuel = { ...fuelForm, id: `F${Date.now()}` }
@@ -213,7 +201,6 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
-      {/* SIDEBAR NAVIGATION */}
       <aside className="w-64 bg-slate-900 text-slate-300 p-5 space-y-5 flex flex-col justify-between">
         <div className="space-y-4">
           <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
@@ -265,11 +252,7 @@ export default function SettingsPage() {
         </div>
       </aside>
 
-      {/* KONTEN UTAMA */}
       <main className="flex-1 p-6 space-y-6 overflow-y-auto">
-        {/* ========================================== */}
-        {/* TAB 1: MASTER DRIVER                       */}
-        {/* ========================================== */}
         {activeTab === 'drivers' && (
           <div className="space-y-5">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
@@ -331,9 +314,6 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* ========================================== */}
-        {/* TAB 2: MASTER ARMADA                       */}
-        {/* ========================================== */}
         {activeTab === 'vehicles' && (
           <div className="space-y-5">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
@@ -400,9 +380,6 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* ========================================== */}
-        {/* TAB 3: KATALOG TARIF BBM                   */}
-        {/* ========================================== */}
         {activeTab === 'prices' && (
           <div className="space-y-5">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
@@ -454,7 +431,6 @@ export default function SettingsPage() {
         )}
       </main>
 
-      {/* MODAL DRIVER */}
       {showDriverModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
@@ -495,7 +471,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* MODAL VEHICLE */}
       {showVehicleModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
@@ -533,7 +508,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* MODAL FUEL */}
       {showFuelModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -557,5 +531,13 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 text-white p-6">Memuat Pengaturan...</div>}>
+      <SettingsContent />
+    </Suspense>
   )
 }
