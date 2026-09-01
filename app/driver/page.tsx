@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Icons } from '@/components/ui/Icons'
 
 const DEFAULT_VEHICLES = [
   { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', last_km: 45320 },
@@ -14,7 +13,6 @@ export default function DriverPortal() {
   const [vehicles, setVehicles] = useState(DEFAULT_VEHICLES)
   const [recentLogs, setRecentLogs] = useState<any[]>([])
 
-  // FORM STATES
   const [selectedPlate, setSelectedPlate] = useState('')
   const [driverName, setDriverName] = useState('')
   const [initialKm, setInitialKm] = useState<number | ''>('')
@@ -28,7 +26,6 @@ export default function DriverPortal() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMessage, setSuccessMessage] = useState(false)
 
-  // LOAD DATA KENDARAAN & HISTORY
   useEffect(() => {
     try {
       const storedVehicles = localStorage.getItem('vehicle_budgets')
@@ -49,11 +46,10 @@ export default function DriverPortal() {
         setRecentLogs(JSON.parse(storedLogs))
       }
     } catch (e) {
-      console.error('Error loading initial data for driver portal', e)
+      console.error('Error loading data', e)
     }
   }, [])
 
-  // HANDLER GANTI KENDARAAN (AUTO SET KM AWAL)
   const handleVehicleChange = (plate: string) => {
     setSelectedPlate(plate)
     const found = vehicles.find((v) => v.plate_number === plate)
@@ -62,7 +58,6 @@ export default function DriverPortal() {
     }
   }
 
-  // UPLOAD FOTO STRUK
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -74,7 +69,6 @@ export default function DriverPortal() {
     }
   }
 
-  // SUBMIT FORM B B M
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -120,19 +114,16 @@ export default function DriverPortal() {
       status: 'PENDING',
     }
 
-    // SIMPAN KE LOCALSTORAGE LOGS
     const updatedLogs = [newLog, ...recentLogs]
     localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
     setRecentLogs(updatedLogs)
 
-    // UPDATE ODOMETER TERKINI KENDARAAN
     const updatedVehicles = vehicles.map((v) =>
       v.plate_number === selectedPlate ? { ...v, last_km: finalKmNum } : v
     )
     localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
     setVehicles(updatedVehicles)
 
-    // RESET FORM
     setTimeout(() => {
       setIsSubmitting(false)
       setSuccessMessage(true)
@@ -149,11 +140,10 @@ export default function DriverPortal() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans pb-12">
-      {/* HEADER TOP BAR */}
       <header className="bg-slate-950 border-b border-slate-800 px-4 py-3.5 sticky top-0 z-30 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 rounded-lg flex items-center justify-center font-extrabold shadow-sm">
-            <Icons.Fuel className="w-4 h-4" />
+            ⛽
           </div>
           <div>
             <h1 className="text-xs font-bold text-white tracking-wide uppercase">FleetOps 360</h1>
@@ -163,21 +153,19 @@ export default function DriverPortal() {
 
         <Link
           href="/admin"
-          className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1"
+          className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition"
         >
           Akses Admin ➔
         </Link>
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-5">
-        {/* NOTIFIKASI SUKSES */}
         {successMessage && (
           <div className="p-4 bg-emerald-500/20 border border-emerald-500/50 rounded-2xl text-emerald-300 text-xs text-center font-bold animate-bounce shadow-lg">
             ✓ Laporan Pengisian BBM Berhasil Terkirim ke Sistem!
           </div>
         )}
 
-        {/* FORM INPUT UTAMA */}
         <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="border-b border-slate-700 pb-3">
             <h2 className="text-sm font-extrabold text-white tracking-wide uppercase flex items-center gap-2">
@@ -188,7 +176,6 @@ export default function DriverPortal() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* PILIH ARMADA */}
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Armada Kendaraan</label>
               <select
@@ -205,7 +192,6 @@ export default function DriverPortal() {
               </select>
             </div>
 
-            {/* NAMA DRIVER */}
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Nama Pengemudi (Driver)</label>
               <input
@@ -218,7 +204,6 @@ export default function DriverPortal() {
               />
             </div>
 
-            {/* ODOMETER KM AWAL & AKHIR */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 mb-1">KM Awal (Terakhir)</label>
@@ -243,7 +228,6 @@ export default function DriverPortal() {
               </div>
             </div>
 
-            {/* JENIS BBM */}
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Jenis Bahan Bakar</label>
               <select
@@ -259,7 +243,6 @@ export default function DriverPortal() {
               </select>
             </div>
 
-            {/* LITER & BIAYA */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Jumlah Liter *</label>
@@ -287,7 +270,6 @@ export default function DriverPortal() {
               </div>
             </div>
 
-            {/* LOKASI PENGISIAN */}
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-2">Lokasi Pengisian</label>
               <div className="grid grid-cols-2 gap-2">
@@ -316,13 +298,12 @@ export default function DriverPortal() {
               </div>
             </div>
 
-            {/* ALASAN JIKA ECERAN */}
             {fillLocation === 'ECERAN' && (
               <div className="p-3 bg-rose-500/10 border border-rose-500/40 rounded-xl space-y-1">
                 <label className="block text-[11px] font-bold text-rose-300">Alasan Pengisian Darurat *</label>
                 <input
                   type="text"
-                  placeholder="Contoh: SPBU terdekat kehabisan stok / mogok"
+                  placeholder="Contoh: SPBU terdekat kehabisan stok"
                   className="w-full bg-slate-900 border border-rose-500/50 rounded-lg p-2.5 text-xs text-white outline-none"
                   value={emergencyNote}
                   onChange={(e) => setEmergencyNote(e.target.value)}
@@ -331,9 +312,8 @@ export default function DriverPortal() {
               </div>
             )}
 
-            {/* UPLOAD STRUK / NOTA */}
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Unggah Foto Struk / Nota (Opsional)</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Unggah Foto Struk (Opsional)</label>
               <input
                 type="file"
                 accept="image/*"
@@ -347,7 +327,6 @@ export default function DriverPortal() {
               )}
             </div>
 
-            {/* TOMBOL SUBMIT */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -358,10 +337,9 @@ export default function DriverPortal() {
           </form>
         </div>
 
-        {/* HISTORI SINGKAT INPUT DRIVER */}
         <div className="bg-slate-800/60 border border-slate-800 rounded-2xl p-4 space-y-3">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Icons.Clipboard className="w-4 h-4 text-amber-400" /> Riwayat Pengiriman Terakhir
+            📋 Riwayat Pengiriman Terakhir
           </h3>
 
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
