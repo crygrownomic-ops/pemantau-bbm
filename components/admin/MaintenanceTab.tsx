@@ -3,155 +3,398 @@
 import { useState } from 'react'
 import { Icons } from './Icons'
 
-export function MaintenanceTab({ vehicleStats, serviceHistory, totalMaintenanceCost, onAddServiceRecord }: any) {
-  const [selectedVehicle, setSelectedVehicle] = useState<any | null>(null)
-  const [serviceTypeInput, setServiceTypeInput] = useState('Ganti Oli & Filter Mesin')
-  const [partsReplacedInput, setPartsReplacedInput] = useState('')
-  const [serviceCostInput, setServiceCostInput] = useState('')
-  const [workshopInput, setWorkshopInput] = useState('')
+// Helper Format Titik Ribuan Otomatis
+const formatNumberDots = (val: number | string) => {
+  if (!val && val !== 0) return ''
+  const numStr = String(val).replace(/\D/g, '')
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedVehicle) return
-    onAddServiceRecord({
-      plate_number: selectedVehicle.plate_number,
-      service_type: serviceTypeInput,
-      parts_replaced: partsReplacedInput.trim() || '-',
-      cost: Number(serviceCostInput) || 0,
-      workshop: workshopInput || 'Bengkel',
-      km_done: selectedVehicle.last_km,
-      date: new Date().toISOString().split('T')[0],
-    })
-    setSelectedVehicle(null)
-    setPartsReplacedInput('')
-    setServiceCostInput('')
+const parseDotsToNum = (val: string) => {
+  return Number(String(val).replace(/\./g, '')) || 0
+}
+
+export function MaintenanceTab({
+  vehicleStats,
+  serviceHistory,
+  totalMaintenanceCost,
+  onAddServiceRecord,
+}: any) {
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [selectedPlate, setSelectedPlate] = useState('')
+  const [serviceCategory, setServiceCategory] = useState('Servis Rutin & Oli')
+  const [serviceType, setServiceType] = useState('')
+  const [partsReplaced, setPartsReplaced] = useState('')
+  const [costFormatted, setCostFormatted] = useState('')
+  const [workshop, setWorkshop] = useState('')
+  const [kmDone, setKmDone] = useState('')
+  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
+
+  // Open modal dengan prapilih kendaraan
+  const handleOpenModal = (plateNumber?: string) => {
+    const matchedVehicle = vehicleStats.find((v: any) => v.plate_number === plateNumber)
+    setSelectedPlate(plateNumber || (vehicleStats[0]?.plate_number || ''))
+    setKmDone(matchedVehicle ? String(matchedVehicle.last_km || 0) : '0')
+    setServiceCategory('Servis Rutin & Oli')
+    setServiceType('Ganti Oli Mesin & Filter')
+    setPartsReplaced('')
+    setCostFormatted('')
+    setWorkshop('')
+    setShowAddModal(true)
   }
+
+  const handleSubmitService = (e: React.FormEvent) => {
+    e.preventDefault()
+    const numericCost = parseDotsToNum(costFormatted)
+    const numericKm = Number(kmDone.replace(/\D/g, '')) || 0
+
+    if (!selectedPlate) {
+      alert('⚠️ Silakan pilih kendaraan!')
+      return
+    }
+
+    const newRecord = {
+      plate_number: selectedPlate,
+      category: serviceCategory,
+      service_type: serviceType,
+      parts_replaced: partsReplaced || '-',
+      cost: numericCost,
+      workshop: workshop || 'Bengkel Rekanan',
+      km_done: numericKm,
+      date: serviceDate,
+    }
+
+    onAddServiceRecord(newRecord)
+    alert(`✅ Catatan servis untuk kendaraan ${selectedPlate} berhasil disimpan!`)
+    setShowAddModal(false)
+  }
+
+  // Hitung ringkasan statistik maintenance
+  const totalVehicles = vehicleStats.length
+  const avgCostPerVehicle = totalVehicles > 0 ? Math.round(totalMaintenanceCost / totalVehicles) : 0
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-        <div>
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Icons.Wrench className="w-5 h-5 text-indigo-600" /> Modul Servis, Sparepart & Legalitas KIR
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">Monitoring perbaikan berkala dan tenggat KIR</p>
-        </div>
-        <div className="text-xs font-bold text-indigo-900 bg-indigo-50 p-3 rounded-xl font-mono">
-          Total: Rp {totalMaintenanceCost.toLocaleString('id-ID')}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {vehicleStats.map((v: any) => (
-          <div key={v.plate_number} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div className="font-bold text-sm text-slate-900">{v.plate_number} - {v.model}</div>
-            <div className="text-xs text-slate-500 font-mono">KM Odometer: {v.last_km.toLocaleString('id-ID')} KM</div>
-            <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg font-mono">Exp KIR: {v.kir_expiry || '-'}</div>
-            <button
-              onClick={() => setSelectedVehicle(v)}
-              className="w-full bg-slate-900 text-white font-bold text-xs py-2 rounded-xl shadow-md"
-            >
-              Catat Servis / Sparepart
-            </button>
+      {/* 1. CARDS REKAPITULASI BIAYA & STATUS MAINTENANCE */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-slate-500 text-[11px] font-semibold block uppercase tracking-wider">
+              Total Biaya Maintenance & KIR
+            </span>
+            <strong className="text-xl font-extrabold font-mono text-slate-900 mt-1 block">
+              Rp {(totalMaintenanceCost || 0).toLocaleString('id-ID')}
+            </strong>
           </div>
-        ))}
+          <div className="w-10 h-10 bg-amber-100 text-amber-800 rounded-xl flex items-center justify-center font-bold">
+            <Icons.Wrench className="w-5 h-5 text-amber-700" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-slate-500 text-[11px] font-semibold block uppercase tracking-wider">
+              Rata-rata Biaya Per Armada
+            </span>
+            <strong className="text-xl font-extrabold font-mono text-indigo-900 mt-1 block">
+              Rp {avgCostPerVehicle.toLocaleString('id-ID')}
+            </strong>
+          </div>
+          <div className="w-10 h-10 bg-indigo-100 text-indigo-800 rounded-xl flex items-center justify-center font-bold">
+            <Icons.Truck className="w-5 h-5 text-indigo-700" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-slate-500 text-[11px] font-semibold block uppercase tracking-wider">
+              Total Riwayat Pengerjaan
+            </span>
+            <strong className="text-xl font-extrabold font-mono text-slate-900 mt-1 block">
+              {serviceHistory.length} Kali Perbaikan
+            </strong>
+          </div>
+          <div className="w-10 h-10 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center font-bold">
+            <Icons.Dashboard className="w-5 h-5 text-emerald-700" />
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-100">
-          <h3 className="text-xs font-extrabold text-slate-900 uppercase">Riwayat Maintenance & Sparepart</h3>
+      {/* 2. CARD ARMADA & STATUS KESEHATAN KENDARAAN (SMART REMINDERS) */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex justify-between items-center border-b pb-3">
+          <div>
+            <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+              Status Kesehatan Armada & Pengingat Servis Rutin
+            </h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Prediksi jatuh tempo ganti oli berbasis interval Odometer KM dan legalitas kendaraan
+            </p>
+          </div>
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-md transition flex items-center gap-1.5"
+          >
+            <Icons.Plus className="w-4 h-4" /> Catat Perbaikan Baru
+          </button>
         </div>
-        <div className="overflow-x-auto max-h-[200px] overflow-y-auto">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vehicleStats.map((v: any) => {
+            // Cari servis terakhir khusus kendaraan ini
+            const vServices = serviceHistory.filter((s: any) => s.plate_number === v.plate_number)
+            const lastService = vServices[0] // Servis terbaru
+            const lastServiceKm = lastService ? Number(lastService.km_done) || 0 : 0
+            const nextOilChangeKm = lastServiceKm > 0 ? lastServiceKm + 5000 : (v.last_km || 0) + 5000
+
+            // Deteksi keborosan / kebutuhan servis
+            const kmSinceLastService = (v.last_km || 0) - lastServiceKm
+            const isDueForOil = kmSinceLastService >= 5000 || lastServiceKm === 0
+
+            return (
+              <div
+                key={v.id || v.plate_number}
+                className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3 flex flex-col justify-between"
+              >
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-900">{v.plate_number}</h3>
+                      <p className="text-[11px] text-slate-500">{v.model}</p>
+                    </div>
+                    {isDueForOil ? (
+                      <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">
+                        ⚠️ Waktunya Ganti Oli
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                        ✓ Kondisi Prima
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-slate-200/60 space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Odometer Terkini:</span>
+                      <strong className="text-slate-900">{(v.last_km || 0).toLocaleString('id-ID')} KM</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Servis Terakhir:</span>
+                      <span className="text-slate-700">
+                        {lastServiceKm > 0 ? `${lastServiceKm.toLocaleString('id-ID')} KM` : 'Belum Ada Record'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t pt-1 border-slate-100">
+                      <span className="text-slate-500">Target Oli Berikutnya:</span>
+                      <strong className={isDueForOil ? 'text-rose-600 font-bold' : 'text-indigo-900'}>
+                        {nextOilChangeKm.toLocaleString('id-ID')} KM
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between text-[11px] text-slate-500 pt-1">
+                    <span>Exp KIR: <strong className="text-slate-800 font-mono">{v.kir_expiry || '-'}</strong></span>
+                    <span>Exp STNK: <strong className="text-slate-800 font-mono">{v.stnk_expiry || '-'}</strong></span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleOpenModal(v.plate_number)}
+                  className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-2 rounded-xl border border-slate-300 text-xs shadow-xs transition"
+                >
+                  + Input Servis Kendaraan Ini
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 3. TABEL RIWAYAT PERBAIKAN & MAINTENANACE */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-0">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+          <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+            Riwayat Maintenance, Sparepart & Perbaikan Armada
+          </h2>
+        </div>
+
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-900 text-white font-bold sticky top-0 z-10">
               <tr>
-                <th className="p-3">Tanggal</th>
-                <th className="p-3">Kendaraan</th>
-                <th className="p-3">Jenis Pengerjaan</th>
-                <th className="p-3">Sparepart Diganti</th>
-                <th className="p-3">Bengkel</th>
-                <th className="p-3 text-right">Biaya (Rp)</th>
+                <th className="p-3.5">Tanggal</th>
+                <th className="p-3.5">Kendaraan</th>
+                <th className="p-3.5">Kategori & Jenis Pengerjaan</th>
+                <th className="p-3.5">Sparepart Diganti</th>
+                <th className="p-3.5">Odometer KM</th>
+                <th className="p-3.5">Bengkel / Workshop</th>
+                <th className="p-3.5 text-right">Biaya Perbaikan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {serviceHistory.map((s: any) => (
-                <tr key={s.id} className="hover:bg-slate-50">
-                  <td className="p-3 font-mono">{s.date}</td>
-                  <td className="p-3 font-bold text-slate-900">{s.plate_number}</td>
-                  <td className="p-3 font-medium">{s.service_type}</td>
-                  <td className="p-3 font-medium text-indigo-900 bg-indigo-50/50">{s.parts_replaced || '-'}</td>
-                  <td className="p-3">{s.workshop}</td>
-                  <td className="p-3 text-right font-mono font-bold text-slate-900">
+                <tr key={s.id} className="hover:bg-slate-50/80 transition">
+                  <td className="p-3.5 font-mono text-slate-500">{s.date}</td>
+                  <td className="p-3.5 font-bold text-slate-900">{s.plate_number}</td>
+                  <td className="p-3.5">
+                    <div className="font-bold text-slate-800">{s.service_type}</div>
+                    <span className="text-[10px] text-slate-400">{s.category || 'Maintenance Rutin'}</span>
+                  </td>
+                  <td className="p-3.5 font-medium text-slate-700">{s.parts_replaced || '-'}</td>
+                  <td className="p-3.5 font-mono font-semibold text-indigo-900">
+                    {(Number(s.km_done) || 0).toLocaleString('id-ID')} KM
+                  </td>
+                  <td className="p-3.5 text-slate-600">{s.workshop || 'Bengkel Rekanan'}</td>
+                  <td className="p-3.5 text-right font-mono font-bold text-slate-900">
                     Rp {(Number(s.cost) || 0).toLocaleString('id-ID')}
                   </td>
                 </tr>
               ))}
+
+              {serviceHistory.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                    Belum ada riwayat perbaikan yang dicatat.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {selectedVehicle && (
+      {/* MODAL INPUT SERVIS BARU DENGAN TITIK OTOMATIS */}
+      {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-3 shadow-xl">
-            <h3 className="text-xs font-bold text-slate-900">Catat Servis {selectedVehicle.plate_number}</h3>
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Catat Servis & Sparepart Baru</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 font-bold">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitService} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Kategori Pengerjaan</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pilih Armada Kendaraan *</label>
                 <select
-                  className="w-full border p-2 rounded-xl bg-slate-50"
-                  value={serviceTypeInput}
-                  onChange={(e) => setServiceTypeInput(e.target.value)}
+                  className="w-full border border-slate-300 p-2.5 rounded-xl bg-slate-50 font-bold text-slate-900 outline-none"
+                  value={selectedPlate}
+                  onChange={(e) => {
+                    setSelectedPlate(e.target.value)
+                    const matched = vehicleStats.find((v: any) => v.plate_number === e.target.value)
+                    if (matched) setKmDone(String(matched.last_km || 0))
+                  }}
+                  required
                 >
-                  <option value="Ganti Oli & Filter Mesin">🛢️ Ganti Oli & Filter Mesin</option>
-                  <option value="Servis Berkala Mesin">🔧 Servis Berkala Mesin</option>
-                  <option value="Pengujian Uji KIR Berkala">📜 Pengujian Uji KIR Berkala</option>
-                  <option value="Perbaikan Darurat / Sparepart">🛠️ Perbaikan / Penggantian Sparepart Non-Rutin</option>
+                  {vehicleStats.map((v: any) => (
+                    <option key={v.plate_number} value={v.plate_number}>
+                      {v.plate_number} — {v.model}
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Kategori Pengerjaan</label>
+                  <select
+                    className="w-full border border-slate-300 p-2.5 rounded-xl bg-slate-50 font-medium outline-none"
+                    value={serviceCategory}
+                    onChange={(e) => setServiceCategory(e.target.value)}
+                  >
+                    <option value="Servis Rutin & Oli">Servis Rutin & Oli</option>
+                    <option value="Ganti Sparepart / Ban">Ganti Sparepart / Ban</option>
+                    <option value="Perbaikan Mesin & AC">Perbaikan Mesin & AC</option>
+                    <option value="Perpanjangan KIR / STNK">Perpanjangan KIR / STNK</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Tanggal Perbaikan</label>
+                  <input
+                    type="date"
+                    className="w-full border border-slate-300 p-2 rounded-xl outline-none"
+                    value={serviceDate}
+                    onChange={(e) => setServiceDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block font-semibold mb-1">Rincian Sparepart Diganti</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Jenis Pengerjaan / Servis *</label>
                 <input
                   type="text"
-                  placeholder="Contoh: Aki GS Astra 45Ah, Kampas Rem"
-                  className="w-full border p-2 rounded-xl"
-                  value={partsReplacedInput}
-                  onChange={(e) => setPartsReplacedInput(e.target.value)}
+                  placeholder="Misal: Ganti Oli Mesin Shell 4L & Filter Oli"
+                  className="w-full border border-slate-300 p-2.5 rounded-xl outline-none font-medium"
+                  value={serviceType}
+                  onChange={(e) => setServiceType(e.target.value)}
                   required
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">KM Odometer Servis *</label>
+                  <input
+                    type="text"
+                    placeholder="45860"
+                    className="w-full border border-slate-300 p-2.5 rounded-xl font-mono text-slate-900 font-bold outline-none"
+                    value={kmDone}
+                    onChange={(e) => setKmDone(e.target.value.replace(/\D/g, ''))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Total Biaya (Rp) *</label>
+                  <input
+                    type="text"
+                    placeholder="450.000"
+                    className="w-full border border-slate-300 p-2.5 rounded-xl font-mono font-bold text-indigo-900 outline-none"
+                    value={costFormatted}
+                    onChange={(e) => setCostFormatted(formatNumberDots(e.target.value))}
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block font-semibold mb-1">Bengkel / Rekanan</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Detail Sparepart Diganti</label>
                 <input
                   type="text"
-                  placeholder="Nama Bengkel / Dishub"
-                  className="w-full border p-2 rounded-xl"
-                  value={workshopInput}
-                  onChange={(e) => setWorkshopInput(e.target.value)}
-                  required
+                  placeholder="Misal: Kampas Rem Depan, Oli Shell Helix 10W-40"
+                  className="w-full border border-slate-300 p-2.5 rounded-xl outline-none"
+                  value={partsReplaced}
+                  onChange={(e) => setPartsReplaced(e.target.value)}
                 />
               </div>
+
               <div>
-                <label className="block font-semibold mb-1">Total Biaya (Rp)</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nama Bengkel / Workshop</label>
                 <input
-                  type="number"
-                  placeholder="450000"
-                  className="w-full border p-2 rounded-xl font-mono font-bold"
-                  value={serviceCostInput}
-                  onChange={(e) => setServiceCostInput(e.target.value)}
-                  required
+                  type="text"
+                  placeholder="Misal: Auto2000 / Bengkel Jaya Mandiri"
+                  className="w-full border border-slate-300 p-2.5 rounded-xl outline-none"
+                  value={workshop}
+                  onChange={(e) => setWorkshop(e.target.value)}
                 />
               </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedVehicle(null)}
-                  className="w-1/2 bg-slate-100 p-2 rounded-xl font-bold"
+                  onClick={() => setShowAddModal(false)}
+                  className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl"
                 >
                   Batal
                 </button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white p-2 rounded-xl font-bold">
-                  Simpan
+                <button
+                  type="submit"
+                  className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md"
+                >
+                  Simpan Catatan Servis
                 </button>
               </div>
             </form>
