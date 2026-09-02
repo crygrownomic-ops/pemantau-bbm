@@ -14,6 +14,22 @@ const parseDotsToNum = (val: string) => {
   return Number(String(val).replace(/\./g, '')) || 0
 }
 
+const MONTH_OPTIONS = [
+  { value: 'ALL', label: 'Semua Bulan' },
+  { value: '01', label: 'Januari' },
+  { value: '02', label: 'Februari' },
+  { value: '03', label: 'Maret' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'Mei' },
+  { value: '06', label: 'Juni' },
+  { value: '07', label: 'Juli' },
+  { value: '08', label: 'Agustus' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'Oktober' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'Desember' },
+]
+
 export function MaintenanceTab({
   vehicleStats,
   serviceHistory,
@@ -30,11 +46,29 @@ export function MaintenanceTab({
   const [kmDone, setKmDone] = useState('')
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
 
-  // STATE FILTER CUT-OFF BULAN & TAHUN
-  const [selectedMonthCutoff, setSelectedMonthCutoff] = useState('ALL') // 'ALL', '2026-09', '2026-08', dll.
+  // STATE FILTER CUT-OFF DINAMIS (BULAN & TAHUN TERPISAH)
+  const currentYear = new Date().getFullYear().toString()
+  const [selectedMonth, setSelectedMonth] = useState('ALL')
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+
   const [filterVehicle, setFilterVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+
+  // Opsi Tahun Dinamis (Otomatis menyesuaikan data & jangka panjang)
+  const yearSet = new Set<string>()
+  yearSet.add('2024')
+  yearSet.add('2025')
+  yearSet.add('2026')
+  yearSet.add('2027')
+  yearSet.add('2028')
+  serviceHistory.forEach((s: any) => {
+    if (s.date) {
+      const yr = s.date.split('-')[0]
+      if (yr) yearSet.add(yr)
+    }
+  })
+  const YEAR_OPTIONS = ['ALL', ...Array.from(yearSet).sort()]
 
   // Open modal dengan prapilih kendaraan
   const handleOpenModal = (plateNumber?: string) => {
@@ -75,13 +109,16 @@ export function MaintenanceTab({
     setShowAddModal(false)
   }
 
-  // 1. FILTERING DATA BERDASARKAN CUT-OFF BULAN
+  // 1. FILTERING DATA BERDASARKAN CUT-OFF BULAN & TAHUN
   const monthlyServiceHistory = serviceHistory.filter((s: any) => {
-    if (selectedMonthCutoff === 'ALL') return true
-    return s.date && s.date.startsWith(selectedMonthCutoff)
+    if (!s.date) return false
+    const [sYear, sMonth] = s.date.split('-')
+    const matchMonth = selectedMonth === 'ALL' || sMonth === selectedMonth
+    const matchYear = selectedYear === 'ALL' || sYear === selectedYear
+    return matchMonth && matchYear
   })
 
-  // 2. FILTERING TABEL TAMBAHAN (TANGGAL & VEHICLE)
+  // 2. FILTERING TABEL TAMBAHAN (RANGE TANGGAL & VEHICLE)
   const filteredServiceHistory = monthlyServiceHistory.filter((s: any) => {
     const matchVehicle = filterVehicle === 'ALL' || s.plate_number === filterVehicle
     const matchStart = !startDate || s.date >= startDate
@@ -89,21 +126,25 @@ export function MaintenanceTab({
     return matchVehicle && matchStart && matchEnd
   })
 
-  // 3. KALKULASI RINGKASAN DINAMIS PER BULAN
-  const currentTotalMaintenanceCost = monthlyServiceHistory.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
+  // 3. KALKULASI RINGKASAN DINAMIS PER PERIODE
+  const currentTotalMaintenanceCost = monthlyServiceHistory.reduce(
+    (acc: number, s: any) => acc + (Number(s.cost) || 0),
+    0
+  )
   const totalVehicles = vehicleStats.length
   const avgCostPerVehicle = totalVehicles > 0 ? Math.round(currentTotalMaintenanceCost / totalVehicles) : 0
 
-  // EXPORT DATA PER BULAN KE EXCEL
+  // EXPORT DATA PER PERIODE KE EXCEL
   const handleExportMaintenanceToExcel = () => {
     if (!filteredServiceHistory || filteredServiceHistory.length === 0) {
       alert('⚠️ Tidak ada data riwayat maintenance untuk diexport!')
       return
     }
 
+    const monthLabel = MONTH_OPTIONS.find((m) => m.value === selectedMonth)?.label || selectedMonth
     let csvContent = '\uFEFF'
     csvContent += 'LAPORAN EVALUASI SERVIS & MAINTENANCE ARMADA — FLEETOPS 360\n'
-    csvContent += `Cut-Off Bulan;${selectedMonthCutoff === 'ALL' ? 'Semua Bulan (YTD)' : selectedMonthCutoff}\n`
+    csvContent += `Cut-Off Periode;${monthLabel} ${selectedYear === 'ALL' ? 'Semua Tahun' : selectedYear}\n`
     csvContent += `Tanggal Cetak;${new Date().toLocaleDateString('id-ID')}\n\n`
     csvContent += 'Tanggal;Plat Nomor;Kategori;Jenis Pengerjaan;Sparepart Diganti;Odometer KM;Bengkel / Workshop;Biaya Perbaikan (Rp)\n'
 
@@ -114,7 +155,7 @@ export function MaintenanceTab({
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    const fileName = `Laporan_Maintenance_${selectedMonthCutoff}_${new Date().toISOString().split('T')[0]}.csv`
+    const fileName = `Laporan_Maintenance_${selectedMonth}_${selectedYear}_${new Date().toISOString().split('T')[0]}.csv`
 
     link.setAttribute('href', url)
     link.setAttribute('download', fileName)
@@ -125,31 +166,50 @@ export function MaintenanceTab({
 
   return (
     <div className="space-y-6">
-      {/* TOOLBAR CUT-OFF BULANAN MANAJEMEN */}
+      {/* TOOLBAR CUT-OFF BULAN & TAHUN DINAMIS (JANGKA PANJANG) */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
           <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-            Cut-Off Analisa Evaluasi Maintenance Bulanan
+            Cut-Off Analisa Evaluasi Maintenance Bulanan & Tahunan
           </h2>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Pilih periode bulan untuk memetakan akumulasi biaya perbaikan dan riwayat pengerjaan armada
+            Pilih kombinasi Bulan dan Tahun secara bebas untuk analisa jangka panjang
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-700">Periode Cut-Off:</label>
-          <select
-            value={selectedMonthCutoff}
-            onChange={(e) => setSelectedMonthCutoff(e.target.value)}
-            className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
-          >
-            <option value="ALL">🗓️ Semua Bulan (YTD 2026)</option>
-            <option value="2026-09">📅 September 2026</option>
-            <option value="2026-08">📅 Agustus 2026</option>
-            <option value="2026-07">📅 Juli 2026</option>
-            <option value="2026-06">📅 Juni 2026</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* DROPDOWN BULAN */}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Bulan:</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+            >
+              {MONTH_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* DROPDOWN TAHUN */}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-bold text-slate-700">Tahun:</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+            >
+              {YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>
+                  {y === 'ALL' ? 'Semua Tahun' : y}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -158,7 +218,11 @@ export function MaintenanceTab({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-slate-500 text-[11px] font-semibold block uppercase tracking-wider">
-              Total Biaya Maintenance ({selectedMonthCutoff === 'ALL' ? 'Semua Bulan' : selectedMonthCutoff})
+              Total Biaya Maintenance (
+              {selectedMonth === 'ALL'
+                ? 'Semua Bulan'
+                : MONTH_OPTIONS.find((m) => m.value === selectedMonth)?.label}{' '}
+              {selectedYear === 'ALL' ? '' : selectedYear})
             </span>
             <strong className="text-xl font-extrabold font-mono text-slate-900 mt-1 block">
               Rp {(currentTotalMaintenanceCost || 0).toLocaleString('id-ID')}
@@ -198,7 +262,7 @@ export function MaintenanceTab({
         </div>
       </div>
 
-      {/* 2. CARD ARMADA, SMART REMINDER & TOTAL OPERATIONAL COST (BBM + SERVIS) */}
+      {/* 2. CARD ARMADA, SMART REMINDER & TOTAL OPERATIONAL COST */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex justify-between items-center border-b pb-3">
           <div>
@@ -228,7 +292,6 @@ export function MaintenanceTab({
             const kmSinceLastService = (v.last_km || 0) - lastServiceKm
             const isDueForOil = kmSinceLastService >= 5000 || lastServiceKm === 0
 
-            // Biaya servis kendaraan ini di bulan terpilih
             const monthServiceCost = vServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
             const totalOperationalCombined = (v.spentCost || 0) + monthServiceCost
 
@@ -271,7 +334,9 @@ export function MaintenanceTab({
                     </div>
                     <div className="flex justify-between font-sans pt-0.5">
                       <span className="text-slate-500 text-[10px]">Total Operasional (BBM+Servis):</span>
-                      <strong className="text-slate-900 font-mono text-xs">Rp {totalOperationalCombined.toLocaleString('id-ID')}</strong>
+                      <strong className="text-slate-900 font-mono text-xs">
+                        Rp {totalOperationalCombined.toLocaleString('id-ID')}
+                      </strong>
                     </div>
                   </div>
 

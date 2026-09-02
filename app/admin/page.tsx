@@ -43,6 +43,7 @@ const DEFAULT_SERVICE_HISTORY = [
   {
     id: 1,
     plate_number: 'B 1234 ABC',
+    category: 'Servis Rutin & Oli',
     service_type: 'Ganti Oli & Filter Mesin',
     parts_replaced: 'Oli Shell Helix 4L',
     cost: 450000,
@@ -70,36 +71,35 @@ function AdminDashboardContent() {
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
-  // Fungsi Sinkronisasi Data Real-Time dari Memori
+  // Fungsi Sinkronisasi Data Real-Time dari Memori LocalStorage
   const loadStorageData = () => {
     try {
       const storedLogs = localStorage.getItem('fuel_logs')
       const storedVehicles = localStorage.getItem('vehicle_budgets')
+      const storedServices = localStorage.getItem('service_history')
 
       if (storedLogs) {
         const parsed = JSON.parse(storedLogs)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setLogs(parsed)
-        } else {
-          localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
-          setLogs(DEFAULT_LOGS)
-        }
+        if (Array.isArray(parsed) && parsed.length > 0) setLogs(parsed)
+        else localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
       } else {
         localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
-        setLogs(DEFAULT_LOGS)
       }
 
       if (storedVehicles) {
         const parsedV = JSON.parse(storedVehicles)
-        if (Array.isArray(parsedV) && parsedV.length > 0) {
-          setVehicles(parsedV)
-        } else {
-          localStorage.setItem('vehicle_budgets', JSON.stringify(DEFAULT_VEHICLES))
-          setVehicles(DEFAULT_VEHICLES)
-        }
+        if (Array.isArray(parsedV) && parsedV.length > 0) setVehicles(parsedV)
+        else localStorage.setItem('vehicle_budgets', JSON.stringify(DEFAULT_VEHICLES))
       } else {
         localStorage.setItem('vehicle_budgets', JSON.stringify(DEFAULT_VEHICLES))
-        setVehicles(DEFAULT_VEHICLES)
+      }
+
+      if (storedServices) {
+        const parsedS = JSON.parse(storedServices)
+        if (Array.isArray(parsedS)) setServiceHistory(parsedS)
+        else localStorage.setItem('service_history', JSON.stringify(DEFAULT_SERVICE_HISTORY))
+      } else {
+        localStorage.setItem('service_history', JSON.stringify(DEFAULT_SERVICE_HISTORY))
       }
     } catch (e) {
       console.error(e)
@@ -113,7 +113,6 @@ function AdminDashboardContent() {
 
     loadStorageData()
 
-    // Auto-Sync saat Halaman / Tab difokuskan kembali
     const handleFocus = () => loadStorageData()
     const handleStorageChange = () => loadStorageData()
 
@@ -159,8 +158,21 @@ function AdminDashboardContent() {
     }
   }
 
+  // TAMBAH CATATAN SERVIS & SIMPAN PERMANEN KE LOCALSTORAGE
   const handleAddServiceRecord = (record: any) => {
-    setServiceHistory([{ ...record, id: Date.now() }, ...serviceHistory])
+    const updatedServiceHistory = [{ ...record, id: Date.now() }, ...serviceHistory]
+    setServiceHistory(updatedServiceHistory)
+    localStorage.setItem('service_history', JSON.stringify(updatedServiceHistory))
+
+    // Update Odometer KM Terakhir Kendaraan jika KM servis lebih tinggi
+    const updatedVehicles = vehicles.map((v) => {
+      if (v.plate_number === record.plate_number && record.km_done > (v.last_km || 0)) {
+        return { ...v, last_km: record.km_done }
+      }
+      return v
+    })
+    setVehicles(updatedVehicles)
+    localStorage.setItem('vehicle_budgets', JSON.stringify(updatedVehicles))
   }
 
   if (!isAuthenticated) {
@@ -270,7 +282,7 @@ function AdminDashboardContent() {
           <button
             onClick={() => {
               loadStorageData()
-              alert('✅ Data transaksi & Odometer Armada berhasil disinkronkan!')
+              alert('✅ Data transaksi, Odometer, dan Catatan Perbaikan berhasil disinkronkan!')
             }}
             className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow transition flex items-center gap-1.5"
           >
