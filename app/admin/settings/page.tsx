@@ -152,7 +152,6 @@ function SettingsContent() {
     setActiveTab(tabParam)
   }, [tabParam])
 
-  // AUTO MIGRATION & SINKRONISASI DATA LOCALSTORAGE
   const loadMasterData = () => {
     try {
       const storedDrivers = localStorage.getItem('master_drivers')
@@ -170,7 +169,6 @@ function SettingsContent() {
       if (storedVehicles) {
         let parsedV = JSON.parse(storedVehicles)
         if (Array.isArray(parsedV) && parsedV.length > 0) {
-          // AUTO MIGRATION: Update otomatis struktur armada jika belum ada properti rincian baru
           parsedV = parsedV.map((v: any) => ({
             ...v,
             monthly_service_budget: v.monthly_service_budget !== undefined ? v.monthly_service_budget : 500000,
@@ -203,7 +201,6 @@ function SettingsContent() {
     loadMasterData()
   }, [])
 
-  // MENGURANGI RESIKO TAMPILAN LAMA: TOMBOL RESET MANUALLY
   const handleResetMasterData = () => {
     localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
     localStorage.setItem('master_drivers', JSON.stringify(INITIAL_DRIVERS))
@@ -437,6 +434,8 @@ function SettingsContent() {
     }
   }
 
+  const todayStr = new Date().toISOString().split('T')[0]
+
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       <AdminSidebar />
@@ -504,8 +503,7 @@ function SettingsContent() {
         {activeTab === 'drivers' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {drivers.map((d) => {
-              const today = new Date().toISOString().split('T')[0]
-              const isSimExpiringSoon = d.sim_expiry && d.sim_expiry <= today
+              const isSimExpiringSoon = d.sim_expiry && d.sim_expiry <= todayStr
               const photoSrc = d.photo || d.photo_url
 
               return (
@@ -640,6 +638,9 @@ function SettingsContent() {
                     const totalB = fuelB + serviceB
                     const targetKm = Number(v.target_km_monthly) || 2000
 
+                    const isKirExpiring = v.kir_expiry && v.kir_expiry <= todayStr
+                    const isStnkExpiring = v.stnk_expiry && v.stnk_expiry <= todayStr
+
                     return (
                       <tr key={v.id} className="hover:bg-slate-50 transition">
                         <td className="p-3.5">
@@ -672,8 +673,14 @@ function SettingsContent() {
                           </button>
                         </td>
                         <td className="p-3.5 font-mono text-[11px] space-y-0.5">
-                          <div>KIR: <strong className="text-slate-800">{v.kir_expiry || '-'}</strong></div>
-                          <div>STNK: <strong className="text-slate-800">{v.stnk_expiry || '-'}</strong></div>
+                          <div>
+                            KIR: <strong className={isKirExpiring ? 'text-rose-600 font-bold' : 'text-slate-800'}>{v.kir_expiry || '-'}</strong>
+                            {isKirExpiring && <span className="ml-1 text-[9px] bg-rose-100 text-rose-700 px-1 rounded font-bold">Expired</span>}
+                          </div>
+                          <div>
+                            STNK: <strong className={isStnkExpiring ? 'text-rose-600 font-bold' : 'text-slate-800'}>{v.stnk_expiry || '-'}</strong>
+                            {isStnkExpiring && <span className="ml-1 text-[9px] bg-rose-100 text-rose-700 px-1 rounded font-bold">Expired</span>}
+                          </div>
                         </td>
                         <td className="p-3.5 text-center space-x-2">
                           <button
@@ -811,7 +818,17 @@ function SettingsContent() {
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Foto Profil Driver</label>
                 <div className="flex items-center gap-3">
                   {driverForm.photo ? (
-                    <img src={driverForm.photo} alt="Preview" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-sm" />
+                    <div className="relative">
+                      <img src={driverForm.photo} alt="Preview" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-sm" />
+                      <button
+                        type="button"
+                        onClick={() => setDriverForm((prev) => ({ ...prev, photo: '' }))}
+                        className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-bold"
+                        title="Hapus foto"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   ) : (
                     <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center border border-slate-300">
                       Foto
