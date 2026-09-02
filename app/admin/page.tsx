@@ -82,28 +82,31 @@ function AdminDashboardContent() {
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICE_HISTORY)
 
-  // STATE CUT-OFF DASHBOARD UTAMA
-  const currentMonth = new Date().toISOString().split('-')[1] // '09'
-  const currentYear = new Date().getFullYear().toString() // '2026'
-
+  // DEFAULT TAHUN DISET KE 2026
   const [selectedDashboardMonth, setSelectedDashboardMonth] = useState('ALL')
-  const [selectedDashboardYear, setSelectedDashboardYear] = useState(currentYear)
+  const [selectedDashboardYear, setSelectedDashboardYear] = useState('2026')
 
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
-  // Opsi Tahun Dinamis
+  // OPSI TAHUN DINAMIS JANGKA PANJANG (2024 s/d 2035+ OTOMATIS TAMBAH DARI DATA)
   const yearSet = new Set<string>()
-  yearSet.add('2024')
-  yearSet.add('2025')
-  yearSet.add('2026')
-  yearSet.add('2027')
-  yearSet.add('2028')
+  const startYear = 2024
+  const endYear = Math.max(new Date().getFullYear() + 10, 2035)
+  for (let y = startYear; y <= endYear; y++) {
+    yearSet.add(String(y))
+  }
   logs.forEach((l) => {
     if (l.date) {
       const yr = l.date.split('-')[0]
+      if (yr) yearSet.add(yr)
+    }
+  })
+  serviceHistory.forEach((s) => {
+    if (s.date) {
+      const yr = s.date.split('-')[0]
       if (yr) yearSet.add(yr)
     }
   })

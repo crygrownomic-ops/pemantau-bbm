@@ -46,22 +46,21 @@ export function MaintenanceTab({
   const [kmDone, setKmDone] = useState('')
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
 
-  // STATE FILTER CUT-OFF DINAMIS (BULAN & TAHUN TERPISAH)
-  const currentYear = new Date().getFullYear().toString()
+  // DEFAULT TAHUN DISET KE 2026
   const [selectedMonth, setSelectedMonth] = useState('ALL')
-  const [selectedYear, setSelectedYear] = useState(currentYear)
+  const [selectedYear, setSelectedYear] = useState('2026')
 
   const [filterVehicle, setFilterVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // Opsi Tahun Dinamis (Otomatis menyesuaikan data & jangka panjang)
+  // OPSI TAHUN DINAMIS JANGKA PANJANG (2024 s/d 2035+ OTOMATIS TAMBAH DARI DATA)
   const yearSet = new Set<string>()
-  yearSet.add('2024')
-  yearSet.add('2025')
-  yearSet.add('2026')
-  yearSet.add('2027')
-  yearSet.add('2028')
+  const startYear = 2024
+  const endYear = Math.max(new Date().getFullYear() + 10, 2035)
+  for (let y = startYear; y <= endYear; y++) {
+    yearSet.add(String(y))
+  }
   serviceHistory.forEach((s: any) => {
     if (s.date) {
       const yr = s.date.split('-')[0]
