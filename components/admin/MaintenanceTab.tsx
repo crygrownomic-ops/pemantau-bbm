@@ -31,11 +31,13 @@ const MONTH_OPTIONS = [
 ]
 
 export function MaintenanceTab({
-  vehicleStats,
-  serviceHistory,
-  totalMaintenanceCost,
+  vehicleStats = [],
+  serviceHistory = [],
+  totalMaintenanceCost = 0,
   onAddServiceRecord,
 }: any) {
+  const currentYearNum = new Date().getFullYear()
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedPlate, setSelectedPlate] = useState('')
   const [serviceCategory, setServiceCategory] = useState('Servis Rutin & Oli')
@@ -46,18 +48,19 @@ export function MaintenanceTab({
   const [kmDone, setKmDone] = useState('')
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
 
-  // DEFAULT TAHUN DISET KE 2026
+  // DEFAULT TAHUN DISET KE TAHUN SEKARANG
   const [selectedMonth, setSelectedMonth] = useState('ALL')
-  const [selectedYear, setSelectedYear] = useState('2026')
+  const [selectedYear, setSelectedYear] = useState(String(currentYearNum))
+  const [customYears, setCustomYears] = useState<string[]>([])
 
   const [filterVehicle, setFilterVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // OPSI TAHUN DINAMIS JANGKA PANJANG (2024 s/d 2035+ OTOMATIS TAMBAH DARI DATA)
+  // OPSI TAHUN DINAMIS (TERMASUK DUKUNGAN TOMBOL + TAHUN)
   const yearSet = new Set<string>()
   const startYear = 2024
-  const endYear = Math.max(new Date().getFullYear() + 10, 2035)
+  const endYear = Math.max(currentYearNum + 5, 2030)
   for (let y = startYear; y <= endYear; y++) {
     yearSet.add(String(y))
   }
@@ -67,7 +70,16 @@ export function MaintenanceTab({
       if (yr) yearSet.add(yr)
     }
   })
+  customYears.forEach((cy) => yearSet.add(cy))
   const YEAR_OPTIONS = ['ALL', ...Array.from(yearSet).sort()]
+
+  const handleAddCustomYear = () => {
+    const nextYearPrompt = prompt('Masukkan Tahun Proyeksi Baru (Contoh: 2028):')
+    if (nextYearPrompt && !isNaN(Number(nextYearPrompt)) && nextYearPrompt.length === 4) {
+      setCustomYears((prev) => [...prev, nextYearPrompt])
+      setSelectedYear(nextYearPrompt)
+    }
+  }
 
   // Open modal dengan prapilih kendaraan
   const handleOpenModal = (plateNumber?: string) => {
@@ -164,8 +176,8 @@ export function MaintenanceTab({
   }
 
   return (
-    <div className="space-y-6">
-      {/* TOOLBAR CUT-OFF BULAN & TAHUN DINAMIS (JANGKA PANJANG) */}
+    <div className="space-y-6 font-sans">
+      {/* TOOLBAR CUT-OFF BULAN & TAHUN DENGAN TOMBOL + TAHUN */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
           <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -209,6 +221,15 @@ export function MaintenanceTab({
               ))}
             </select>
           </div>
+
+          {/* TOMBOL + TAHUN */}
+          <button
+            onClick={handleAddCustomYear}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-2 rounded-xl border border-indigo-200 transition"
+            title="Tambah Pilihan Tahun Baru"
+          >
+            + Tahun
+          </button>
         </div>
       </div>
 
@@ -224,7 +245,7 @@ export function MaintenanceTab({
               {selectedYear === 'ALL' ? '' : selectedYear})
             </span>
             <strong className="text-xl font-extrabold font-mono text-slate-900 mt-1 block">
-              Rp {(currentTotalMaintenanceCost || 0).toLocaleString('id-ID')}
+              Rp {(currentTotalMaintenanceCost || totalMaintenanceCost || 0).toLocaleString('id-ID')}
             </strong>
           </div>
           <div className="w-10 h-10 bg-amber-100 text-amber-800 rounded-xl flex items-center justify-center font-bold">
@@ -604,3 +625,5 @@ export function MaintenanceTab({
     </div>
   )
 }
+
+export default MaintenanceTab
