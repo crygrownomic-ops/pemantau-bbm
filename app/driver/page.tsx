@@ -74,7 +74,7 @@ export default function DriverPortalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Muat data terintegrasi dari LocalStorage
-  useEffect(() => {
+  const loadData = () => {
     try {
       const storedDrivers = localStorage.getItem('master_drivers')
       const storedVehicles = localStorage.getItem('vehicle_budgets')
@@ -84,11 +84,20 @@ export default function DriverPortalPage() {
       if (storedDrivers) setDrivers(JSON.parse(storedDrivers))
       if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
       if (storedFuels) setFuels(JSON.parse(storedFuels))
-      if (storedLogs) setLogs(JSON.parse(storedLogs))
-      else localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
+
+      if (storedLogs) {
+        setLogs(JSON.parse(storedLogs))
+      } else {
+        localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
+        setLogs(DEFAULT_LOGS)
+      }
     } catch (e) {
       console.error(e)
     }
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   // Inisialisasi default dropdown
@@ -139,7 +148,7 @@ export default function DriverPortalPage() {
     }
   }
 
-  // Kirim Laporan Pengisian BBM
+  // Kirim Laporan Pengisian BBM (Anti-Overwrite Memori)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -162,7 +171,17 @@ export default function DriverPortalPage() {
 
     const distanceKm = numericFinalKm - initialKm
     const kmPerLiter = numericLiters > 0 ? Number((distanceKm / numericLiters).toFixed(2)) : 0
-    const matchedVehicle = vehicles.find((v) => v.plate_number === selectedVehiclePlate)
+
+    // BACA ULANG MEMORI DARI LOCALSTORAGE AGAR SELALU UP-TO-DATE
+    let latestVehicles = vehicles
+    try {
+      const storedV = localStorage.getItem('vehicle_budgets')
+      if (storedV) latestVehicles = JSON.parse(storedV)
+    } catch (err) {
+      console.error(err)
+    }
+
+    const matchedVehicle = latestVehicles.find((v: any) => v.plate_number === selectedVehiclePlate)
 
     const newLog = {
       id: Date.now(),
@@ -173,7 +192,7 @@ export default function DriverPortalPage() {
       final_km: numericFinalKm,
       distance_km: distanceKm,
       liters: numericLiters,
-      unit_price: matchedVehicle ? Math.round(numericTotalCost / numericLiters) : 0,
+      unit_price: numericLiters > 0 ? Math.round(numericTotalCost / numericLiters) : 0,
       km_per_liter: kmPerLiter,
       total_cost: numericTotalCost,
       fuel_type: selectedFuelName,
@@ -184,13 +203,21 @@ export default function DriverPortalPage() {
       audit_note: '',
     }
 
-    // 1. Simpan Log Baru ke LocalStorage (Integrasi ke Admin)
-    const updatedLogs = [newLog, ...logs]
+    let latestLogs = logs
+    try {
+      const storedL = localStorage.getItem('fuel_logs')
+      if (storedL) latestLogs = JSON.parse(storedL)
+    } catch (err) {
+      console.error(err)
+    }
+
+    // 1. Simpan Log Baru ke LocalStorage
+    const updatedLogs = [newLog, ...latestLogs]
     setLogs(updatedLogs)
     localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
 
     // 2. Update Odometer KM Terakhir Kendaraan di Master Data
-    const updatedVehicles = vehicles.map((v) =>
+    const updatedVehicles = latestVehicles.map((v: any) =>
       v.plate_number === selectedVehiclePlate ? { ...v, last_km: numericFinalKm } : v
     )
     setVehicles(updatedVehicles)
@@ -271,7 +298,7 @@ export default function DriverPortalPage() {
               </select>
             </div>
 
-            {/* KM ODOMETER (TANPA BUTTON SCROLL) */}
+            {/* KM ODOMETER (INPUT BERSIH TANPA BUTTON SCROLL) */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[10px] text-slate-400 mb-1">KM Awal (Terakhir)</label>

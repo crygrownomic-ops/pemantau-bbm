@@ -13,7 +13,7 @@ import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
 import { MaintenanceTab } from '@/components/admin/MaintenanceTab'
 
 const DEFAULT_VEHICLES = [
-  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45320, kir_expiry: '2026-10-15' },
+  { id: '1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza', monthly_budget: 1500000, last_km: 45750, kir_expiry: '2026-10-15' },
   { id: '2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, last_km: 32000, kir_expiry: '2026-09-10' },
   { id: '3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga', monthly_budget: 2500000, last_km: 18500, kir_expiry: '2026-12-01' },
 ]
@@ -32,9 +32,10 @@ const DEFAULT_LOGS = [
     km_per_liter: 33.33,
     total_cost: 150000,
     fuel_type: 'Pertalite',
-    fill_location: 'SPBU',
+    fill_location: 'SPBU Resmi',
     date: '2026-08-31',
     status: 'VERIFIED',
+    audit_note: '',
   },
 ]
 
@@ -60,7 +61,7 @@ function AdminDashboardContent() {
   const [passwordInput, setPasswordInput] = useState('')
   const [authError, setAuthError] = useState(false)
 
-  const [vehicles] = useState(DEFAULT_VEHICLES)
+  const [vehicles, setVehicles] = useState<any[]>(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICE_HISTORY)
 
@@ -69,9 +70,59 @@ function AdminDashboardContent() {
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
+  // Fungsi Sinkronisasi Data Real-Time dari Memori
+  const loadStorageData = () => {
+    try {
+      const storedLogs = localStorage.getItem('fuel_logs')
+      const storedVehicles = localStorage.getItem('vehicle_budgets')
+
+      if (storedLogs) {
+        const parsed = JSON.parse(storedLogs)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLogs(parsed)
+        } else {
+          localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
+          setLogs(DEFAULT_LOGS)
+        }
+      } else {
+        localStorage.setItem('fuel_logs', JSON.stringify(DEFAULT_LOGS))
+        setLogs(DEFAULT_LOGS)
+      }
+
+      if (storedVehicles) {
+        const parsedV = JSON.parse(storedVehicles)
+        if (Array.isArray(parsedV) && parsedV.length > 0) {
+          setVehicles(parsedV)
+        } else {
+          localStorage.setItem('vehicle_budgets', JSON.stringify(DEFAULT_VEHICLES))
+          setVehicles(DEFAULT_VEHICLES)
+        }
+      } else {
+        localStorage.setItem('vehicle_budgets', JSON.stringify(DEFAULT_VEHICLES))
+        setVehicles(DEFAULT_VEHICLES)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
       setIsAuthenticated(true)
+    }
+
+    loadStorageData()
+
+    // Auto-Sync saat Halaman / Tab difokuskan kembali
+    const handleFocus = () => loadStorageData()
+    const handleStorageChange = () => loadStorageData()
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 
@@ -86,15 +137,25 @@ function AdminDashboardContent() {
     }
   }
 
-  const handleUpdateStatus = (id: number, newStatus: 'VERIFIED' | 'FLAGGED') => {
-    const updatedLogs = logs.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+  // Update Status Audit & Simpan Permanen ke LocalStorage
+  const handleUpdateStatus = (id: number, newStatus: string, auditNote?: string) => {
+    const updatedLogs = logs.map((l) =>
+      l.id === id ? { ...l, status: newStatus, audit_note: auditNote || l.audit_note } : l
+    )
     setLogs(updatedLogs)
-    if (previewReceipt && previewReceipt.id === id) setPreviewReceipt({ ...previewReceipt, status: newStatus })
+    localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
+
+    if (previewReceipt && previewReceipt.id === id) {
+      setPreviewReceipt({ ...previewReceipt, status: newStatus, audit_note: auditNote || previewReceipt.audit_note })
+    }
   }
 
+  // Hapus Log & Simpan Permanen
   const handleDeleteLog = (id: number) => {
     if (confirm('Hapus data pengisian ini dari log?')) {
-      setLogs(logs.filter((l) => l.id !== id))
+      const updated = logs.filter((l) => l.id !== id)
+      setLogs(updated)
+      localStorage.setItem('fuel_logs', JSON.stringify(updated))
     }
   }
 
@@ -199,7 +260,24 @@ function AdminDashboardContent() {
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
       <AdminSidebar />
 
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <main className="flex-1 p-6 space-y-5 overflow-y-auto">
+        {/* TOP BAR SINKRONISASI REALTIME */}
+        <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Sistem Monitoring Realtime BBM FleetOps 360</span>
+          </div>
+          <button
+            onClick={() => {
+              loadStorageData()
+              alert('✅ Data transaksi & Odometer Armada berhasil disinkronkan!')
+            }}
+            className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow transition flex items-center gap-1.5"
+          >
+            🔄 Sinkronkan Data Realtime
+          </button>
+        </div>
+
         {activeTab === 'dashboard' && (
           <>
             <ExecutiveCards
@@ -221,6 +299,7 @@ function AdminDashboardContent() {
               setSelectedVehicle={setSelectedVehicle}
               setPreviewReceipt={setPreviewReceipt}
               handleDeleteLog={handleDeleteLog}
+              handleUpdateStatus={handleUpdateStatus}
             />
           </>
         )}
@@ -260,6 +339,11 @@ function AdminDashboardContent() {
               <div>Kendaraan: <strong>{previewReceipt.plate_number}</strong></div>
               <div>Biaya: <strong>Rp {(Number(previewReceipt.total_cost) || 0).toLocaleString('id-ID')}</strong></div>
               <div>Lokasi: <strong>{previewReceipt.fill_location}</strong></div>
+              {previewReceipt.audit_note && (
+                <div className="mt-2 pt-2 border-t border-slate-200 text-amber-800">
+                  Catatan Audit: <strong>{previewReceipt.audit_note}</strong>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2">
