@@ -8,12 +8,14 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { FuelLogsTable } from '@/components/admin/FuelLogsTable'
 import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
 import { MaintenanceTab } from '@/components/admin/MaintenanceTab'
+import { WhatsAppReminderModal } from '@/components/admin/WhatsAppReminderModal'
+import { ExportReportsModal } from '@/components/admin/ExportReportsModal'
 
 const DEFAULT_VEHICLES = [
-  { id: 'V1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza 1.5 G', monthly_budget: 1500000, monthly_service_budget: 500000, target_km_monthly: 1500, last_km: 45860 },
-  { id: 'V2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, monthly_service_budget: 750000, target_km_monthly: 2500, last_km: 32000 },
-  { id: 'V3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga Pick Up', monthly_budget: 2500000, monthly_service_budget: 1000000, target_km_monthly: 3500, last_km: 18500 },
-  { id: 'V4', plate_number: 'KB 1234 YK', model: 'Toyota Innova Zenix', monthly_budget: 2500000, monthly_service_budget: 800000, target_km_monthly: 2000, last_km: 47905 },
+  { id: 'V1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza 1.5 G', monthly_budget: 1500000, monthly_service_budget: 500000, target_km_monthly: 1500, last_km: 45860, kir_expiry: '2026-10-15', stnk_expiry: '2027-08-20' },
+  { id: 'V2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, monthly_service_budget: 750000, target_km_monthly: 2500, last_km: 32000, kir_expiry: '2026-09-10', stnk_expiry: '2026-12-05' },
+  { id: 'V3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga Pick Up', monthly_budget: 2500000, monthly_service_budget: 1000000, target_km_monthly: 3500, last_km: 18500, kir_expiry: '2026-12-01', stnk_expiry: '2028-01-15' },
+  { id: 'V4', plate_number: 'KB 1234 YK', model: 'Toyota Innova Zenix', monthly_budget: 2500000, monthly_service_budget: 800000, target_km_monthly: 2000, last_km: 47905, kir_expiry: '2027-02-15', stnk_expiry: '2027-11-11' },
 ]
 
 const DEFAULT_LOGS = [
@@ -88,6 +90,10 @@ function AdminDashboardContent() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [, setPreviewReceipt] = useState<any | null>(null)
+
+  // State Modal Fase 1
+  const [showWaModal, setShowWaModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
 
   const loadStorageData = () => {
     try {
@@ -211,17 +217,35 @@ function AdminDashboardContent() {
       <AdminSidebar />
 
       <main className="flex-1 p-6 space-y-5 overflow-y-auto">
-        <div className="flex justify-between items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+        {/* ACTION BAR ATAS */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm gap-2">
           <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             Realtime Control Center — FleetOps 360
           </span>
-          <button
-            onClick={loadStorageData}
-            className="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm hover:bg-slate-800 transition"
-          >
-            🔄 Sinkronkan Data
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowWaModal(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
+            >
+              📱 Reminder WA Legalitas
+            </button>
+
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
+            >
+              📊 Export Laporan
+            </button>
+
+            <button
+              onClick={loadStorageData}
+              className="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm hover:bg-slate-800 transition"
+            >
+              🔄 Sinkronkan Data
+            </button>
+          </div>
         </div>
 
         {activeTab === 'dashboard' && (
@@ -327,6 +351,22 @@ function AdminDashboardContent() {
           />
         )}
       </main>
+
+      {/* MODALS FASE 1 */}
+      <WhatsAppReminderModal
+        isOpen={showWaModal}
+        onClose={() => setShowWaModal(false)}
+        vehicles={vehicles}
+        drivers={drivers}
+      />
+
+      <ExportReportsModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        logs={logs}
+        serviceHistory={serviceHistory}
+        vehicles={vehicles}
+      />
     </div>
   )
 }
