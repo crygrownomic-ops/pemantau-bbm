@@ -2,6 +2,18 @@
 
 import { useState } from 'react'
 
+// Helper Format Titik Ribuan Otomatis
+const formatNumberDots = (val: number | string) => {
+  if (!val && val !== 0) return ''
+  const numStr = String(val).replace(/\D/g, '')
+  if (!numStr) return ''
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+const parseDotsToNum = (val: string) => {
+  return Number(String(val).replace(/\./g, '')) || 0
+}
+
 export function DriverScorecardTab({
   drivers = [],
   logs = [],
@@ -11,9 +23,13 @@ export function DriverScorecardTab({
   logs: any[]
   inspections: any[]
 }) {
-  const [bonusPlatinum, setBonusPlatinum] = useState(200000)
-  const [bonusGold, setBonusGold] = useState(100000)
-  const [bonusSilver, setBonusSilver] = useState(50000)
+  const [bonusPlatinumInput, setBonusPlatinumInput] = useState('200.000')
+  const [bonusGoldInput, setBonusGoldInput] = useState('100.000')
+  const [bonusSilverInput, setBonusSilverInput] = useState('50.000')
+
+  const bonusPlatinum = parseDotsToNum(bonusPlatinumInput)
+  const bonusGold = parseDotsToNum(bonusGoldInput)
+  const bonusSilver = parseDotsToNum(bonusSilverInput)
 
   // Menggabungkan daftar driver dari master data dan yang ada di log
   const driverNames = Array.from(
@@ -169,32 +185,47 @@ export function DriverScorecardTab({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200">
             <label className="block text-[10px] font-bold text-amber-900 mb-1">🥇 Platinum (Skor ≥ 85)</label>
-            <input
-              type="number"
-              className="w-full bg-white border p-1.5 rounded-lg font-mono font-bold text-slate-900 outline-none"
-              value={bonusPlatinum}
-              onChange={(e) => setBonusPlatinum(Number(e.target.value))}
-            />
+            <div className="relative flex items-center">
+              <span className="absolute left-2.5 font-bold text-slate-400">Rp</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="200.000"
+                className="w-full bg-white border p-1.5 pl-8 rounded-lg font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-amber-500"
+                value={bonusPlatinumInput}
+                onChange={(e) => setBonusPlatinumInput(formatNumberDots(e.target.value))}
+              />
+            </div>
           </div>
 
           <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <label className="block text-[10px] font-bold text-slate-800 mb-1">🥈 Gold (Skor 70 - 84)</label>
-            <input
-              type="number"
-              className="w-full bg-white border p-1.5 rounded-lg font-mono font-bold text-slate-900 outline-none"
-              value={bonusGold}
-              onChange={(e) => setBonusGold(Number(e.target.value))}
-            />
+            <div className="relative flex items-center">
+              <span className="absolute left-2.5 font-bold text-slate-400">Rp</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="100.000"
+                className="w-full bg-white border p-1.5 pl-8 rounded-lg font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-amber-500"
+                value={bonusGoldInput}
+                onChange={(e) => setBonusGoldInput(formatNumberDots(e.target.value))}
+              />
+            </div>
           </div>
 
           <div className="bg-orange-50/60 p-2.5 rounded-xl border border-orange-200">
             <label className="block text-[10px] font-bold text-orange-900 mb-1">🥉 Silver (Skor 55 - 69)</label>
-            <input
-              type="number"
-              className="w-full bg-white border p-1.5 rounded-lg font-mono font-bold text-slate-900 outline-none"
-              value={bonusSilver}
-              onChange={(e) => setBonusSilver(Number(e.target.value))}
-            />
+            <div className="relative flex items-center">
+              <span className="absolute left-2.5 font-bold text-slate-400">Rp</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="50.000"
+                className="w-full bg-white border p-1.5 pl-8 rounded-lg font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-amber-500"
+                value={bonusSilverInput}
+                onChange={(e) => setBonusSilverInput(formatNumberDots(e.target.value))}
+              />
+            </div>
           </div>
         </div>
       </div>
