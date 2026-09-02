@@ -65,10 +65,10 @@ const INITIAL_DRIVERS = [
 ]
 
 const INITIAL_VEHICLES = [
-  { id: 'V1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza 1.5 G', year: 2022, monthly_budget: 1500000, last_km: 45320, kir_expiry: '2026-10-15', stnk_expiry: '2027-08-20' },
-  { id: 'V2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max Blind Van', year: 2021, monthly_budget: 2000000, last_km: 32000, kir_expiry: '2026-09-10', stnk_expiry: '2026-12-05' },
-  { id: 'V3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga Pick Up', year: 2023, monthly_budget: 2500000, last_km: 18500, kir_expiry: '2026-12-01', stnk_expiry: '2028-01-15' },
-  { id: 'V4', plate_number: 'KB 1234 YK', model: 'Toyota Innova Zenix', year: 2024, monthly_budget: 2500000, last_km: 47905, kir_expiry: '2027-02-15', stnk_expiry: '2027-11-11' },
+  { id: 'V1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza 1.5 G', year: 2022, monthly_budget: 1500000, monthly_service_budget: 500000, target_km_monthly: 1500, last_km: 45860, kir_expiry: '2026-10-15', stnk_expiry: '2027-08-20' },
+  { id: 'V2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max Blind Van', year: 2021, monthly_budget: 2000000, monthly_service_budget: 750000, target_km_monthly: 2500, last_km: 32000, kir_expiry: '2026-09-10', stnk_expiry: '2026-12-05' },
+  { id: 'V3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga Pick Up', year: 2023, monthly_budget: 2500000, monthly_service_budget: 1000000, target_km_monthly: 3500, last_km: 18500, kir_expiry: '2026-12-01', stnk_expiry: '2028-01-15' },
+  { id: 'V4', plate_number: 'KB 1234 YK', model: 'Toyota Innova Zenix', year: 2024, monthly_budget: 2500000, monthly_service_budget: 800000, target_km_monthly: 2000, last_km: 47905, kir_expiry: '2027-02-15', stnk_expiry: '2027-11-11' },
 ]
 
 const INITIAL_FUELS = [
@@ -79,7 +79,6 @@ const INITIAL_FUELS = [
   { id: 'F5', name: 'Bio Solar', price: 6800, category: 'Subsidi' },
 ]
 
-// Fungsi Penambahan Titik Ribuan Otomatis
 const formatNumberDots = (val: number | string) => {
   if (!val && val !== 0) return ''
   const numStr = String(val).replace(/\D/g, '')
@@ -100,7 +99,7 @@ function SettingsContent() {
   const [vehicles, setVehicles] = useState<any[]>(INITIAL_VEHICLES)
   const [fuels, setFuels] = useState<any[]>(INITIAL_FUELS)
 
-  // State Modal Tambah / Edit Driver
+  // State Modal Driver
   const [showDriverModal, setShowDriverModal] = useState(false)
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null)
   const [driverForm, setDriverForm] = useState({
@@ -119,7 +118,7 @@ function SettingsContent() {
     photo: '',
   })
 
-  // State Modal Tambah / Edit Armada
+  // State Modal Armada
   const [showVehicleModal, setShowVehicleModal] = useState(false)
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null)
   const [vehicleForm, setVehicleForm] = useState({
@@ -127,16 +126,20 @@ function SettingsContent() {
     model: '',
     year: 2023,
     monthly_budget_formatted: '1.500.000',
+    monthly_service_budget_formatted: '500.000',
+    target_km_monthly: 2000,
     last_km: 0,
     kir_expiry: '',
     stnk_expiry: '',
   })
 
-  // State Modal Adjust Anggaran Cepat
+  // State Adjust Anggaran
   const [adjustingVehicle, setAdjustingVehicle] = useState<any | null>(null)
-  const [quickBudgetFormatted, setQuickBudgetFormatted] = useState('')
+  const [quickFuelBudgetFormatted, setQuickFuelBudgetFormatted] = useState('')
+  const [quickServiceBudgetFormatted, setQuickServiceBudgetFormatted] = useState('')
+  const [quickTargetKm, setQuickTargetKm] = useState(2000)
 
-  // State Modal Tambah / Edit BBM
+  // State Modal BBM
   const [showFuelModal, setShowFuelModal] = useState(false)
   const [editingFuelId, setEditingFuelId] = useState<string | null>(null)
   const [fuelForm, setFuelForm] = useState({
@@ -183,7 +186,6 @@ function SettingsContent() {
     }
   }, [])
 
-  // Handle Foto Profile Driver Upload (Base64 Reader)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -195,7 +197,7 @@ function SettingsContent() {
     }
   }
 
-  // Handler Driver (Tambah/Edit/Hapus)
+  // Driver Handlers
   const handleOpenAddDriver = () => {
     setEditingDriverId(null)
     setDriverForm({
@@ -240,7 +242,7 @@ function SettingsContent() {
     e.preventDefault()
     let updated: any[]
     const emName = driverForm.emergency_name ? `${driverForm.emergency_name} (${driverForm.emergency_relation || 'Keluarga'})` : ''
-    
+
     const payload = {
       ...driverForm,
       emergency_contact_name: emName,
@@ -267,7 +269,7 @@ function SettingsContent() {
     }
   }
 
-  // Handler Armada (Tambah/Edit/Hapus/Adjust Budget)
+  // Vehicle Handlers
   const handleOpenAddVehicle = () => {
     setEditingVehicleId(null)
     setVehicleForm({
@@ -275,6 +277,8 @@ function SettingsContent() {
       model: '',
       year: 2023,
       monthly_budget_formatted: '1.500.000',
+      monthly_service_budget_formatted: '500.000',
+      target_km_monthly: 2000,
       last_km: 0,
       kir_expiry: '',
       stnk_expiry: '',
@@ -289,6 +293,8 @@ function SettingsContent() {
       model: v.model || '',
       year: v.year || 2023,
       monthly_budget_formatted: formatNumberDots(v.monthly_budget || 0),
+      monthly_service_budget_formatted: formatNumberDots(v.monthly_service_budget || 0),
+      target_km_monthly: v.target_km_monthly || 2000,
       last_km: v.last_km || 0,
       kir_expiry: v.kir_expiry || '',
       stnk_expiry: v.stnk_expiry || '',
@@ -298,12 +304,16 @@ function SettingsContent() {
 
   const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault()
-    const numericBudget = parseDotsToNum(vehicleForm.monthly_budget_formatted)
+    const numericFuelBudget = parseDotsToNum(vehicleForm.monthly_budget_formatted)
+    const numericServiceBudget = parseDotsToNum(vehicleForm.monthly_service_budget_formatted)
+
     const payload = {
       plate_number: vehicleForm.plate_number,
       model: vehicleForm.model,
       year: Number(vehicleForm.year),
-      monthly_budget: numericBudget,
+      monthly_budget: numericFuelBudget,
+      monthly_service_budget: numericServiceBudget,
+      target_km_monthly: Number(vehicleForm.target_km_monthly) || 2000,
       last_km: Number(vehicleForm.last_km),
       kir_expiry: vehicleForm.kir_expiry,
       stnk_expiry: vehicleForm.stnk_expiry,
@@ -323,14 +333,27 @@ function SettingsContent() {
 
   const handleOpenAdjustBudget = (vehicle: any) => {
     setAdjustingVehicle(vehicle)
-    setQuickBudgetFormatted(formatNumberDots(vehicle.monthly_budget || 0))
+    setQuickFuelBudgetFormatted(formatNumberDots(vehicle.monthly_budget || 0))
+    setQuickServiceBudgetFormatted(formatNumberDots(vehicle.monthly_service_budget || 500000))
+    setQuickTargetKm(vehicle.target_km_monthly || 2000)
   }
 
   const handleSaveQuickBudget = (e: React.FormEvent) => {
     e.preventDefault()
     if (!adjustingVehicle) return
-    const newBudget = parseDotsToNum(quickBudgetFormatted)
-    const updated = vehicles.map((v) => (v.id === adjustingVehicle.id ? { ...v, monthly_budget: newBudget } : v))
+    const newFuelBudget = parseDotsToNum(quickFuelBudgetFormatted)
+    const newServiceBudget = parseDotsToNum(quickServiceBudgetFormatted)
+
+    const updated = vehicles.map((v) =>
+      v.id === adjustingVehicle.id
+        ? {
+            ...v,
+            monthly_budget: newFuelBudget,
+            monthly_service_budget: newServiceBudget,
+            target_km_monthly: Number(quickTargetKm) || 2000,
+          }
+        : v
+    )
     setVehicles(updated)
     localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
     setAdjustingVehicle(null)
@@ -344,7 +367,7 @@ function SettingsContent() {
     }
   }
 
-  // Handler Fuel (Tambah/Edit/Hapus)
+  // Fuel Handlers
   const handleOpenAddFuel = () => {
     setEditingFuelId(null)
     setFuelForm({ name: '', price_formatted: '10.000', category: 'Non-Subsidi' })
@@ -399,14 +422,14 @@ function SettingsContent() {
               {activeTab === 'drivers'
                 ? 'Master Data Driver & Pengemudi'
                 : activeTab === 'vehicles'
-                ? 'Master Data Armada & Kendaraan'
+                ? 'Master Data Armada & Kendaraan Operasional'
                 : 'Katalog Jenis & Tarif Harga BBM'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {activeTab === 'drivers'
                 ? 'Kelola biodata, foto profil, lisensi SIM, kontak darurat, serta penugasan armada driver'
                 : activeTab === 'vehicles'
-                ? 'Atur batasan anggaran bulanan BBM, Odometer KM, dan revisi tenggat KIR/STNK'
+                ? 'Atur rincian Anggaran BBM, Anggaran Servis/KIR, Jam Terbang (Target KM), serta legalitas KIR & STNK'
                 : 'Atur daftar pilihan bahan bakar dan penyesuaian harga per liter'}
             </p>
           </div>
@@ -453,7 +476,6 @@ function SettingsContent() {
                   className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition"
                 >
                   <div className="space-y-3">
-                    {/* AVATAR FOTO PROFIL & NAMA */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="relative">
@@ -507,7 +529,6 @@ function SettingsContent() {
                       </div>
                     </div>
 
-                    {/* METRIK KARTU LISENSI & ARMADA */}
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1.5 text-xs font-mono">
                       <div className="flex justify-between">
                         <span className="text-slate-500">Lisensi SIM:</span>
@@ -530,7 +551,6 @@ function SettingsContent() {
                       )}
                     </div>
 
-                    {/* INFORMASI DARURAT & ARMADA UTAMA */}
                     <div className="space-y-1 text-[11px]">
                       <div className="flex justify-between text-slate-600">
                         <span>Armada Utama:</span>
@@ -558,7 +578,7 @@ function SettingsContent() {
           </div>
         )}
 
-        {/* ================= TAB 2: MASTER ARMADA ================= */}
+        {/* ================= TAB 2: MASTER ARMADA & RINCIAN ANGGARAN ================= */}
         {activeTab === 'vehicles' && (
           <div className="space-y-5">
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -566,52 +586,74 @@ function SettingsContent() {
                 <thead className="bg-slate-900 text-white font-bold">
                   <tr>
                     <th className="p-3.5">Plat Nomor & Model</th>
-                    <th className="p-3.5">Odometer KM</th>
-                    <th className="p-3.5">Batas Anggaran BBM (Bulanan)</th>
-                    <th className="p-3.5">Exp. Uji KIR</th>
-                    <th className="p-3.5">Exp. STNK</th>
+                    <th className="p-3.5">Odometer Terkini</th>
+                    <th className="p-3.5">Jam Terbang (Target KM)</th>
+                    <th className="p-3.5">Rincian Anggaran BBM</th>
+                    <th className="p-3.5">Anggaran Servis & KIR</th>
+                    <th className="p-3.5">Total Budget Operasional</th>
+                    <th className="p-3.5">Exp. KIR / STNK</th>
                     <th className="p-3.5 text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {vehicles.map((v) => (
-                    <tr key={v.id} className="hover:bg-slate-50 transition">
-                      <td className="p-3.5">
-                        <div className="font-bold text-slate-900">{v.plate_number}</div>
-                        <div className="text-[11px] text-slate-500">{v.model} ({v.year})</div>
-                      </td>
-                      <td className="p-3.5 font-mono font-bold text-slate-800">
-                        {(v.last_km || 0).toLocaleString('id-ID')} KM
-                      </td>
-                      <td className="p-3.5">
-                        <div className="font-mono font-bold text-indigo-900">
-                          Rp {(v.monthly_budget || 0).toLocaleString('id-ID')}
-                        </div>
-                        <button
-                          onClick={() => handleOpenAdjustBudget(v)}
-                          className="text-[10px] text-amber-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-0.5"
-                        >
-                          <Icons.Edit className="w-3 h-3" /> Adjust Anggaran
-                        </button>
-                      </td>
-                      <td className="p-3.5 font-mono text-slate-700">{v.kir_expiry || '-'}</td>
-                      <td className="p-3.5 font-mono text-slate-700">{v.stnk_expiry || '-'}</td>
-                      <td className="p-3.5 text-center space-x-2">
-                        <button
-                          onClick={() => handleOpenEditVehicle(v)}
-                          className="text-indigo-600 hover:underline font-bold"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVehicle(v.id)}
-                          className="text-rose-600 hover:underline font-bold"
-                        >
-                          Hapus
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {vehicles.map((v) => {
+                    const fuelB = Number(v.monthly_budget) || 0
+                    const serviceB = Number(v.monthly_service_budget) || 500000
+                    const totalB = fuelB + serviceB
+                    const targetKm = Number(v.target_km_monthly) || 2000
+
+                    return (
+                      <tr key={v.id} className="hover:bg-slate-50 transition">
+                        <td className="p-3.5">
+                          <div className="font-bold text-slate-900">{v.plate_number}</div>
+                          <div className="text-[11px] text-slate-500">{v.model} ({v.year || 2023})</div>
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-slate-800">
+                          {(v.last_km || 0).toLocaleString('id-ID')} KM
+                        </td>
+                        <td className="p-3.5 font-mono">
+                          <span className="bg-indigo-50 text-indigo-900 font-bold px-2 py-1 rounded-lg border border-indigo-100">
+                            🎯 {targetKm.toLocaleString('id-ID')} KM / Bln
+                          </span>
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-amber-700">
+                          Rp {fuelB.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-indigo-700">
+                          Rp {serviceB.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-mono font-extrabold text-slate-900">
+                            Rp {totalB.toLocaleString('id-ID')}
+                          </div>
+                          <button
+                            onClick={() => handleOpenAdjustBudget(v)}
+                            className="text-[10px] text-amber-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-0.5"
+                          >
+                            <Icons.Edit className="w-3 h-3" /> Adjust Rincian Anggaran
+                          </button>
+                        </td>
+                        <td className="p-3.5 font-mono text-[11px] space-y-0.5">
+                          <div>KIR: <strong className="text-slate-800">{v.kir_expiry || '-'}</strong></div>
+                          <div>STNK: <strong className="text-slate-800">{v.stnk_expiry || '-'}</strong></div>
+                        </td>
+                        <td className="p-3.5 text-center space-x-2">
+                          <button
+                            onClick={() => handleOpenEditVehicle(v)}
+                            className="text-indigo-600 hover:underline font-bold"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVehicle(v.id)}
+                            className="text-rose-600 hover:underline font-bold"
+                          >
+                            Hapus
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -656,29 +698,61 @@ function SettingsContent() {
         )}
       </main>
 
-      {/* MODAL QUICK ADJUST BUDGET DENGAN TITIK OTOMATIS */}
+      {/* MODAL QUICK ADJUST ANGGARAN & JAM TERBANG */}
       {adjustingVehicle && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
             <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-xs font-bold text-slate-900">Adjust Anggaran ({adjustingVehicle.plate_number})</h3>
+              <h3 className="text-xs font-bold text-slate-900">Adjust Rincian Anggaran & Jam Terbang ({adjustingVehicle.plate_number})</h3>
               <button onClick={() => setAdjustingVehicle(null)} className="text-slate-400 font-bold">✕</button>
             </div>
             <form onSubmit={handleSaveQuickBudget} className="space-y-3 text-xs">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Nominal Anggaran Bulanan (Rp)</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Target Jam Terbang / KM Per Bulan</label>
                 <input
-                  type="text"
-                  className="w-full border p-2.5 rounded-xl font-mono text-base font-bold text-indigo-900 outline-none focus:ring-2 focus:ring-indigo-600"
-                  value={quickBudgetFormatted}
-                  onChange={(e) => setQuickBudgetFormatted(formatNumberDots(e.target.value))}
-                  placeholder="0"
+                  type="number"
+                  className="w-full border p-2.5 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none"
+                  value={quickTargetKm}
+                  onChange={(e) => setQuickTargetKm(Number(e.target.value))}
+                  placeholder="2000"
                   required
                 />
               </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Anggaran BBM Bulanan (Rp) *</label>
+                <input
+                  type="text"
+                  className="w-full border p-2.5 rounded-xl font-mono text-sm font-bold text-amber-700 outline-none"
+                  value={quickFuelBudgetFormatted}
+                  onChange={(e) => setQuickFuelBudgetFormatted(formatNumberDots(e.target.value))}
+                  placeholder="1.500.000"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Anggaran Maintenance & KIR Bulanan (Rp) *</label>
+                <input
+                  type="text"
+                  className="w-full border p-2.5 rounded-xl font-mono text-sm font-bold text-indigo-900 outline-none"
+                  value={quickServiceBudgetFormatted}
+                  onChange={(e) => setQuickServiceBudgetFormatted(formatNumberDots(e.target.value))}
+                  placeholder="500.000"
+                  required
+                />
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-mono flex justify-between">
+                <span>Total Budget Operasional:</span>
+                <strong className="text-slate-900">
+                  Rp {(parseDotsToNum(quickFuelBudgetFormatted) + parseDotsToNum(quickServiceBudgetFormatted)).toLocaleString('id-ID')}
+                </strong>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setAdjustingVehicle(null)} className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2 rounded-xl shadow-md">Simpan</button>
+                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2 rounded-xl shadow-md">Simpan Anggaran</button>
               </div>
             </form>
           </div>
@@ -695,7 +769,6 @@ function SettingsContent() {
             </div>
 
             <form onSubmit={handleSaveDriver} className="space-y-3.5 text-xs">
-              {/* UPLOAD FOTO PROFIL */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Foto Profil Driver</label>
                 <div className="flex items-center gap-3">
@@ -895,14 +968,38 @@ function SettingsContent() {
                 <input type="number" placeholder="Tahun *" className="border p-2.5 rounded-xl font-mono" value={vehicleForm.year} onChange={(e) => setVehicleForm({ ...vehicleForm, year: Number(e.target.value) })} required />
                 <input type="number" placeholder="KM Odometer Terkini *" className="border p-2.5 rounded-xl font-mono" value={vehicleForm.last_km} onChange={(e) => setVehicleForm({ ...vehicleForm, last_km: Number(e.target.value) })} required />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Anggaran BBM (Rp) *</label>
+                  <input
+                    type="text"
+                    placeholder="1.500.000"
+                    className="w-full border p-2.5 rounded-xl font-mono font-bold text-amber-700"
+                    value={vehicleForm.monthly_budget_formatted}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_budget_formatted: formatNumberDots(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Anggaran Servis (Rp) *</label>
+                  <input
+                    type="text"
+                    placeholder="500.000"
+                    className="w-full border p-2.5 rounded-xl font-mono font-bold text-indigo-900"
+                    value={vehicleForm.monthly_service_budget_formatted}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_service_budget_formatted: formatNumberDots(e.target.value) })}
+                    required
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Anggaran Bulanan BBM (Rp) *</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Target Jam Terbang (KM / Bulan) *</label>
                 <input
-                  type="text"
-                  placeholder="1.500.000"
-                  className="w-full border p-2.5 rounded-xl font-mono font-bold text-indigo-900"
-                  value={vehicleForm.monthly_budget_formatted}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_budget_formatted: formatNumberDots(e.target.value) })}
+                  type="number"
+                  placeholder="2000"
+                  className="w-full border p-2.5 rounded-xl font-mono font-bold text-slate-900"
+                  value={vehicleForm.target_km_monthly}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, target_km_monthly: Number(e.target.value) })}
                   required
                 />
               </div>
