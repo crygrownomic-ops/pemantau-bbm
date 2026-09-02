@@ -8,6 +8,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { FuelLogsTable } from '@/components/admin/FuelLogsTable'
 import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
 import { MaintenanceTab } from '@/components/admin/MaintenanceTab'
+import { DriverScorecardTab } from '@/components/admin/DriverScorecardTab'
 import { WhatsAppReminderModal } from '@/components/admin/WhatsAppReminderModal'
 import { ExportReportsModal } from '@/components/admin/ExportReportsModal'
 
@@ -71,7 +72,7 @@ const MONTH_OPTIONS = [
 
 function AdminDashboardContent() {
   const searchParams = useSearchParams()
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'analytics' | 'maintenance') || 'dashboard'
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'scorecard' | 'analytics' | 'maintenance') || 'dashboard'
 
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [usernameInput, setUsernameInput] = useState('')
@@ -82,6 +83,7 @@ function AdminDashboardContent() {
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICES)
   const [drivers, setDrivers] = useState<any[]>([])
+  const [inspections, setInspections] = useState<any[]>([])
 
   const [selectedMonth, setSelectedMonth] = useState('ALL')
   const [selectedYear, setSelectedYear] = useState('2026')
@@ -91,7 +93,6 @@ function AdminDashboardContent() {
   const [endDate, setEndDate] = useState('')
   const [, setPreviewReceipt] = useState<any | null>(null)
 
-  // State Modal Fase 1
   const [showWaModal, setShowWaModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
 
@@ -101,11 +102,13 @@ function AdminDashboardContent() {
       const storedVehicles = localStorage.getItem('vehicle_budgets')
       const storedServices = localStorage.getItem('service_history')
       const storedDrivers = localStorage.getItem('master_drivers')
+      const storedInspections = localStorage.getItem('pre_trip_inspections')
 
       if (storedLogs) setLogs(JSON.parse(storedLogs))
       if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
       if (storedServices) setServiceHistory(JSON.parse(storedServices))
       if (storedDrivers) setDrivers(JSON.parse(storedDrivers))
+      if (storedInspections) setInspections(JSON.parse(storedInspections))
     } catch (e) {
       console.error(e)
     }
@@ -186,6 +189,19 @@ function AdminDashboardContent() {
     )
   }
 
+  const maintenanceAlerts = vehicles.filter((v) => {
+    const km = v.last_km || 0
+    const remainder = km % 10000
+    return remainder >= 8500
+  })
+
+  const flaggedLogs = logs.filter((l) => {
+    const kmL = Number(l.km_per_liter) || 0
+    const isKmLUnrealistic = kmL > 0 && (kmL < 3.5 || kmL > 35)
+    const isKmBackwards = l.final_km < l.initial_km
+    return isKmLUnrealistic || isKmBackwards
+  })
+
   const cutoffLogs = logs.filter((l) => {
     if (!l.date) return false
     const [lYear, lMonth] = l.date.split('-')
@@ -217,7 +233,6 @@ function AdminDashboardContent() {
       <AdminSidebar />
 
       <main className="flex-1 p-6 space-y-5 overflow-y-auto">
-        {/* ACTION BAR ATAS */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm gap-2">
           <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -250,6 +265,66 @@ function AdminDashboardContent() {
 
         {activeTab === 'dashboard' && (
           <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="text-rose-600">🚨</span> Smart Anti-Fraud Anomali BBM
+                  </h3>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${flaggedLogs.length > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                    {flaggedLogs.length > 0 ? `⚠️ ${flaggedLogs.length} Terdeteksi` : '🟢 Aman 100%'}
+                  </span>
+                </div>
+
+                {flaggedLogs.length > 0 ? (
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto font-mono text-xs">
+                    {flaggedLogs.map((fl) => (
+                      <div key={fl.id} className="bg-rose-50 p-2 rounded-xl border border-rose-200 flex justify-between items-center text-[11px]">
+                        <div>
+                          <strong className="text-rose-900">{fl.plate_number}</strong> — {fl.driver_name}
+                          <span className="block text-[10px] text-rose-700">Rasio: {fl.km_per_liter} KM/L ({fl.date})</span>
+                        </div>
+                        <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded">Periksa Nota</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 py-2">
+                    Tidak ada indikasi penggelembungan nota BBM atau selisih odometer yang mencurigakan.
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="text-amber-500">🛠️</span> Preventive Maintenance (Jadwal Servis KM)
+                  </h3>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${maintenanceAlerts.length > 0 ? 'bg-amber-100 text-amber-900' : 'bg-indigo-100 text-indigo-800'}`}>
+                    {maintenanceAlerts.length > 0 ? `⏳ ${maintenanceAlerts.length} Butuh Servis` : '🟢 Kondisi Prima'}
+                  </span>
+                </div>
+
+                {maintenanceAlerts.length > 0 ? (
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto font-mono text-xs">
+                    {maintenanceAlerts.map((mv) => (
+                      <div key={mv.id} className="bg-amber-50 p-2 rounded-xl border border-amber-200 flex justify-between items-center text-[11px]">
+                        <div>
+                          <strong className="text-amber-900">{mv.plate_number}</strong> ({mv.model})
+                          <span className="block text-[10px] text-amber-700">Odometer: {mv.last_km.toLocaleString('id-ID')} KM</span>
+                        </div>
+                        <span className="text-[10px] bg-amber-600 text-white font-bold px-2 py-0.5 rounded">Jadwal Ganti Oli</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 py-2">
+                    Seluruh odometer armada masih jauh dari batas waktu perbaikan berkala berikutnya.
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
               <div>
                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
@@ -309,11 +384,11 @@ function AdminDashboardContent() {
               </div>
 
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Total Armada</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Inspection Supir Hari Ini</span>
                 <strong className="text-lg font-mono font-extrabold text-slate-900 block">
-                  {vehicles.length} Unit
+                  {inspections.length} Checklist
                 </strong>
-                <span className="text-[10px] text-slate-500">Kondisi Siap Jalan</span>
+                <span className="text-[10px] text-emerald-600 font-bold">📋 Status Siap Jalan</span>
               </div>
             </div>
 
@@ -331,6 +406,10 @@ function AdminDashboardContent() {
               handleUpdateStatus={handleUpdateStatus}
             />
           </>
+        )}
+
+        {activeTab === 'scorecard' && (
+          <DriverScorecardTab drivers={drivers} logs={logs} inspections={inspections} />
         )}
 
         {activeTab === 'analytics' && (
@@ -352,7 +431,6 @@ function AdminDashboardContent() {
         )}
       </main>
 
-      {/* MODALS FASE 1 */}
       <WhatsAppReminderModal
         isOpen={showWaModal}
         onClose={() => setShowWaModal(false)}
