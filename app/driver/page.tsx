@@ -70,6 +70,7 @@ export default function DriverPortalPage() {
   const [litersInput, setLitersInput] = useState('')
   const [totalCostFormatted, setTotalCostFormatted] = useState('')
   const [fillLocation, setFillLocation] = useState<'SPBU Resmi' | 'ECERAN'>('SPBU Resmi')
+  const [eceranDetail, setEceranDetail] = useState('')
   const [receiptImage, setReceiptImage] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -148,7 +149,7 @@ export default function DriverPortalPage() {
     }
   }
 
-  // Kirim Laporan Pengisian BBM (Anti-Overwrite Memori)
+  // Kirim Laporan Pengisian BBM
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -172,7 +173,7 @@ export default function DriverPortalPage() {
     const distanceKm = numericFinalKm - initialKm
     const kmPerLiter = numericLiters > 0 ? Number((distanceKm / numericLiters).toFixed(2)) : 0
 
-    // BACA ULANG MEMORI DARI LOCALSTORAGE AGAR SELALU UP-TO-DATE
+    // Baca ulang memori dari LocalStorage agar data selalu presisi
     let latestVehicles = vehicles
     try {
       const storedV = localStorage.getItem('vehicle_budgets')
@@ -196,11 +197,12 @@ export default function DriverPortalPage() {
       km_per_liter: kmPerLiter,
       total_cost: numericTotalCost,
       fuel_type: selectedFuelName,
-      fill_location: fillLocation,
+      fill_location: fillLocation, // Memastikan opsi ECERAN tersimpan konsisten
+      eceran_note: fillLocation === 'ECERAN' ? eceranDetail : '',
       date: new Date().toISOString().split('T')[0],
-      status: 'PENDING',
+      status: fillLocation === 'ECERAN' ? 'FLAGGED' : 'PENDING', // Otomatis tandai anomali jika pengisian eceran
       receipt_image: receiptImage,
-      audit_note: '',
+      audit_note: fillLocation === 'ECERAN' ? 'Pengisian BBM Eceran / Darurat terdeteksi.' : '',
     }
 
     let latestLogs = logs
@@ -230,6 +232,8 @@ export default function DriverPortalPage() {
     setFinalKmInput('')
     setLitersInput('')
     setTotalCostFormatted('')
+    setFillLocation('SPBU Resmi')
+    setEceranDetail('')
     setReceiptImage('')
     setIsSubmitting(false)
   }
@@ -298,7 +302,7 @@ export default function DriverPortalPage() {
               </select>
             </div>
 
-            {/* KM ODOMETER (INPUT BERSIH TANPA BUTTON SCROLL) */}
+            {/* KM ODOMETER */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[10px] text-slate-400 mb-1">KM Awal (Terakhir)</label>
@@ -339,7 +343,7 @@ export default function DriverPortalPage() {
               </select>
             </div>
 
-            {/* JUMLAH LITER & TOTAL BIAYA DENGAN TITIK OTOMATIS */}
+            {/* JUMLAH LITER & TOTAL BIAYA */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[10px] text-slate-300 font-semibold mb-1">Jumlah Liter *</label>
@@ -367,16 +371,16 @@ export default function DriverPortalPage() {
               </div>
             </div>
 
-            {/* LOKASI PENGISIAN */}
+            {/* LOKASI PENGISIAN (PILIHAN DUA TOMBOL SINKRON) */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">Lokasi Pengisian</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setFillLocation('SPBU Resmi')}
-                  className={`p-2 rounded-xl font-bold text-xs transition border ${
+                  className={`p-2.5 rounded-xl font-bold text-xs transition border ${
                     fillLocation === 'SPBU Resmi'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-2 ring-amber-400/50'
                       : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                   }`}
                 >
@@ -385,15 +389,31 @@ export default function DriverPortalPage() {
                 <button
                   type="button"
                   onClick={() => setFillLocation('ECERAN')}
-                  className={`p-2 rounded-xl font-bold text-xs transition border ${
+                  className={`p-2.5 rounded-xl font-bold text-xs transition border ${
                     fillLocation === 'ECERAN'
-                      ? 'bg-rose-600 text-white border-rose-500 shadow-md'
+                      ? 'bg-rose-600 text-white border-rose-500 shadow-md ring-2 ring-rose-500/50 animate-pulse'
                       : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
                   }`}
                 >
                   ⚠️ Darurat / Eceran
                 </button>
               </div>
+
+              {/* CATATAN PENGISIAN ECERAN */}
+              {fillLocation === 'ECERAN' && (
+                <div className="mt-2.5 p-2.5 bg-rose-950/40 border border-rose-800/80 rounded-xl space-y-1">
+                  <span className="text-[10px] font-bold text-rose-400 block">
+                    ⚠️ Pengisian Eceran Terdeteksi (Otomatis Masuk Audit Admin)
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Nama Kios / Lokasi Eceran (Opsional)"
+                    className="w-full bg-slate-950 border border-rose-900/60 text-white p-2 rounded-lg text-[11px] outline-none"
+                    value={eceranDetail}
+                    onChange={(e) => setEceranDetail(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             {/* UNGGAH STRUK */}
@@ -430,7 +450,14 @@ export default function DriverPortalPage() {
                 className="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 flex justify-between items-center text-xs"
               >
                 <div>
-                  <div className="font-bold text-amber-400">{log.plate_number}</div>
+                  <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                    {log.plate_number}
+                    {log.fill_location === 'ECERAN' && (
+                      <span className="text-[9px] bg-rose-900/80 text-rose-300 px-1.5 py-0.2 rounded font-bold">
+                        Eceran
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[10px] text-slate-400">Driver: {log.driver_name}</div>
                 </div>
                 <div className="text-right">
