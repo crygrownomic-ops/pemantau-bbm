@@ -55,25 +55,11 @@ const DEFAULT_SERVICES = [
   },
 ]
 
-const MONTH_OPTIONS = [
-  { value: 'ALL', label: 'Semua Bulan' },
-  { value: '01', label: 'Januari' },
-  { value: '02', label: 'Februari' },
-  { value: '03', label: 'Maret' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'Mei' },
-  { value: '06', label: 'Juni' },
-  { value: '07', label: 'Juli' },
-  { value: '08', label: 'Agustus' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'Oktober' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'Desember' },
-]
-
 function AdminDashboardContent() {
   const searchParams = useSearchParams()
   const activeTab = (searchParams.get('tab') as 'dashboard' | 'reimbursement' | 'scorecard' | 'analytics' | 'maintenance') || 'dashboard'
+
+  const currentYearNum = new Date().getFullYear()
 
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [usernameInput, setUsernameInput] = useState('')
@@ -85,9 +71,12 @@ function AdminDashboardContent() {
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICES)
   const [drivers, setDrivers] = useState<any[]>([])
   const [inspections, setInspections] = useState<any[]>([])
+  const [reimbursements, setReimbursements] = useState<any[]>([])
 
+  // State Filter UNIFORM
   const [selectedMonth, setSelectedMonth] = useState('ALL')
-  const [selectedYear, setSelectedYear] = useState('2026')
+  const [selectedYear, setSelectedYear] = useState(String(currentYearNum))
+  const [customYears, setCustomYears] = useState<string[]>([])
 
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
@@ -97,6 +86,9 @@ function AdminDashboardContent() {
   const [showWaModal, setShowWaModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
 
+  // OPSI 3: STATE NOTIFIKASI REALTIME
+  const [showNotifMenu, setShowNotifMenu] = useState(false)
+
   const loadStorageData = () => {
     try {
       const storedLogs = localStorage.getItem('fuel_logs')
@@ -104,12 +96,14 @@ function AdminDashboardContent() {
       const storedServices = localStorage.getItem('service_history')
       const storedDrivers = localStorage.getItem('master_drivers')
       const storedInspections = localStorage.getItem('pre_trip_inspections')
+      const storedClaims = localStorage.getItem('reimbursement_claims')
 
       if (storedLogs) setLogs(JSON.parse(storedLogs))
       if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
       if (storedServices) setServiceHistory(JSON.parse(storedServices))
       if (storedDrivers) setDrivers(JSON.parse(storedDrivers))
       if (storedInspections) setInspections(JSON.parse(storedInspections))
+      if (storedClaims) setReimbursements(JSON.parse(storedClaims))
     } catch (e) {
       console.error(e)
     }
@@ -121,6 +115,28 @@ function AdminDashboardContent() {
     }
     loadStorageData()
   }, [])
+
+  // Opsi Tahun Dinamis
+  const availableYearsSet = new Set<string>()
+  for (let y = 2024; y <= currentYearNum + 3; y++) {
+    availableYearsSet.add(String(y))
+  }
+  logs.forEach((l: any) => {
+    if (l.date) {
+      const yr = l.date.split('-')[0]
+      if (yr) availableYearsSet.add(yr)
+    }
+  })
+  customYears.forEach((cy) => availableYearsSet.add(cy))
+  const YEAR_OPTIONS = ['ALL', ...Array.from(availableYearsSet).sort()]
+
+  const handleAddCustomYear = () => {
+    const nextYearPrompt = prompt('Masukkan Tahun Proyeksi Baru (Contoh: 2028):')
+    if (nextYearPrompt && !isNaN(Number(nextYearPrompt)) && nextYearPrompt.length === 4) {
+      setCustomYears((prev) => [...prev, nextYearPrompt])
+      setSelectedYear(nextYearPrompt)
+    }
+  }
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -190,18 +206,11 @@ function AdminDashboardContent() {
     )
   }
 
-  const maintenanceAlerts = vehicles.filter((v) => {
-    const km = v.last_km || 0
-    const remainder = km % 10000
-    return remainder >= 8500
-  })
-
-  const flaggedLogs = logs.filter((l) => {
-    const kmL = Number(l.km_per_liter) || 0
-    const isKmLUnrealistic = kmL > 0 && (kmL < 3.5 || kmL > 35)
-    const isKmBackwards = l.final_km < l.initial_km
-    return isKmLUnrealistic || isKmBackwards
-  })
+  // Notifikasi Realtime Alerts (Opsi 3)
+  const pendingClaims = reimbursements.filter((r) => r.status === 'PENDING')
+  const flaggedLogs = logs.filter((l) => l.fill_location === 'ECERAN' || l.status === 'FLAGGED')
+  const maintenanceAlerts = vehicles.filter((v) => ((v.last_km || 0) % 10000) >= 8500)
+  const totalNotifications = pendingClaims.length + flaggedLogs.length + maintenanceAlerts.length
 
   const cutoffLogs = logs.filter((l) => {
     if (!l.date) return false
@@ -234,18 +243,71 @@ function AdminDashboardContent() {
       <AdminSidebar />
 
       <main className="flex-1 p-6 space-y-5 overflow-y-auto">
+        {/* HEADER CONTROLS DENGAN LONCENG NOTIFIKASI */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm gap-2">
           <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             Realtime Control Center — FleetOps 360
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
+            {/* LONCENG NOTIFIKASI (OPSI 3) */}
+            <button
+              onClick={() => setShowNotifMenu(!showNotifMenu)}
+              className="relative bg-slate-900 text-amber-400 p-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5"
+            >
+              🔔 <span className="hidden sm:inline">Alerts</span>
+              {totalNotifications > 0 && (
+                <span className="bg-rose-600 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center font-extrabold animate-bounce">
+                  {totalNotifications}
+                </span>
+              )}
+            </button>
+
+            {/* POPUP DROPDOWN NOTIFIKASI REALTIME */}
+            {showNotifMenu && (
+              <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 space-y-3 z-50 text-xs">
+                <div className="flex justify-between items-center border-b pb-2">
+                  <h3 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
+                    🔔 Pusat Notifikasi Realtime ({totalNotifications})
+                  </h3>
+                  <button onClick={() => setShowNotifMenu(false)} className="text-slate-400 font-bold">✕</button>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-2">
+                  {pendingClaims.length > 0 && (
+                    <div className="bg-indigo-50 p-2.5 rounded-xl border border-indigo-200 space-y-1">
+                      <strong className="text-indigo-900 block font-bold text-[11px]">🧾 Klaim Uang Jalan Pending ({pendingClaims.length})</strong>
+                      <p className="text-[10px] text-indigo-700">Supir mengajukan reimbursement Tol/Parkir baru yang membutuhkan verifikasi.</p>
+                    </div>
+                  )}
+
+                  {flaggedLogs.length > 0 && (
+                    <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 space-y-1">
+                      <strong className="text-rose-900 block font-bold text-[11px]">⚠️ Pengisian BBM Eceran ({flaggedLogs.length})</strong>
+                      <p className="text-[10px] text-rose-700">Terdeteksi pengisian BBM darurat di luar SPBU resmi.</p>
+                    </div>
+                  )}
+
+                  {maintenanceAlerts.length > 0 && (
+                    <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-1">
+                      <strong className="text-amber-900 block font-bold text-[11px]">🛠️ Jadwal Servis Dekat ({maintenanceAlerts.length})</strong>
+                      <p className="text-[10px] text-amber-700">Odometer armada mendekati batas 10.000 KM perbaikan berkala.</p>
+                    </div>
+                  )}
+
+                  {totalNotifications === 0 && (
+                    <p className="text-center py-4 text-slate-400 italic">🟢 Tidak ada peringatan pending.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => setShowWaModal(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
             >
-              📱 Reminder WA Legalitas
+              📱 WA Legalitas
             </button>
 
             <button
@@ -259,7 +321,7 @@ function AdminDashboardContent() {
               onClick={loadStorageData}
               className="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm hover:bg-slate-800 transition"
             >
-              🔄 Sinkronkan Data
+              🔄 Refresh
             </button>
           </div>
         </div>
@@ -326,6 +388,7 @@ function AdminDashboardContent() {
               </div>
             </div>
 
+            {/* COMPONENT FILTER UNIFORM DESAIN BARU */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
               <div>
                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
@@ -334,28 +397,52 @@ function AdminDashboardContent() {
                 <p className="text-[11px] text-slate-500">Filter ringkasan biaya BBM & Perbaikan per bulan/tahun</p>
               </div>
 
-              <div className="flex gap-2 text-xs font-bold">
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-slate-900 text-amber-400 p-2 rounded-xl outline-none"
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700">Bulan:</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+                  >
+                    <option value="ALL">Semua Bulan</option>
+                    <option value="01">Januari</option>
+                    <option value="02">Februari</option>
+                    <option value="03">Maret</option>
+                    <option value="04">April</option>
+                    <option value="05">Mei</option>
+                    <option value="06">Juni</option>
+                    <option value="07">Juli</option>
+                    <option value="08">Agustus</option>
+                    <option value="09">September</option>
+                    <option value="10">Oktober</option>
+                    <option value="11">November</option>
+                    <option value="12">Desember</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700">Tahun:</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+                  >
+                    {YEAR_OPTIONS.map((y) => (
+                      <option key={y} value={y}>
+                        {y === 'ALL' ? 'Semua Tahun' : y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleAddCustomYear}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-2 rounded-xl border border-indigo-200 transition"
+                  title="Tambah Pilihan Tahun Baru"
                 >
-                  {MONTH_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="bg-slate-900 text-amber-400 p-2 rounded-xl outline-none"
-                >
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
-                  <option value="2026">2026</option>
-                  <option value="ALL">Semua Tahun</option>
-                </select>
+                  + Tahun
+                </button>
               </div>
             </div>
 
