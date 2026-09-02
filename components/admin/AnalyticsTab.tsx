@@ -8,14 +8,14 @@ const MONTH_NAMES = [
 ]
 
 const DEFAULT_MONTHLY_TREND = [
-  { month: '01', fuelCost: 3800000, serviceCost: 1200000 },
-  { month: '02', fuelCost: 4100000, serviceCost: 450000 },
-  { month: '03', fuelCost: 3950000, serviceCost: 1800000 },
-  { month: '04', fuelCost: 4200000, serviceCost: 600000 },
-  { month: '05', fuelCost: 4050000, serviceCost: 950000 },
-  { month: '06', fuelCost: 4300000, serviceCost: 2100000 },
-  { month: '07', fuelCost: 4500000, serviceCost: 800000 },
-  { month: '08', fuelCost: 4850000, serviceCost: 1850000 },
+  { month: '01', fuelCost: 3800000, serviceCost: 1200000, tollCost: 400000 },
+  { month: '02', fuelCost: 4100000, serviceCost: 450000, tollCost: 350000 },
+  { month: '03', fuelCost: 3950000, serviceCost: 1800000, tollCost: 500000 },
+  { month: '04', fuelCost: 4200000, serviceCost: 600000, tollCost: 450000 },
+  { month: '05', fuelCost: 4050000, serviceCost: 950000, tollCost: 300000 },
+  { month: '06', fuelCost: 4300000, serviceCost: 2100000, tollCost: 600000 },
+  { month: '07', fuelCost: 4500000, serviceCost: 800000, tollCost: 550000 },
+  { month: '08', fuelCost: 4850000, serviceCost: 1850000, tollCost: 700000 },
 ]
 
 export function AnalyticsTab({
@@ -31,17 +31,21 @@ export function AnalyticsTab({
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'vehicles' | 'drivers' | 'maintenance'>('overview')
   const [driversList, setDriversList] = useState<any[]>(initialDrivers)
   const [customYears, setCustomYears] = useState<string[]>([])
+  const [reimbursementClaims, setReimbursementClaims] = useState<any[]>([])
 
   useEffect(() => {
-    if (!initialDrivers || initialDrivers.length === 0) {
-      try {
+    try {
+      if (!initialDrivers || initialDrivers.length === 0) {
         const storedD = localStorage.getItem('master_drivers')
         if (storedD) setDriversList(JSON.parse(storedD))
-      } catch (e) {
-        console.error(e)
+      } else {
+        setDriversList(initialDrivers)
       }
-    } else {
-      setDriversList(initialDrivers)
+
+      const storedClm = localStorage.getItem('reimbursement_claims')
+      if (storedClm) setReimbursementClaims(JSON.parse(storedClm))
+    } catch (e) {
+      console.error(e)
     }
   }, [initialDrivers])
 
@@ -61,6 +65,12 @@ export function AnalyticsTab({
       if (yr) availableYearsSet.add(yr)
     }
   })
+  reimbursementClaims.forEach((c: any) => {
+    if (c.date) {
+      const yr = c.date.split('-')[0]
+      if (yr) availableYearsSet.add(yr)
+    }
+  })
   customYears.forEach((cy) => availableYearsSet.add(cy))
 
   const YEAR_OPTIONS = ['ALL', ...Array.from(availableYearsSet).sort()]
@@ -73,6 +83,7 @@ export function AnalyticsTab({
     }
   }
 
+  // Filter Data Berdasarkan Bulan & Tahun
   const filteredLogs = logs.filter((l: any) => {
     if (!l.date) return false
     const [lYear, lMonth] = l.date.split('-')
@@ -89,9 +100,20 @@ export function AnalyticsTab({
     return matchMonth && matchYear
   })
 
+  const filteredClaims = reimbursementClaims.filter((c: any) => {
+    if (!c.date) return false
+    const [cYear, cMonth] = c.date.split('-')
+    const matchMonth = selectedMonth === 'ALL' || cMonth === selectedMonth
+    const matchYear = selectedYear === 'ALL' || cYear === selectedYear
+    const isApproved = c.status === 'APPROVED' || !c.status
+    return matchMonth && matchYear && isApproved
+  })
+
+  // Agregasi Finansial & TCO
   const totalFuelCost = filteredLogs.reduce((acc: number, l: any) => acc + (Number(l.total_cost) || 0), 0)
   const totalServiceCost = filteredServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
-  const totalGrandCost = totalFuelCost + totalServiceCost
+  const totalTollCost = filteredClaims.reduce((acc: number, c: any) => acc + (Number(c.amount) || 0), 0)
+  const totalGrandCost = totalFuelCost + totalServiceCost + totalTollCost
 
   const totalKm = filteredLogs.reduce((acc: number, l: any) => acc + (Number(l.distance_km) || 0), 0)
   const totalLiters = filteredLogs.reduce((acc: number, l: any) => acc + (Number(l.liters) || 0), 0)
@@ -116,19 +138,28 @@ export function AnalyticsTab({
       return m === monthNum && (selectedYear === 'ALL' || y === selectedYear)
     })
 
+    const mClaims = reimbursementClaims.filter((c: any) => {
+      if (!c.date) return false
+      const [y, m] = c.date.split('-')
+      return m === monthNum && (selectedYear === 'ALL' || y === selectedYear) && c.status === 'APPROVED'
+    })
+
     const realFuel = mLogs.reduce((acc: number, l: any) => acc + (Number(l.total_cost) || 0), 0)
     const realService = mServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
+    const realToll = mClaims.reduce((acc: number, c: any) => acc + (Number(c.amount) || 0), 0)
 
     const fallback = DEFAULT_MONTHLY_TREND.find((d) => d.month === monthNum)
     const fuelCost = realFuel || (logs.length === 0 ? fallback?.fuelCost || 0 : 0)
     const serviceCost = realService || (serviceHistory.length === 0 ? fallback?.serviceCost || 0 : 0)
+    const tollCost = realToll || (reimbursementClaims.length === 0 ? fallback?.tollCost || 0 : 0)
 
     return {
       monthNum,
       name,
       fuelCost,
       serviceCost,
-      totalCost: fuelCost + serviceCost,
+      tollCost,
+      totalCost: fuelCost + serviceCost + tollCost,
     }
   })
 
@@ -136,14 +167,15 @@ export function AnalyticsTab({
 
   return (
     <div className="space-y-6 font-sans">
+      {/* HEADER CONTROLS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-sm font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-            Executive Fleet Analytics & Intelligence Center
+            Executive Fleet Analytics & Intelligence Center (TCO & Cost/KM)
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Analisis terintegrasi biaya BBM, perbaikan armada, performa driver, dan rasio biaya per kilometer
+            Analisis terintegrasi biaya BBM, perbaikan armada, klaim Tol/Parkir, dan rasio biaya per kilometer
           </p>
         </div>
 
@@ -196,6 +228,7 @@ export function AnalyticsTab({
         </div>
       </div>
 
+      {/* 8 KARTU EXECUTIVE METRICS */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Jumlah Armada</span>
@@ -230,15 +263,23 @@ export function AnalyticsTab({
         </div>
 
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Tol & Parkir</span>
+          <strong className="text-base font-mono font-extrabold text-emerald-700 block">
+            Rp {totalTollCost.toLocaleString('id-ID')}
+          </strong>
+          <span className="text-[10px] text-emerald-600 font-bold">🧾 Klaim Jalan</span>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Total Operasional</span>
           <strong className="text-base font-mono font-extrabold text-slate-900 block">
             Rp {totalGrandCost.toLocaleString('id-ID')}
           </strong>
-          <span className="text-[10px] text-indigo-700 font-bold">BBM + Servis</span>
+          <span className="text-[10px] text-indigo-700 font-bold">TCO Combined</span>
         </div>
 
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Rasio Rp / KM</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Cost Per KM</span>
           <strong className="text-base font-mono font-extrabold text-slate-800 block">
             Rp {costPerKm.toLocaleString('id-ID')}
           </strong>
@@ -252,22 +293,15 @@ export function AnalyticsTab({
           </strong>
           <span className="text-[10px] text-emerald-600 font-bold">🎯 Konsumsi BBM</span>
         </div>
-
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Total Jarak</span>
-          <strong className="text-base font-mono font-extrabold text-indigo-900 block">
-            {totalKm.toLocaleString('id-ID')} KM
-          </strong>
-          <span className="text-[10px] text-slate-500">Jam Terbang</span>
-        </div>
       </div>
 
+      {/* NAVIGATION SUB-TABS */}
       <div className="flex border-b border-slate-200 text-xs font-bold gap-6 overflow-x-auto pb-1">
         <button
           onClick={() => setActiveSubTab('overview')}
           className={`pb-2.5 transition border-b-2 whitespace-nowrap ${activeSubTab === 'overview' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
-          📊 Tren Bulanan BBM vs Servis
+          📊 Tren Bulanan TCO & Kombinasi Biaya
         </button>
         <button
           onClick={() => setActiveSubTab('vehicles')}
@@ -289,6 +323,7 @@ export function AnalyticsTab({
         </button>
       </div>
 
+      {/* SUB-TAB 1: OVERVIEW */}
       {activeSubTab === 'overview' && (
         <div className="space-y-5">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -320,10 +355,11 @@ export function AnalyticsTab({
 
                   return (
                     <div key={idx} className="flex flex-col items-center gap-1 h-full justify-end group relative">
-                      <div className="absolute -top-12 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[10px] p-2 rounded-lg z-20 shadow-xl whitespace-nowrap">
+                      <div className="absolute -top-14 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[10px] p-2 rounded-lg z-20 shadow-xl whitespace-nowrap">
                         <span className="font-bold">{m.name}:</span>
                         <span className="text-amber-400 font-mono">BBM: Rp {m.fuelCost.toLocaleString('id-ID')}</span>
                         <span className="text-indigo-300 font-mono">Servis: Rp {m.serviceCost.toLocaleString('id-ID')}</span>
+                        <span className="text-emerald-300 font-mono">Tol: Rp {m.tollCost.toLocaleString('id-ID')}</span>
                       </div>
 
                       <div className="w-full flex items-end justify-center gap-1 h-full">
@@ -351,40 +387,32 @@ export function AnalyticsTab({
                   <th className="p-3.5">Bulan</th>
                   <th className="p-3.5 text-right">Biaya BBM</th>
                   <th className="p-3.5 text-right">Biaya Perbaikan</th>
-                  <th className="p-3.5 text-right">Total Operasional</th>
-                  <th className="p-3.5 text-center">Rasio BBM vs Perbaikan</th>
+                  <th className="p-3.5 text-right">Tol & Parkir</th>
+                  <th className="p-3.5 text-right">Total TCO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {monthlyData.map((m, idx) => {
-                  const fuelPct = m.totalCost > 0 ? Math.round((m.fuelCost / m.totalCost) * 100) : 0
-                  const servPct = m.totalCost > 0 ? 100 - fuelPct : 0
-
-                  return (
-                    <tr key={idx} className="hover:bg-slate-50 transition">
-                      <td className="p-3.5 font-bold font-sans text-slate-900">{m.name} {selectedYear}</td>
-                      <td className="p-3.5 text-right text-amber-700 font-bold">Rp {m.fuelCost.toLocaleString('id-ID')}</td>
-                      <td className="p-3.5 text-right text-indigo-700 font-bold">Rp {m.serviceCost.toLocaleString('id-ID')}</td>
-                      <td className="p-3.5 text-right text-slate-900 font-extrabold">Rp {m.totalCost.toLocaleString('id-ID')}</td>
-                      <td className="p-3.5 text-center text-[11px]">
-                        <span className="text-amber-700 font-bold">{fuelPct}%</span>
-                        <span className="text-slate-400 mx-1">/</span>
-                        <span className="text-indigo-700 font-bold">{servPct}%</span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {monthlyData.map((m, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50 transition">
+                    <td className="p-3.5 font-bold font-sans text-slate-900">{m.name} {selectedYear}</td>
+                    <td className="p-3.5 text-right text-amber-700 font-bold">Rp {m.fuelCost.toLocaleString('id-ID')}</td>
+                    <td className="p-3.5 text-right text-indigo-700 font-bold">Rp {m.serviceCost.toLocaleString('id-ID')}</td>
+                    <td className="p-3.5 text-right text-emerald-800 font-bold">Rp {m.tollCost.toLocaleString('id-ID')}</td>
+                    <td className="p-3.5 text-right text-slate-900 font-extrabold">Rp {m.totalCost.toLocaleString('id-ID')}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
+      {/* SUB-TAB 2: VEHICLES */}
       {activeSubTab === 'vehicles' && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-5 space-y-4">
           <div className="flex justify-between items-center border-b pb-3 border-slate-100">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Matrix Konsumsi & Rasio Beban Per Armada Kendaraan ({activeVehiclesCount} Unit)
+              Matrix Konsumsi & Rasio Beban TCO Per Armada Kendaraan ({activeVehiclesCount} Unit)
             </h3>
           </div>
 
@@ -394,28 +422,44 @@ export function AnalyticsTab({
                 <tr>
                   <th className="p-3">Plat Nomor & Model</th>
                   <th className="p-3">Target KM (Bln)</th>
-                  <th className="p-3">Realisasi BBM</th>
-                  <th className="p-3">Realisasi Servis</th>
-                  <th className="p-3">Total Biaya</th>
-                  <th className="p-3">Rasio Rp / KM</th>
-                  <th className="p-3 text-center">Status Budget</th>
+                  <th className="p-3 text-right">Realisasi BBM</th>
+                  <th className="p-3 text-right">Realisasi Servis</th>
+                  <th className="p-3 text-right">Tol / Parkir</th>
+                  <th className="p-3 text-right">Total TCO</th>
+                  <th className="p-3 text-right">Cost / KM</th>
+                  <th className="p-3 text-center">Evaluasi TCO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
                 {vehicleStats.map((v: any) => {
                   const vLogs = filteredLogs.filter((l: any) => l.plate_number === v.plate_number)
                   const vServices = filteredServices.filter((s: any) => s.plate_number === v.plate_number)
+                  const vClaims = filteredClaims.filter((c: any) => c.plate_number === v.plate_number)
 
                   const fCost = vLogs.reduce((acc: number, l: any) => acc + (Number(l.total_cost) || 0), 0)
                   const sCost = vServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
-                  const tCost = fCost + sCost
+                  const tClaimCost = vClaims.reduce((acc: number, c: any) => acc + (Number(c.amount) || 0), 0)
+                  const tCost = fCost + sCost + tClaimCost
 
                   const targetKm = Number(v.target_km_monthly) || 2000
                   const actualKm = vLogs.reduce((acc: number, l: any) => acc + (Number(l.distance_km) || 0), 0)
-                  const costPerKmUnit = actualKm > 0 ? Math.round(tCost / actualKm) : 1200
+                  const costPerKmUnit = actualKm > 0 ? Math.round(tCost / actualKm) : 0
 
-                  const maxB = (Number(v.monthly_budget) || 1500000) + (Number(v.monthly_service_budget) || 500000)
-                  const isOver = tCost > maxB
+                  let statusLabel = 'Belum Ada Perjalanan'
+                  let statusStyle = 'bg-slate-100 text-slate-700'
+
+                  if (actualKm > 0) {
+                    if (costPerKmUnit < 1200) {
+                      statusLabel = '🟢 Sangat Efisien'
+                      statusStyle = 'bg-emerald-100 text-emerald-800 font-bold'
+                    } else if (costPerKmUnit <= 2200) {
+                      statusLabel = '🟡 Normal'
+                      statusStyle = 'bg-amber-100 text-amber-900 font-bold'
+                    } else {
+                      statusLabel = '🔴 Boros'
+                      statusStyle = 'bg-rose-100 text-rose-800 font-extrabold'
+                    }
+                  }
 
                   return (
                     <tr key={v.plate_number} className="hover:bg-slate-50 transition">
@@ -424,13 +468,16 @@ export function AnalyticsTab({
                         <span className="text-[11px] text-slate-500">{v.model}</span>
                       </td>
                       <td className="p-3">🎯 {targetKm.toLocaleString('id-ID')} KM</td>
-                      <td className="p-3 text-amber-700 font-bold">Rp {fCost.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-indigo-700 font-bold">Rp {sCost.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-slate-900 font-extrabold">Rp {tCost.toLocaleString('id-ID')}</td>
-                      <td className="p-3 font-bold text-slate-800">Rp {costPerKmUnit.toLocaleString('id-ID')} / KM</td>
+                      <td className="p-3 text-right text-amber-700 font-bold">Rp {fCost.toLocaleString('id-ID')}</td>
+                      <td className="p-3 text-right text-indigo-700 font-bold">Rp {sCost.toLocaleString('id-ID')}</td>
+                      <td className="p-3 text-right text-emerald-800 font-bold">Rp {tClaimCost.toLocaleString('id-ID')}</td>
+                      <td className="p-3 text-right text-slate-900 font-extrabold">Rp {tCost.toLocaleString('id-ID')}</td>
+                      <td className="p-3 text-right font-bold text-slate-900">
+                        Rp {costPerKmUnit.toLocaleString('id-ID')} / KM
+                      </td>
                       <td className="p-3 text-center font-sans">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isOver ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                          {isOver ? '⚠️ Over Budget' : '🟢 Aman'}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusStyle}`}>
+                          {statusLabel}
                         </span>
                       </td>
                     </tr>
@@ -442,6 +489,7 @@ export function AnalyticsTab({
         </div>
       )}
 
+      {/* SUB-TAB 3: DRIVERS */}
       {activeSubTab === 'drivers' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b pb-3 border-slate-100">
@@ -502,6 +550,7 @@ export function AnalyticsTab({
         </div>
       )}
 
+      {/* SUB-TAB 4: MAINTENANCE */}
       {activeSubTab === 'maintenance' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
