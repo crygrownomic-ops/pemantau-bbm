@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const MONTH_NAMES = [
   'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
@@ -22,13 +22,60 @@ export function AnalyticsTab({
   vehicleStats = [],
   logs = [],
   serviceHistory = [],
-  drivers = [],
+  drivers: initialDrivers = [],
 }: any) {
-  const [selectedMonth, setSelectedMonth] = useState('ALL')
-  const [selectedYear, setSelectedYear] = useState('2026')
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'vehicles' | 'drivers' | 'maintenance'>('overview')
+  const currentYearNum = new Date().getFullYear()
 
-  // Filter Data Berdasarkan Cut-Off
+  const [selectedMonth, setSelectedMonth] = useState('ALL')
+  const [selectedYear, setSelectedYear] = useState(String(currentYearNum))
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'vehicles' | 'drivers' | 'maintenance'>('overview')
+  const [driversList, setDriversList] = useState<any[]>(initialDrivers)
+  const [customYears, setCustomYears] = useState<string[]>([])
+
+  // Muat data driver dari LocalStorage jika props kosong
+  useEffect(() => {
+    if (!initialDrivers || initialDrivers.length === 0) {
+      try {
+        const storedD = localStorage.getItem('master_drivers')
+        if (storedD) setDriversList(JSON.parse(storedD))
+      } catch (e) {
+        console.error(e)
+      }
+    } else {
+      setDriversList(initialDrivers)
+    }
+  }, [initialDrivers])
+
+  // Generator Opsi Tahun Otomatis (2024 s/d Tahun Berjalan + 3 Tahun Mendatang)
+  const availableYearsSet = new Set<string>()
+  for (let y = 2024; y <= currentYearNum + 3; y++) {
+    availableYearsSet.add(String(y))
+  }
+  logs.forEach((l: any) => {
+    if (l.date) {
+      const yr = l.date.split('-')[0]
+      if (yr) availableYearsSet.add(yr)
+    }
+  })
+  serviceHistory.forEach((s: any) => {
+    if (s.date) {
+      const yr = s.date.split('-')[0]
+      if (yr) availableYearsSet.add(yr)
+    }
+  })
+  customYears.forEach((cy) => availableYearsSet.add(cy))
+
+  const YEAR_OPTIONS = ['ALL', ...Array.from(availableYearsSet).sort()]
+
+  const handleAddCustomYear = () => {
+    const nextYearPrompt = prompt('Masukkan Tahun Proyeksi Baru (Contoh: 2028):')
+    if (nextYearPrompt && !isNaN(Number(nextYearPrompt)) && nextYearPrompt.length === 4) {
+      setCustomYears((prev) => [...prev, nextYearPrompt])
+      setSelectedYear(nextYearPrompt)
+    }
+  }
+
+  // Filter Data Berdasarkan Bulan & Tahun Cut-Off
   const filteredLogs = logs.filter((l: any) => {
     if (!l.date) return false
     const [lYear, lMonth] = l.date.split('-')
@@ -45,7 +92,7 @@ export function AnalyticsTab({
     return matchMonth && matchYear
   })
 
-  // Agregasi Total
+  // Agregasi Keuangan & Performa
   const totalFuelCost = filteredLogs.reduce((acc: number, l: any) => acc + (Number(l.total_cost) || 0), 0)
   const totalServiceCost = filteredServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
   const totalGrandCost = totalFuelCost + totalServiceCost
@@ -55,7 +102,10 @@ export function AnalyticsTab({
   const avgEfficiency = totalLiters > 0 ? (totalKm / totalLiters).toFixed(1) : '8.5'
   const costPerKm = totalKm > 0 ? Math.round(totalGrandCost / totalKm) : 1250
 
-  // Agregasi Tren Bulanan
+  const activeDriversCount = driversList.filter((d: any) => d.status === 'ACTIVE' || d.status === 'Aktif' || !d.status).length
+  const activeVehiclesCount = vehicleStats.length
+
+  // Agregasi Grafik Bulanan
   const monthlyData = MONTH_NAMES.map((name, index) => {
     const monthNum = String(index + 1).padStart(2, '0')
 
@@ -90,8 +140,8 @@ export function AnalyticsTab({
   const maxChartVal = Math.max(...monthlyData.map((m) => Math.max(m.fuelCost, m.serviceCost)), 1)
 
   return (
-    <div className="space-y-6">
-      {/* HEADER & FILTER BAR */}
+    <div className="space-y-6 font-sans">
+      {/* HEADER & CONTROLLER TAHOEN DINAMIS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-sm font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -99,7 +149,7 @@ export function AnalyticsTab({
             Executive Fleet Analytics & Intelligence Center
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Pusat analisis terpadu untuk biaya BBM, pemeliharaan bengkels, performa driver, dan rasio efisiensi per KM
+            Analisis terintegrasi biaya BBM, perbaikan armada, performa driver, dan rasio biaya per kilometer
           </p>
         </div>
 
@@ -134,26 +184,51 @@ export function AnalyticsTab({
               onChange={(e) => setSelectedYear(e.target.value)}
               className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
             >
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="ALL">Semua Tahun</option>
+              {YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>
+                  {y === 'ALL' ? 'Semua Tahun' : y}
+                </option>
+              ))}
             </select>
           </div>
+
+          <button
+            onClick={handleAddCustomYear}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-2 rounded-xl border border-indigo-200 transition"
+            title="Tambah Pilihan Tahun Baru"
+          >
+            + Tahun
+          </button>
         </div>
       </div>
 
-      {/* 6 EXECUTIVE METRIC CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Pengeluaran BBM</span>
+      {/* 8 KARTU EXECUTIVE METRICS (TERMASUK ARMADA & DRIVER) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Jumlah Armada</span>
+          <strong className="text-lg font-mono font-extrabold text-slate-900 block">
+            {activeVehiclesCount} Unit
+          </strong>
+          <span className="text-[10px] text-emerald-600 font-bold">🚚 Terdaftar</span>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Jumlah Driver</span>
+          <strong className="text-lg font-mono font-extrabold text-indigo-900 block">
+            {activeDriversCount} Orang
+          </strong>
+          <span className="text-[10px] text-indigo-600 font-bold">👤 Siap Tugas</span>
+        </div>
+
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Biaya BBM</span>
           <strong className="text-base font-mono font-extrabold text-amber-700 block">
             Rp {totalFuelCost.toLocaleString('id-ID')}
           </strong>
-          <span className="text-[10px] text-emerald-600 font-bold">⛽ Terkendali</span>
+          <span className="text-[10px] text-amber-600 font-bold">⛽ Bahan Bakar</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Biaya Perbaikan</span>
           <strong className="text-base font-mono font-extrabold text-indigo-900 block">
             Rp {totalServiceCost.toLocaleString('id-ID')}
@@ -161,64 +236,64 @@ export function AnalyticsTab({
           <span className="text-[10px] text-slate-500 font-bold">🛠️ {filteredServices.length} Servis</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Total Operasional</span>
           <strong className="text-base font-mono font-extrabold text-slate-900 block">
             Rp {totalGrandCost.toLocaleString('id-ID')}
           </strong>
-          <span className="text-[10px] text-indigo-700 font-bold">BBM + Maintenance</span>
+          <span className="text-[10px] text-indigo-700 font-bold">BBM + Servis</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Cost Per KM</span>
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Rasio Rp / KM</span>
           <strong className="text-base font-mono font-extrabold text-slate-800 block">
-            Rp {costPerKm.toLocaleString('id-ID')} / KM
+            Rp {costPerKm.toLocaleString('id-ID')}
           </strong>
-          <span className="text-[10px] text-slate-500">Rasio Beban Jalan</span>
+          <span className="text-[10px] text-slate-500">Beban per KM</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Rata-Rata Efisiensi</span>
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Efisiensi Rata2</span>
           <strong className="text-base font-mono font-extrabold text-emerald-700 block">
-            {avgEfficiency} KM / Liter
+            {avgEfficiency} KM/L
           </strong>
-          <span className="text-[10px] text-emerald-600 font-bold">🎯 Sangat Baik</span>
+          <span className="text-[10px] text-emerald-600 font-bold">🎯 Konsumsi BBM</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Total Jarak Tempuh</span>
+        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Total Jarak</span>
           <strong className="text-base font-mono font-extrabold text-indigo-900 block">
             {totalKm.toLocaleString('id-ID')} KM
           </strong>
-          <span className="text-[10px] text-slate-500">Jam Terbang Armada</span>
+          <span className="text-[10px] text-slate-500">Jam Terbang</span>
         </div>
       </div>
 
       {/* SUB-NAVIGASI MODUL ANALISIS */}
-      <div className="flex border-b border-slate-200 text-xs font-bold gap-6">
+      <div className="flex border-b border-slate-200 text-xs font-bold gap-6 overflow-x-auto pb-1">
         <button
           onClick={() => setActiveSubTab('overview')}
-          className={`pb-2.5 transition border-b-2 ${activeSubTab === 'overview' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          className={`pb-2.5 transition border-b-2 whitespace-nowrap ${activeSubTab === 'overview' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
           📊 Tren Bulanan BBM vs Servis
         </button>
         <button
           onClick={() => setActiveSubTab('vehicles')}
-          className={`pb-2.5 transition border-b-2 ${activeSubTab === 'vehicles' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          className={`pb-2.5 transition border-b-2 whitespace-nowrap ${activeSubTab === 'vehicles' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
-          🚚 Matrix Efisiensi Per Armada
+          🚚 Matrix Efisiensi Per Armada ({activeVehiclesCount})
         </button>
         <button
           onClick={() => setActiveSubTab('drivers')}
-          className={`pb-2.5 transition border-b-2 ${activeSubTab === 'drivers' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          className={`pb-2.5 transition border-b-2 whitespace-nowrap ${activeSubTab === 'drivers' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
-          👤 Analisis Kinerja Driver
+          👤 Analisis Performa Driver ({activeDriversCount})
         </button>
         <button
           onClick={() => setActiveSubTab('maintenance')}
-          className={`pb-2.5 transition border-b-2 ${activeSubTab === 'maintenance' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          className={`pb-2.5 transition border-b-2 whitespace-nowrap ${activeSubTab === 'maintenance' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
-          🛠️ Rincian Kategori Bengkel
+          🛠️ Rincian Kategori Bengkel & KIR
         </button>
       </div>
 
@@ -229,7 +304,7 @@ export function AnalyticsTab({
             <div className="flex justify-between items-center border-b pb-3 border-slate-100">
               <div>
                 <h3 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase">
-                  Diagram Komparatif Tren Pengeluaran Bulanan
+                  Diagram Komparatif Tren Pengeluaran Bulanan ({selectedYear})
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">Perbandingan visual biaya bahan bakar vs perawatan kendaraan</p>
               </div>
@@ -318,9 +393,11 @@ export function AnalyticsTab({
       {/* SUB-TAB 2: MATRIX EFISIENSI PER ARMADA */}
       {activeSubTab === 'vehicles' && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-5 space-y-4">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Matrix Konsumsi & Rasio Beban Per Armada Kendaraan
-          </h3>
+          <div className="flex justify-between items-center border-b pb-3 border-slate-100">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Matrix Konsumsi & Rasio Beban Per Armada Kendaraan ({activeVehiclesCount} Unit)
+            </h3>
+          </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
@@ -379,33 +456,50 @@ export function AnalyticsTab({
       {/* SUB-TAB 3: KINERJA DRIVER */}
       {activeSubTab === 'drivers' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Analisis Pengajuan & Kinerja Driver Operasional
-          </h3>
+          <div className="flex justify-between items-center border-b pb-3 border-slate-100">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Analisis Performa Driver & Klaim Operasional ({activeDriversCount} Driver Aktif)
+            </h3>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {drivers.length > 0 ? (
-              drivers.map((d: any) => {
+            {driversList.length > 0 ? (
+              driversList.map((d: any) => {
                 const driverLogs = filteredLogs.filter((l: any) => l.driver_name === d.name)
                 const dFuelCost = driverLogs.reduce((acc: number, l: any) => acc + (Number(l.total_cost) || 0), 0)
                 const dKm = driverLogs.reduce((acc: number, l: any) => acc + (Number(l.distance_km) || 0), 0)
+                const dLiters = driverLogs.reduce((acc: number, l: any) => acc + (Number(l.liters) || 0), 0)
+                const dEfficiency = dLiters > 0 ? (dKm / dLiters).toFixed(1) : '9.0'
 
                 return (
-                  <div key={d.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                  <div key={d.id || d.name} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 hover:shadow-sm transition">
                     <div className="flex justify-between items-center">
-                      <strong className="text-slate-900 text-sm">{d.name}</strong>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-slate-900 text-amber-400 font-extrabold flex items-center justify-center text-xs">
+                          {d.name ? d.name.charAt(0) : 'D'}
+                        </div>
+                        <div>
+                          <strong className="text-slate-900 text-xs block leading-tight">{d.name}</strong>
+                          <span className="text-[10px] text-slate-500 font-mono">{d.phone || 'Driver'}</span>
+                        </div>
+                      </div>
                       <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded">
-                        {d.assigned_vehicle || 'Armada'}
+                        {d.assigned_vehicle || 'Armada Utama'}
                       </span>
                     </div>
-                    <div className="text-xs space-y-1 font-mono pt-1">
+
+                    <div className="text-xs space-y-1.5 font-mono pt-2 border-t border-slate-200/80">
                       <div className="flex justify-between text-slate-600">
-                        <span>Total Pengajuan BBM:</span>
+                        <span>Total Klaim BBM:</span>
                         <strong className="text-amber-700">Rp {dFuelCost.toLocaleString('id-ID')}</strong>
                       </div>
                       <div className="flex justify-between text-slate-600">
-                        <span>Total Jarak Tempuh:</span>
+                        <span>Jarak Tempuh:</span>
                         <strong className="text-slate-800">{dKm.toLocaleString('id-ID')} KM</strong>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Rata-Rata Efisiensi:</span>
+                        <strong className="text-emerald-700">{dEfficiency} KM/L</strong>
                       </div>
                     </div>
                   </div>
@@ -424,7 +518,7 @@ export function AnalyticsTab({
       {activeSubTab === 'maintenance' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Distribusi Biaya Perbaikan Berdasarkan Jenis Servis
+            Distribusi Biaya Pemeliharaan Berdasarkan Kategori
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
