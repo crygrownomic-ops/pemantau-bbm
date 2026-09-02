@@ -25,13 +25,74 @@ export function FuelLogsTable({
     setAuditNote(log.audit_note || 'Rasio konsumsi BBM terdeteksi boros / tidak efisien. Mohon konfirmasi ulang odometer dan bukti pengisian.')
   }
 
+  // Fungsi Kirim Audit + Notifikasi Otomatis ke WhatsApp Driver
   const handleSubmitFraudAudit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!fraudAuditLog) return
 
     const newStatus = auditAction === 'CLEAR' ? 'VERIFIED' : 'FLAGGED'
     handleUpdateStatus(fraudAuditLog.id, newStatus, auditNote)
-    alert(`Status transaksi #${fraudAuditLog.id} diperbarui menjadi ${newStatus}. Catatan audit telah dikirim ke catatan driver.`)
+
+    // 1. Cari Nomor HP Driver dari Master Data di LocalStorage
+    let driverPhone = ''
+    try {
+      const storedDrivers = localStorage.getItem('master_drivers')
+      if (storedDrivers) {
+        const parsedDrivers = JSON.parse(storedDrivers)
+        const matched = parsedDrivers.find(
+          (d: any) => d.name.trim().toLowerCase() === fraudAuditLog.driver_name.trim().toLowerCase()
+        )
+        if (matched && matched.phone) {
+          driverPhone = matched.phone.replace(/\D/g, '') // Ambil digit saja
+          if (driverPhone.startsWith('0')) {
+            driverPhone = '62' + driverPhone.slice(1) // Format ke 628...
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Gagal mengambil kontak driver:', err)
+    }
+
+    // 2. Format Draf Pesan WhatsApp
+    const statusLabel =
+      auditAction === 'HOLD'
+        ? '⚠️ DITANGGUHKAN (KLARIFIKASI)'
+        : auditAction === 'REJECT'
+        ? '❌ DITOLAK / ANOMALI'
+        : '✓ DIVERIFIKASI'
+
+    const kmPerLiter =
+      fraudAuditLog.km_per_liter ||
+      (fraudAuditLog.liters > 0 ? (fraudAuditLog.distance_km / fraudAuditLog.liters).toFixed(1) : 0)
+
+    const waMessage = 
+`*PEMBERITAHUAN AUDIT BBM — FLEETOPS 360*
+
+Halo *${fraudAuditLog.driver_name}*,
+Laporan pengisian BBM Anda memerlukan perhatian/konfirmasi.
+
+🚘 *Armada:* ${fraudAuditLog.plate_number}
+📅 *Tanggal:* ${fraudAuditLog.date}
+⛽ *Volume:* ${fraudAuditLog.liters} L (Rp ${(Number(fraudAuditLog.total_cost) || 0).toLocaleString('id-ID')})
+📊 *Rasio Efisiensi:* ${kmPerLiter} KM/L
+
+📌 *Status Audit:* ${statusLabel}
+📝 *Catatan Admin:*
+"${auditNote}"
+
+Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisian. Terima kasih.`
+
+    // 3. Buka WhatsApp Otomatis jika nomor HP ditemukan
+    if (driverPhone) {
+      const encodedMsg = encodeURIComponent(waMessage)
+      const waUrl = `https://wa.me/${driverPhone}?text=${encodedMsg}`
+      window.open(waUrl, '_blank')
+    } else {
+      alert(
+        `Status transaksi #${fraudAuditLog.id} berhasil diperbarui!\n\n(Catatan: Nomor WA Driver ${fraudAuditLog.driver_name} tidak ditemukan di Master Data, notifikasi WA tidak terkirim otomatis).`
+      )
+    }
+
     setFraudAuditLog(null)
   }
 
@@ -137,7 +198,7 @@ export function FuelLogsTable({
                     Rp {(Number(log.total_cost) || 0).toLocaleString('id-ID')}
                   </td>
 
-                  {/* DROPDOWN STATUS AUDIT DIRECT IN TABLE */}
+                  {/* DROPDOWN STATUS AUDIT */}
                   <td className="p-3.5 text-center">
                     <select
                       value={log.status || 'PENDING'}
@@ -156,7 +217,7 @@ export function FuelLogsTable({
                     </select>
                   </td>
 
-                  {/* TOMBOL AKSI DENGAN STYLE RAPI */}
+                  {/* TOMBOL AKSI */}
                   <td className="p-3.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <button
@@ -201,7 +262,7 @@ export function FuelLogsTable({
         </table>
       </div>
 
-      {/* MODAL AUDIT FRAUD & KONFIRMASI KE DRIVER */}
+      {/* MODAL AUDIT FRAUD & KONFIRMASI WA KE DRIVER */}
       {fraudAuditLog && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-100">
@@ -211,7 +272,7 @@ export function FuelLogsTable({
                   ⚠️
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Audit Keborosan & Fraud Transaksi</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Audit Keborosan & Send WA Driver</h3>
                   <p className="text-[11px] text-slate-500">Konfirmasi pengisian BBM ke Driver {fraudAuditLog.driver_name}</p>
                 </div>
               </div>
@@ -277,9 +338,9 @@ export function FuelLogsTable({
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl shadow-md transition"
+                  className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
                 >
-                  Kirim Audit & Perbarui Status
+                  📲 Simpan & Kirim WA Driver
                 </button>
               </div>
             </form>
