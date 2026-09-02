@@ -30,6 +30,11 @@ export function MaintenanceTab({
   const [kmDone, setKmDone] = useState('')
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
 
+  // State Filter Tabel Maintenance
+  const [filterVehicle, setFilterVehicle] = useState('ALL')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
   // Open modal dengan prapilih kendaraan
   const handleOpenModal = (plateNumber?: string) => {
     const matchedVehicle = vehicleStats.find((v: any) => v.plate_number === plateNumber)
@@ -69,7 +74,42 @@ export function MaintenanceTab({
     setShowAddModal(false)
   }
 
-  // Hitung ringkasan statistik maintenance
+  // Filter Data Riwayat Maintenance
+  const filteredServiceHistory = serviceHistory.filter((s: any) => {
+    const matchVehicle = filterVehicle === 'ALL' || s.plate_number === filterVehicle
+    const matchStart = !startDate || s.date >= startDate
+    const matchEnd = !endDate || s.date <= endDate
+    return matchVehicle && matchStart && matchEnd
+  })
+
+  // FUNGSI EXPORT MAINTENANCE KE EXCEL
+  const handleExportMaintenanceToExcel = () => {
+    if (!filteredServiceHistory || filteredServiceHistory.length === 0) {
+      alert('⚠️ Tidak ada data riwayat maintenance untuk diexport!')
+      return
+    }
+
+    let csvContent = '\uFEFF'
+    csvContent += 'LAPORAN RIWAYAT SERVIS & MAINTENANCE ARMADA — FLEETOPS 360\n'
+    csvContent += `Tanggal Cetak;${new Date().toLocaleDateString('id-ID')}\n\n`
+    csvContent += 'Tanggal;Plat Nomor;Kategori;Jenis Pengerjaan;Sparepart Diganti;Odometer KM;Bengkel / Workshop;Biaya Perbaikan (Rp)\n'
+
+    filteredServiceHistory.forEach((s: any) => {
+      csvContent += `"${s.date}";"${s.plate_number}";"${s.category || 'Servis Rutin'}";"${s.service_type}";"${s.parts_replaced || '-'}";"${(Number(s.km_done) || 0).toLocaleString('id-ID')} KM";"${s.workshop || '-'}";"${(Number(s.cost) || 0).toLocaleString('id-ID')}"\n`
+    })
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const fileName = `Laporan_Maintenance_FleetOps360_${new Date().toISOString().split('T')[0]}.csv`
+
+    link.setAttribute('href', url)
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const totalVehicles = vehicleStats.length
   const avgCostPerVehicle = totalVehicles > 0 ? Math.round(totalMaintenanceCost / totalVehicles) : 0
 
@@ -120,7 +160,7 @@ export function MaintenanceTab({
         </div>
       </div>
 
-      {/* 2. CARD ARMADA & STATUS KESEHATAN KENDARAAN (SMART REMINDERS) */}
+      {/* 2. CARD ARMADA & STATUS KESEHATAN KENDARAAN */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex justify-between items-center border-b pb-3">
           <div>
@@ -142,13 +182,11 @@ export function MaintenanceTab({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {vehicleStats.map((v: any) => {
-            // Cari servis terakhir khusus kendaraan ini
             const vServices = serviceHistory.filter((s: any) => s.plate_number === v.plate_number)
-            const lastService = vServices[0] // Servis terbaru
+            const lastService = vServices[0]
             const lastServiceKm = lastService ? Number(lastService.km_done) || 0 : 0
             const nextOilChangeKm = lastServiceKm > 0 ? lastServiceKm + 5000 : (v.last_km || 0) + 5000
 
-            // Deteksi keborosan / kebutuhan servis
             const kmSinceLastService = (v.last_km || 0) - lastServiceKm
             const isDueForOil = kmSinceLastService >= 5000 || lastServiceKm === 0
 
@@ -211,16 +249,70 @@ export function MaintenanceTab({
         </div>
       </div>
 
-      {/* 3. TABEL RIWAYAT PERBAIKAN & MAINTENANACE */}
+      {/* 3. TABEL RIWAYAT PERBAIKAN DENGAN FILTER, SEARCH, EXPORT & SCROLL FITUR */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-0">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-          <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-            Riwayat Maintenance, Sparepart & Perbaikan Armada
-          </h2>
+        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+              Riwayat Maintenance, Sparepart & Perbaikan Armada
+            </h2>
+
+            <button
+              onClick={handleExportMaintenanceToExcel}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-sm transition flex items-center gap-1.5"
+              title="Export Laporan Maintenance ke Excel (.csv)"
+            >
+              <span>📊</span> Export Excel
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+              <span className="text-slate-400 font-medium text-[11px]">Dari:</span>
+              <input
+                type="date"
+                className="bg-transparent font-medium text-slate-800 outline-none text-xs"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <span className="text-slate-400 font-medium text-[11px]">s/d</span>
+              <input
+                type="date"
+                className="bg-transparent font-medium text-slate-800 outline-none text-xs"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+              {(startDate || endDate) && (
+                <button
+                  onClick={() => {
+                    setStartDate('')
+                    setEndDate('')
+                  }}
+                  className="text-slate-400 hover:text-slate-700 font-bold ml-1 px-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <select
+              className="text-xs border border-slate-300 rounded-xl p-2 bg-white font-semibold text-slate-700 outline-none shadow-sm focus:ring-2 focus:ring-indigo-600"
+              value={filterVehicle}
+              onChange={(e) => setFilterVehicle(e.target.value)}
+            >
+              <option value="ALL">Semua Armada / KB</option>
+              {vehicleStats.map((v: any) => (
+                <option key={v.plate_number} value={v.plate_number}>
+                  {v.plate_number} - {v.model}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
+        {/* CONTAINER TABEL SCROLLING MAX 3 BARIS VISIBEL */}
+        <div className="overflow-x-auto max-h-[220px] overflow-y-auto">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-900 text-white font-bold sticky top-0 z-10">
               <tr>
@@ -234,7 +326,7 @@ export function MaintenanceTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {serviceHistory.map((s: any) => (
+              {filteredServiceHistory.map((s: any) => (
                 <tr key={s.id} className="hover:bg-slate-50/80 transition">
                   <td className="p-3.5 font-mono text-slate-500">{s.date}</td>
                   <td className="p-3.5 font-bold text-slate-900">{s.plate_number}</td>
@@ -253,10 +345,10 @@ export function MaintenanceTab({
                 </tr>
               ))}
 
-              {serviceHistory.length === 0 && (
+              {filteredServiceHistory.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-slate-400 italic">
-                    Belum ada riwayat perbaikan yang dicatat.
+                    Tidak ada riwayat perbaikan yang cocok dengan pencarian filter.
                   </td>
                 </tr>
               )}
@@ -265,7 +357,7 @@ export function MaintenanceTab({
         </div>
       </div>
 
-      {/* MODAL INPUT SERVIS BARU DENGAN TITIK OTOMATIS */}
+      {/* MODAL INPUT SERVIS BARU */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
