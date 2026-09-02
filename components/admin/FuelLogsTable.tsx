@@ -43,6 +43,59 @@ export function FuelLogsTable({
     setActiveMenuId(null)
   }
 
+  // FUNGSI EXPORT DATA LANGSUNG KE EXCEL (CSV UTF-8 BOM)
+  const handleExportToExcel = () => {
+    if (!filteredLogs || filteredLogs.length === 0) {
+      alert('⚠️ Tidak ada data transaksi untuk diexport!')
+      return
+    }
+
+    // Header UTF-8 BOM agar Microsoft Excel langsung membaca pemisah kolom & format bahasa Indonesia
+    let csvContent = '\uFEFF'
+
+    // SESI 1: HEADER LAPORAN
+    csvContent += 'LAPORAN EVALUASI OPERASIONAL & BIAYA BBM ARMADA — FLEETOPS 360\n'
+    csvContent += `Tanggal Cetak;${new Date().toLocaleDateString('id-ID')}\n\n`
+
+    // SESI 2: REKAPITULASI ARMADA
+    csvContent += 'REKAPITULASI BIAYA & ANGGARAN ARMADA\n'
+    csvContent += 'Plat Nomor;Model Kendaraan;Batas Anggaran Bulanan (Rp);Odometer KM Terakhir;Exp. Uji KIR;Exp. STNK\n'
+
+    safeVehicles.forEach((v: any) => {
+      csvContent += `"${v.plate_number}";"${v.model || '-'}";"${(v.monthly_budget || 0).toLocaleString('id-ID')}";"${(v.last_km || 0).toLocaleString('id-ID')} KM";"${v.kir_expiry || '-'}";"${v.stnk_expiry || '-'}"\n`
+    })
+
+    csvContent += '\n\n'
+
+    // SESI 3: RINCIAN LOG TRANSAKSI PENGISIAN BBM
+    csvContent += 'RINCIAN LOG TRANSAKSI PENGISIAN BBM\n'
+    csvContent += 'ID Transaksi;Tanggal;Plat Nomor;Pengemudi (Driver);Jenis BBM;Lokasi Pengisian;KM Awal;KM Akhir;Jarak Tempuh (KM);Volume (Liter);Total Biaya (Rp);Rasio Efisiensi (KM/L);Status Audit;Catatan Audit Admin\n'
+
+    filteredLogs.forEach((log: any) => {
+      const kmPerLiter = log.km_per_liter || (log.liters > 0 ? (log.distance_km / log.liters).toFixed(2) : '0')
+      const statusLabel =
+        log.status === 'VERIFIED'
+          ? 'Diverifikasi'
+          : log.status === 'FLAGGED'
+          ? 'Anomali / Boros'
+          : 'Menunggu'
+
+      csvContent += `"${log.id}";"${log.date}";"${log.plate_number}";"${log.driver_name || '-'}";"${log.fuel_type}";"${log.fill_location}";"${log.initial_km}";"${log.final_km}";"${log.distance_km || 0}";"${log.liters}";"${(Number(log.total_cost) || 0).toLocaleString('id-ID')}";"${kmPerLiter}";"${statusLabel}";"${(log.audit_note || '').replace(/"/g, '""')}"\n`
+    })
+
+    // UNDUH BERKAS SECARA OTOMATIS
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const fileName = `Laporan_FleetOps360_${new Date().toISOString().split('T')[0]}.csv`
+
+    link.setAttribute('href', url)
+    link.setAttribute('download', fileName)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   // Fungsi Kirim Audit + Notifikasi Otomatis ke WhatsApp Driver
   const handleSubmitFraudAudit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -116,10 +169,21 @@ Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisi
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-0">
       {/* HEADER TABEL & FILTER */}
       <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-50/50">
-        <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-          Rincian Transaksi Pengisian BBM Armada
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            Rincian Transaksi Pengisian BBM Armada
+          </h2>
+
+          {/* TOMBOL EXPORT EXCEL LANGSUNG DARI APLIKASI */}
+          <button
+            onClick={handleExportToExcel}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-sm transition flex items-center gap-1.5"
+            title="Unduh laporan transaksi dalam bentuk file Excel (.csv)"
+          >
+            <span>📊</span> Export Excel
+          </button>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
@@ -234,7 +298,7 @@ Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisi
                     </select>
                   </td>
 
-                  {/* TOMBOL AKSI TERSTRUKTUR & SIMETRIS (DROPDOWN MENU) */}
+                  {/* TOMBOL AKSI TERSTRUKTUR (DROPDOWN MENU) */}
                   <td className="p-3.5 text-center relative">
                     <button
                       onClick={() => setActiveMenuId(activeMenuId === log.id ? null : log.id)}
