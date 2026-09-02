@@ -53,6 +53,22 @@ const DEFAULT_SERVICE_HISTORY = [
   },
 ]
 
+const MONTH_OPTIONS = [
+  { value: 'ALL', label: 'Semua Bulan' },
+  { value: '01', label: 'Januari' },
+  { value: '02', label: 'Februari' },
+  { value: '03', label: 'Maret' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'Mei' },
+  { value: '06', label: 'Juni' },
+  { value: '07', label: 'Juli' },
+  { value: '08', label: 'Agustus' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'Oktober' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'Desember' },
+]
+
 function AdminDashboardContent() {
   const searchParams = useSearchParams()
   const activeTab = (searchParams.get('tab') as 'dashboard' | 'analytics' | 'maintenance') || 'dashboard'
@@ -66,10 +82,32 @@ function AdminDashboardContent() {
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICE_HISTORY)
 
+  // STATE CUT-OFF DASHBOARD UTAMA
+  const currentMonth = new Date().toISOString().split('-')[1] // '09'
+  const currentYear = new Date().getFullYear().toString() // '2026'
+
+  const [selectedDashboardMonth, setSelectedDashboardMonth] = useState('ALL')
+  const [selectedDashboardYear, setSelectedDashboardYear] = useState(currentYear)
+
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+
+  // Opsi Tahun Dinamis
+  const yearSet = new Set<string>()
+  yearSet.add('2024')
+  yearSet.add('2025')
+  yearSet.add('2026')
+  yearSet.add('2027')
+  yearSet.add('2028')
+  logs.forEach((l) => {
+    if (l.date) {
+      const yr = l.date.split('-')[0]
+      if (yr) yearSet.add(yr)
+    }
+  })
+  const YEAR_OPTIONS = ['ALL', ...Array.from(yearSet).sort()]
 
   // Fungsi Sinkronisasi Data Real-Time dari Memori LocalStorage
   const loadStorageData = () => {
@@ -164,7 +202,6 @@ function AdminDashboardContent() {
     setServiceHistory(updatedServiceHistory)
     localStorage.setItem('service_history', JSON.stringify(updatedServiceHistory))
 
-    // Update Odometer KM Terakhir Kendaraan jika KM servis lebih tinggi
     const updatedVehicles = vehicles.map((v) => {
       if (v.plate_number === record.plate_number && record.km_done > (v.last_km || 0)) {
         return { ...v, last_km: record.km_done }
@@ -238,23 +275,44 @@ function AdminDashboardContent() {
     )
   }
 
-  const filteredLogs = logs.filter((log) => {
+  // 1. FILTER LOGS BERDASARKAN CUT-OFF DASHBOARD UTAMA
+  const cutoffLogs = logs.filter((log) => {
+    if (!log.date) return false
+    const [lYear, lMonth] = log.date.split('-')
+    const matchMonth = selectedDashboardMonth === 'ALL' || lMonth === selectedDashboardMonth
+    const matchYear = selectedDashboardYear === 'ALL' || lYear === selectedDashboardYear
+    return matchMonth && matchYear
+  })
+
+  // 2. FILTER SERVICES BERDASARKAN CUT-OFF DASHBOARD UTAMA
+  const cutoffServices = serviceHistory.filter((s) => {
+    if (!s.date) return false
+    const [sYear, sMonth] = s.date.split('-')
+    const matchMonth = selectedDashboardMonth === 'ALL' || sMonth === selectedDashboardMonth
+    const matchYear = selectedDashboardYear === 'ALL' || sYear === selectedDashboardYear
+    return matchMonth && matchYear
+  })
+
+  // 3. FILTER TAMBAHAN UNTUK TABEL TRANSAKSI (ARMADA / DATE RANGE)
+  const filteredLogs = cutoffLogs.filter((log) => {
     const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
     const matchStart = !startDate || log.date >= startDate
     const matchEnd = !endDate || log.date <= endDate
     return matchVehicle && matchStart && matchEnd
   })
 
-  const totalCost = filteredLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
-  const totalLiters = filteredLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
-  const totalKm = filteredLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
+  // KALKULASI DINAMIS METRIK DASHBOARD UTAMA
+  const totalCost = cutoffLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+  const totalLiters = cutoffLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
+  const totalKm = cutoffLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
   const avgKmPerLiter = totalLiters > 0 ? (totalKm / totalLiters).toFixed(2) : '0'
-  const totalMaintenanceCost = serviceHistory.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
+  const totalMaintenanceCost = cutoffServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
 
   const vehicleStats = vehicles.map((v) => {
-    const vLogs = logs.filter((l) => l.plate_number === v.plate_number)
+    const vLogs = cutoffLogs.filter((l) => l.plate_number === v.plate_number)
     const spentCost = vLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
-    const vServices = serviceHistory.filter((s) => s.plate_number === v.plate_number)
+
+    const vServices = cutoffServices.filter((s) => s.plate_number === v.plate_number)
     const spentMaintenance = vServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
     const totalOperationalCost = spentCost + spentMaintenance
 
@@ -292,6 +350,51 @@ function AdminDashboardContent() {
 
         {activeTab === 'dashboard' && (
           <>
+            {/* TOOLBAR CUT-OFF BULAN & TAHUN DASHBOARD UTAMA */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+              <div>
+                <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                  Cut-Off Analisa & Filter Dashboard Bulanan
+                </h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Filter seluruh metrik biaya BBM, efisiensi, maintenance, dan realisasi anggaran per bulan & tahun
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700">Bulan:</label>
+                  <select
+                    value={selectedDashboardMonth}
+                    onChange={(e) => setSelectedDashboardMonth(e.target.value)}
+                    className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-700">Tahun:</label>
+                  <select
+                    value={selectedDashboardYear}
+                    onChange={(e) => setSelectedDashboardYear(e.target.value)}
+                    className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+                  >
+                    {YEAR_OPTIONS.map((y) => (
+                      <option key={y} value={y}>
+                        {y === 'ALL' ? 'Semua Tahun' : y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <ExecutiveCards
               totalCost={totalCost}
               avgKmPerLiter={avgKmPerLiter}
