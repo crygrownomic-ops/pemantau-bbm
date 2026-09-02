@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { FuelLogsTable } from '@/components/admin/FuelLogsTable'
 import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
@@ -56,6 +56,7 @@ const DEFAULT_SERVICES = [
 ]
 
 function AdminDashboardContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const activeTab = (searchParams.get('tab') as 'dashboard' | 'reimbursement' | 'scorecard' | 'analytics' | 'maintenance') || 'dashboard'
 
@@ -73,7 +74,7 @@ function AdminDashboardContent() {
   const [inspections, setInspections] = useState<any[]>([])
   const [reimbursements, setReimbursements] = useState<any[]>([])
 
-  // State Filter UNIFORM
+  // Filter State
   const [selectedMonth, setSelectedMonth] = useState('ALL')
   const [selectedYear, setSelectedYear] = useState(String(currentYearNum))
   const [customYears, setCustomYears] = useState<string[]>([])
@@ -85,8 +86,6 @@ function AdminDashboardContent() {
 
   const [showWaModal, setShowWaModal] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
-
-  // OPSI 3: STATE NOTIFIKASI REALTIME
   const [showNotifMenu, setShowNotifMenu] = useState(false)
 
   const loadStorageData = () => {
@@ -116,7 +115,6 @@ function AdminDashboardContent() {
     loadStorageData()
   }, [])
 
-  // Opsi Tahun Dinamis
   const availableYearsSet = new Set<string>()
   for (let y = 2024; y <= currentYearNum + 3; y++) {
     availableYearsSet.add(String(y))
@@ -169,6 +167,23 @@ function AdminDashboardContent() {
     localStorage.setItem('service_history', JSON.stringify(updated))
   }
 
+  // FUNGSI QUICK JUMP / ARAHKAN LANGSUNG KE TEMUAN
+  const handleJumpToLog = (plateNumber: string) => {
+    setSelectedVehicle(plateNumber)
+    setShowNotifMenu(false)
+    setTimeout(() => {
+      const elem = document.getElementById('fuel-logs-table')
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 100)
+  }
+
+  const handleJumpToTab = (tabName: string) => {
+    setShowNotifMenu(false)
+    router.push(`/admin?tab=${tabName}`)
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100 font-sans">
@@ -206,9 +221,10 @@ function AdminDashboardContent() {
     )
   }
 
-  // Notifikasi Realtime Alerts (Opsi 3)
+  // PENYEMPURNAAN LOGIKA ALERT:
+  // HANYA MUNCUL JIKA STATUS BELUM DIVERIFIKASI (status !== 'VERIFIED')
   const pendingClaims = reimbursements.filter((r) => r.status === 'PENDING')
-  const flaggedLogs = logs.filter((l) => l.fill_location === 'ECERAN' || l.status === 'FLAGGED')
+  const flaggedLogs = logs.filter((l) => l.status !== 'VERIFIED' && (l.fill_location === 'ECERAN' || l.status === 'FLAGGED'))
   const maintenanceAlerts = vehicles.filter((v) => ((v.last_km || 0) % 10000) >= 8500)
   const totalNotifications = pendingClaims.length + flaggedLogs.length + maintenanceAlerts.length
 
@@ -243,7 +259,7 @@ function AdminDashboardContent() {
       <AdminSidebar />
 
       <main className="flex-1 p-6 space-y-5 overflow-y-auto">
-        {/* HEADER CONTROLS DENGAN LONCENG NOTIFIKASI */}
+        {/* HEADER CONTROLS */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm gap-2">
           <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -251,10 +267,9 @@ function AdminDashboardContent() {
           </span>
 
           <div className="flex items-center gap-2 relative">
-            {/* LONCENG NOTIFIKASI (OPSI 3) */}
             <button
               onClick={() => setShowNotifMenu(!showNotifMenu)}
-              className="relative bg-slate-900 text-amber-400 p-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5"
+              className="relative bg-slate-900 text-amber-400 p-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
             >
               🔔 <span className="hidden sm:inline">Alerts</span>
               {totalNotifications > 0 && (
@@ -264,7 +279,7 @@ function AdminDashboardContent() {
               )}
             </button>
 
-            {/* POPUP DROPDOWN NOTIFIKASI REALTIME */}
+            {/* DROPDOWN NOTIFIKASI REALTIME */}
             {showNotifMenu && (
               <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 space-y-3 z-50 text-xs">
                 <div className="flex justify-between items-center border-b pb-2">
@@ -276,23 +291,38 @@ function AdminDashboardContent() {
 
                 <div className="max-h-60 overflow-y-auto space-y-2">
                   {pendingClaims.length > 0 && (
-                    <div className="bg-indigo-50 p-2.5 rounded-xl border border-indigo-200 space-y-1">
+                    <div
+                      onClick={() => handleJumpToTab('reimbursement')}
+                      className="bg-indigo-50 p-2.5 rounded-xl border border-indigo-200 space-y-1 cursor-pointer hover:bg-indigo-100 transition"
+                    >
                       <strong className="text-indigo-900 block font-bold text-[11px]">🧾 Klaim Uang Jalan Pending ({pendingClaims.length})</strong>
-                      <p className="text-[10px] text-indigo-700">Supir mengajukan reimbursement Tol/Parkir baru yang membutuhkan verifikasi.</p>
+                      <p className="text-[10px] text-indigo-700">Klik untuk memverifikasi reimbursement supir.</p>
                     </div>
                   )}
 
                   {flaggedLogs.length > 0 && (
                     <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 space-y-1">
-                      <strong className="text-rose-900 block font-bold text-[11px]">⚠️ Pengisian BBM Eceran ({flaggedLogs.length})</strong>
-                      <p className="text-[10px] text-rose-700">Terdeteksi pengisian BBM darurat di luar SPBU resmi.</p>
+                      <strong className="text-rose-900 block font-bold text-[11px]">⚠️ Pengisian BBM Anomali/Eceran ({flaggedLogs.length})</strong>
+                      {flaggedLogs.map((fl) => (
+                        <div
+                          key={fl.id}
+                          onClick={() => handleJumpToLog(fl.plate_number)}
+                          className="text-[10px] text-rose-700 bg-white p-1.5 rounded border border-rose-100 flex justify-between items-center cursor-pointer hover:bg-rose-100 transition"
+                        >
+                          <span>{fl.plate_number} — {fl.driver_name}</span>
+                          <span className="font-bold underline">Periksa →</span>
+                        </div>
+                      ))}
                     </div>
                   )}
 
                   {maintenanceAlerts.length > 0 && (
-                    <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-1">
+                    <div
+                      onClick={() => handleJumpToTab('maintenance')}
+                      className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-1 cursor-pointer hover:bg-amber-100 transition"
+                    >
                       <strong className="text-amber-900 block font-bold text-[11px]">🛠️ Jadwal Servis Dekat ({maintenanceAlerts.length})</strong>
-                      <p className="text-[10px] text-amber-700">Odometer armada mendekati batas 10.000 KM perbaikan berkala.</p>
+                      <p className="text-[10px] text-amber-700">Klik untuk melihat jadwal perbaikan armada.</p>
                     </div>
                   )}
 
@@ -329,6 +359,7 @@ function AdminDashboardContent() {
         {activeTab === 'dashboard' && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* CARD ANTI-FRAUD ANOMALI BBM */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                 <div className="flex justify-between items-center border-b pb-2">
                   <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -342,22 +373,30 @@ function AdminDashboardContent() {
                 {flaggedLogs.length > 0 ? (
                   <div className="space-y-1.5 max-h-32 overflow-y-auto font-mono text-xs">
                     {flaggedLogs.map((fl) => (
-                      <div key={fl.id} className="bg-rose-50 p-2 rounded-xl border border-rose-200 flex justify-between items-center text-[11px]">
+                      <div
+                        key={fl.id}
+                        onClick={() => handleJumpToLog(fl.plate_number)}
+                        className="bg-rose-50 hover:bg-rose-100 transition p-2 rounded-xl border border-rose-200 flex justify-between items-center text-[11px] cursor-pointer"
+                        title="Klik untuk langsung menuju transaksi ini"
+                      >
                         <div>
                           <strong className="text-rose-900">{fl.plate_number}</strong> — {fl.driver_name}
                           <span className="block text-[10px] text-rose-700">Rasio: {fl.km_per_liter} KM/L ({fl.date})</span>
                         </div>
-                        <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded">Periksa Nota</span>
+                        <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded shadow-sm">
+                          Periksa Nota →
+                        </span>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-xs text-slate-500 py-2">
-                    Tidak ada indikasi penggelembungan nota BBM atau selisih odometer yang mencurigakan.
+                    Tidak ada indikasi penggelembungan nota BBM atau selisih odometer yang belum diverifikasi.
                   </p>
                 )}
               </div>
 
+              {/* CARD PREVENTIVE MAINTENANCE */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
                 <div className="flex justify-between items-center border-b pb-2">
                   <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -371,12 +410,19 @@ function AdminDashboardContent() {
                 {maintenanceAlerts.length > 0 ? (
                   <div className="space-y-1.5 max-h-32 overflow-y-auto font-mono text-xs">
                     {maintenanceAlerts.map((mv) => (
-                      <div key={mv.id} className="bg-amber-50 p-2 rounded-xl border border-amber-200 flex justify-between items-center text-[11px]">
+                      <div
+                        key={mv.id}
+                        onClick={() => handleJumpToTab('maintenance')}
+                        className="bg-amber-50 hover:bg-amber-100 transition p-2 rounded-xl border border-amber-200 flex justify-between items-center text-[11px] cursor-pointer"
+                        title="Klik untuk membuka modul Servis & Maintenance"
+                      >
                         <div>
                           <strong className="text-amber-900">{mv.plate_number}</strong> ({mv.model})
                           <span className="block text-[10px] text-amber-700">Odometer: {mv.last_km.toLocaleString('id-ID')} KM</span>
                         </div>
-                        <span className="text-[10px] bg-amber-600 text-white font-bold px-2 py-0.5 rounded">Jadwal Ganti Oli</span>
+                        <span className="text-[10px] bg-amber-600 text-white font-bold px-2 py-0.5 rounded shadow-sm">
+                          Jadwal Ganti Oli →
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -388,7 +434,7 @@ function AdminDashboardContent() {
               </div>
             </div>
 
-            {/* COMPONENT FILTER UNIFORM DESAIN BARU */}
+            {/* CUT-OFF FILTER DASHBOARD */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
               <div>
                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
@@ -438,7 +484,7 @@ function AdminDashboardContent() {
 
                 <button
                   onClick={handleAddCustomYear}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-2 rounded-xl border border-indigo-200 transition"
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer"
                   title="Tambah Pilihan Tahun Baru"
                 >
                   + Tahun
@@ -480,19 +526,22 @@ function AdminDashboardContent() {
               </div>
             </div>
 
-            <FuelLogsTable
-              filteredLogs={filteredLogs}
-              safeVehicles={vehicles}
-              startDate={startDate}
-              setStartDate={setStartDate}
-              endDate={endDate}
-              setEndDate={setEndDate}
-              selectedVehicle={selectedVehicle}
-              setSelectedVehicle={setSelectedVehicle}
-              setPreviewReceipt={setPreviewReceipt}
-              handleDeleteLog={handleDeleteLog}
-              handleUpdateStatus={handleUpdateStatus}
-            />
+            {/* TABEL TRANSAKSI DENGAN TARGET ANCHOR */}
+            <div id="fuel-logs-table">
+              <FuelLogsTable
+                filteredLogs={filteredLogs}
+                safeVehicles={vehicles}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                selectedVehicle={selectedVehicle}
+                setSelectedVehicle={setSelectedVehicle}
+                setPreviewReceipt={setPreviewReceipt}
+                handleDeleteLog={handleDeleteLog}
+                handleUpdateStatus={handleUpdateStatus}
+              />
+            </div>
           </>
         )}
 
