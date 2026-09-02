@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Icons } from './Icons'
 
 export function FuelLogsTable({
@@ -19,10 +19,28 @@ export function FuelLogsTable({
   const [fraudAuditLog, setFraudAuditLog] = useState<any | null>(null)
   const [auditNote, setAuditNote] = useState('')
   const [auditAction, setAuditAction] = useState<'HOLD' | 'REJECT' | 'CLEAR'>('HOLD')
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null)
+
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Tutup dropdown jika mengklik di luar area menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleOpenFraudModal = (log: any) => {
     setFraudAuditLog(log)
-    setAuditNote(log.audit_note || 'Rasio konsumsi BBM terdeteksi boros / tidak efisien. Mohon konfirmasi ulang odometer dan bukti pengisian.')
+    setAuditNote(
+      log.audit_note ||
+        'Rasio konsumsi BBM terdeteksi boros / tidak efisien. Mohon konfirmasi ulang odometer dan bukti pengisian.'
+    )
+    setActiveMenuId(null)
   }
 
   // Fungsi Kirim Audit + Notifikasi Otomatis ke WhatsApp Driver
@@ -33,7 +51,7 @@ export function FuelLogsTable({
     const newStatus = auditAction === 'CLEAR' ? 'VERIFIED' : 'FLAGGED'
     handleUpdateStatus(fraudAuditLog.id, newStatus, auditNote)
 
-    // 1. Cari Nomor HP Driver dari Master Data di LocalStorage
+    // Cari Nomor HP Driver dari Master Data di LocalStorage
     let driverPhone = ''
     try {
       const storedDrivers = localStorage.getItem('master_drivers')
@@ -43,9 +61,9 @@ export function FuelLogsTable({
           (d: any) => d.name.trim().toLowerCase() === fraudAuditLog.driver_name.trim().toLowerCase()
         )
         if (matched && matched.phone) {
-          driverPhone = matched.phone.replace(/\D/g, '') // Ambil digit saja
+          driverPhone = matched.phone.replace(/\D/g, '')
           if (driverPhone.startsWith('0')) {
-            driverPhone = '62' + driverPhone.slice(1) // Format ke 628...
+            driverPhone = '62' + driverPhone.slice(1)
           }
         }
       }
@@ -53,7 +71,6 @@ export function FuelLogsTable({
       console.error('Gagal mengambil kontak driver:', err)
     }
 
-    // 2. Format Draf Pesan WhatsApp
     const statusLabel =
       auditAction === 'HOLD'
         ? '⚠️ DITANGGUHKAN (KLARIFIKASI)'
@@ -82,14 +99,13 @@ Laporan pengisian BBM Anda memerlukan perhatian/konfirmasi.
 
 Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisian. Terima kasih.`
 
-    // 3. Buka WhatsApp Otomatis jika nomor HP ditemukan
     if (driverPhone) {
       const encodedMsg = encodeURIComponent(waMessage)
       const waUrl = `https://wa.me/${driverPhone}?text=${encodedMsg}`
       window.open(waUrl, '_blank')
     } else {
       alert(
-        `Status transaksi #${fraudAuditLog.id} berhasil diperbarui!\n\n(Catatan: Nomor WA Driver ${fraudAuditLog.driver_name} tidak ditemukan di Master Data, notifikasi WA tidak terkirim otomatis).`
+        `Status transaksi #${fraudAuditLog.id} berhasil diperbarui!\n\n(Catatan: Nomor WA Driver ${fraudAuditLog.driver_name} tidak ditemukan di Master Data).`
       )
     }
 
@@ -150,7 +166,7 @@ Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisi
       </div>
 
       {/* BODY TABEL */}
-      <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
+      <div className="overflow-x-auto min-h-[350px] max-h-[420px] overflow-y-auto">
         <table className="w-full text-left text-xs text-slate-600">
           <thead className="bg-slate-900 text-white font-bold sticky top-0 z-10">
             <tr>
@@ -162,7 +178,7 @@ Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisi
               <th className="p-3.5">Volume</th>
               <th className="p-3.5 text-right">Total Biaya</th>
               <th className="p-3.5 text-center">Status Audit</th>
-              <th className="p-3.5 text-center">Aksi Manajemen</th>
+              <th className="p-3.5 text-center w-28">Aksi Manajemen</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -170,9 +186,10 @@ Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisi
               const kmPerLiter = log.km_per_liter || (log.liters > 0 ? (log.distance_km / log.liters).toFixed(1) : 0)
               const isLowEfficiency = Number(kmPerLiter) < 10 && Number(kmPerLiter) > 0
               const isEceran = log.fill_location === 'ECERAN'
+              const isNeedsAudit = isLowEfficiency || isEceran || log.status === 'FLAGGED'
 
               return (
-                <tr key={log.id} className="hover:bg-slate-50/80 transition">
+                <tr key={log.id} className="hover:bg-slate-50/80 transition relative">
                   <td className="p-3.5 font-mono text-slate-500">{log.date}</td>
                   <td className="p-3.5 font-bold text-slate-900">{log.plate_number}</td>
                   <td className="p-3.5 font-medium">{log.driver_name || '-'}</td>
@@ -217,35 +234,69 @@ Mohon segera hubungi Admin atau lakukan pemeriksaan ulang odometer/struk pengisi
                     </select>
                   </td>
 
-                  {/* TOMBOL AKSI */}
-                  <td className="p-3.5 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button
-                        onClick={() => setPreviewReceipt(log)}
-                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border border-indigo-200/60"
-                        title="Lihat Bukti Struk"
-                      >
-                        <Icons.Eye className="w-3.5 h-3.5" /> Struk
-                      </button>
+                  {/* TOMBOL AKSI TERSTRUKTUR & SIMETRIS (DROPDOWN MENU) */}
+                  <td className="p-3.5 text-center relative">
+                    <button
+                      onClick={() => setActiveMenuId(activeMenuId === log.id ? null : log.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 mx-auto border shadow-xs ${
+                        isNeedsAudit
+                          ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 ring-2 ring-amber-400/30'
+                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                      }`}
+                    >
+                      <Icons.Settings className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Kelola</span>
+                      <span className="text-[9px] text-slate-400">▼</span>
+                    </button>
 
-                      {(isLowEfficiency || isEceran || log.status === 'FLAGGED') && (
+                    {/* MENU POPOVER MELAYANG */}
+                    {activeMenuId === log.id && (
+                      <div
+                        ref={menuRef}
+                        className="absolute right-4 top-12 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 p-1.5 z-30 space-y-1 text-left animate-in fade-in zoom-in-95 duration-100"
+                      >
+                        <button
+                          onClick={() => {
+                            setPreviewReceipt(log)
+                            setActiveMenuId(null)
+                          }}
+                          className="w-full px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-xl transition flex items-center gap-2"
+                        >
+                          <Icons.Eye className="w-4 h-4 text-indigo-600" />
+                          <span>Lihat Struk BBM</span>
+                        </button>
+
                         <button
                           onClick={() => handleOpenFraudModal(log)}
-                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border border-amber-300"
-                          title="Tinjau Indikasi Keborosan / Fraud"
+                          className={`w-full px-3 py-2 text-xs font-bold rounded-xl transition flex items-center gap-2 ${
+                            isNeedsAudit
+                              ? 'bg-amber-50 text-amber-900 hover:bg-amber-100'
+                              : 'text-slate-700 hover:bg-slate-100'
+                          }`}
                         >
-                          <Icons.Wrench className="w-3.5 h-3.5 text-amber-600" /> Tinjau
+                          <Icons.Wrench className="w-4 h-4 text-amber-600" />
+                          <div className="flex flex-col text-left">
+                            <span>Tinjau & Send WA</span>
+                            {isNeedsAudit && (
+                              <span className="text-[9px] text-rose-600 font-semibold">⚠️ Terdeteksi Anomali</span>
+                            )}
+                          </div>
                         </button>
-                      )}
 
-                      <button
-                        onClick={() => handleDeleteLog(log.id)}
-                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-bold transition border border-rose-200/60"
-                        title="Hapus Log Transaksi"
-                      >
-                        <Icons.Trash className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <div className="border-t border-slate-100 my-1"></div>
+
+                        <button
+                          onClick={() => {
+                            handleDeleteLog(log.id)
+                            setActiveMenuId(null)
+                          }}
+                          className="w-full px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition flex items-center gap-2"
+                        >
+                          <Icons.Trash className="w-4 h-4 text-rose-600" />
+                          <span>Hapus Transaksi</span>
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )
