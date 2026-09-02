@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { PreTripChecklistModal } from '@/components/driver/PreTripChecklistModal'
 
 const INITIAL_DRIVERS = [
   { id: 'D1', name: 'Ahmad Supardi', sim_type: 'SIM B1 Umum' },
@@ -55,7 +56,7 @@ const parseDotsToNum = (val: string) => {
   return Number(String(val).replace(/\./g, '')) || 0
 }
 
-export default function DriverPortalPage() {
+function DriverPortalContent() {
   const [drivers, setDrivers] = useState<any[]>(INITIAL_DRIVERS)
   const [vehicles, setVehicles] = useState<any[]>(INITIAL_VEHICLES)
   const [fuels, setFuels] = useState<any[]>(INITIAL_FUELS)
@@ -73,6 +74,9 @@ export default function DriverPortalPage() {
   const [eceranDetail, setEceranDetail] = useState('')
   const [receiptImage, setReceiptImage] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // State Modal Inspection Checklist Siap Jalan
+  const [showChecklistModal, setShowChecklistModal] = useState(false)
 
   // Muat data terintegrasi dari LocalStorage
   const loadData = () => {
@@ -173,7 +177,6 @@ export default function DriverPortalPage() {
     const distanceKm = numericFinalKm - initialKm
     const kmPerLiter = numericLiters > 0 ? Number((distanceKm / numericLiters).toFixed(2)) : 0
 
-    // Baca ulang memori dari LocalStorage agar data selalu presisi
     let latestVehicles = vehicles
     try {
       const storedV = localStorage.getItem('vehicle_budgets')
@@ -197,10 +200,10 @@ export default function DriverPortalPage() {
       km_per_liter: kmPerLiter,
       total_cost: numericTotalCost,
       fuel_type: selectedFuelName,
-      fill_location: fillLocation, // Memastikan opsi ECERAN tersimpan konsisten
+      fill_location: fillLocation,
       eceran_note: fillLocation === 'ECERAN' ? eceranDetail : '',
       date: new Date().toISOString().split('T')[0],
-      status: fillLocation === 'ECERAN' ? 'FLAGGED' : 'PENDING', // Otomatis tandai anomali jika pengisian eceran
+      status: fillLocation === 'ECERAN' ? 'FLAGGED' : 'PENDING',
       receipt_image: receiptImage,
       audit_note: fillLocation === 'ECERAN' ? 'Pengisian BBM Eceran / Darurat terdeteksi.' : '',
     }
@@ -245,7 +248,7 @@ export default function DriverPortalPage() {
         <div className="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-black">
-              ⛽
+              ⚡
             </div>
             <div>
               <h1 className="text-sm font-extrabold text-white tracking-wide">PORTAL DRIVER</h1>
@@ -259,6 +262,14 @@ export default function DriverPortalPage() {
             Akses Admin ➔
           </Link>
         </div>
+
+        {/* TOMBOL QUICK CHECKLIST INSPECTION */}
+        <button
+          onClick={() => setShowChecklistModal(true)}
+          className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs py-3 rounded-2xl shadow-md transition flex items-center justify-center gap-2"
+        >
+          📋 Isikan Checklist Siap Jalan (30 Detik)
+        </button>
 
         {/* FORM LAPORAN PENGISIAN BBM */}
         <div className="bg-slate-900/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
@@ -471,6 +482,22 @@ export default function DriverPortalPage() {
           </div>
         </div>
       </div>
+
+      {/* MODAL CHECKLIST INSPECTION */}
+      <PreTripChecklistModal
+        isOpen={showChecklistModal}
+        onClose={() => setShowChecklistModal(false)}
+        vehicles={vehicles}
+        driverName={selectedDriver}
+      />
     </div>
+  )
+}
+
+export default function DriverPortalPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white p-6">Memuat Portal Driver...</div>}>
+      <DriverPortalContent />
+    </Suspense>
   )
 }
