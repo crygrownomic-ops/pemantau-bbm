@@ -32,7 +32,6 @@ export function AnalyticsTab({
   const [driversList, setDriversList] = useState<any[]>(initialDrivers)
   const [customYears, setCustomYears] = useState<string[]>([])
 
-  // Muat data driver dari LocalStorage jika props kosong
   useEffect(() => {
     if (!initialDrivers || initialDrivers.length === 0) {
       try {
@@ -46,7 +45,6 @@ export function AnalyticsTab({
     }
   }, [initialDrivers])
 
-  // Generator Opsi Tahun Otomatis (2024 s/d Tahun Berjalan + 3 Tahun Mendatang)
   const availableYearsSet = new Set<string>()
   for (let y = 2024; y <= currentYearNum + 3; y++) {
     availableYearsSet.add(String(y))
@@ -75,7 +73,6 @@ export function AnalyticsTab({
     }
   }
 
-  // Filter Data Berdasarkan Bulan & Tahun Cut-Off
   const filteredLogs = logs.filter((l: any) => {
     if (!l.date) return false
     const [lYear, lMonth] = l.date.split('-')
@@ -92,7 +89,6 @@ export function AnalyticsTab({
     return matchMonth && matchYear
   })
 
-  // Agregasi Keuangan & Performa
   const totalFuelCost = filteredLogs.reduce((acc: number, l: any) => acc + (Number(l.total_cost) || 0), 0)
   const totalServiceCost = filteredServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
   const totalGrandCost = totalFuelCost + totalServiceCost
@@ -105,7 +101,6 @@ export function AnalyticsTab({
   const activeDriversCount = driversList.filter((d: any) => d.status === 'ACTIVE' || d.status === 'Aktif' || !d.status).length
   const activeVehiclesCount = vehicleStats.length
 
-  // Agregasi Grafik Bulanan
   const monthlyData = MONTH_NAMES.map((name, index) => {
     const monthNum = String(index + 1).padStart(2, '0')
 
@@ -141,7 +136,6 @@ export function AnalyticsTab({
 
   return (
     <div className="space-y-6 font-sans">
-      {/* HEADER & CONTROLLER TAHOEN DINAMIS */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-sm font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
@@ -202,7 +196,6 @@ export function AnalyticsTab({
         </div>
       </div>
 
-      {/* 8 KARTU EXECUTIVE METRICS (TERMASUK ARMADA & DRIVER) */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Jumlah Armada</span>
@@ -269,7 +262,6 @@ export function AnalyticsTab({
         </div>
       </div>
 
-      {/* SUB-NAVIGASI MODUL ANALISIS */}
       <div className="flex border-b border-slate-200 text-xs font-bold gap-6 overflow-x-auto pb-1">
         <button
           onClick={() => setActiveSubTab('overview')}
@@ -297,7 +289,6 @@ export function AnalyticsTab({
         </button>
       </div>
 
-      {/* SUB-TAB 1: GRAFIK TREN BULANAN */}
       {activeSubTab === 'overview' && (
         <div className="space-y-5">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -353,7 +344,6 @@ export function AnalyticsTab({
             </div>
           </div>
 
-          {/* TABEL PERIODE BULANAN */}
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-900 text-white font-bold">
@@ -390,7 +380,6 @@ export function AnalyticsTab({
         </div>
       )}
 
-      {/* SUB-TAB 2: MATRIX EFISIENSI PER ARMADA */}
       {activeSubTab === 'vehicles' && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm p-5 space-y-4">
           <div className="flex justify-between items-center border-b pb-3 border-slate-100">
@@ -453,7 +442,6 @@ export function AnalyticsTab({
         </div>
       )}
 
-      {/* SUB-TAB 3: KINERJA DRIVER */}
       {activeSubTab === 'drivers' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <div className="flex justify-between items-center border-b pb-3 border-slate-100">
@@ -514,7 +502,6 @@ export function AnalyticsTab({
         </div>
       )}
 
-      {/* SUB-TAB 4: KATEGORI SERVIS BENGKEL */}
       {activeSubTab === 'maintenance' && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
@@ -540,7 +527,7 @@ export function AnalyticsTab({
               <span className="text-[10px] text-slate-500">Retribusi Perizinan</span>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
               <span className="text-[10px] text-slate-400 font-bold uppercase">Sparepart & Kelistrikan</span>
               <strong className="text-lg font-mono font-extrabold text-slate-800 block">Rp 600.000</strong>
               <span className="text-[10px] text-slate-500">Perbaikan Darurat</span>

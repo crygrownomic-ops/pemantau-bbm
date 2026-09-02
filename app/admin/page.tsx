@@ -3,9 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, Suspense } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Icons } from '@/components/admin/Icons'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { FuelLogsTable } from '@/components/admin/FuelLogsTable'
 import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
@@ -81,6 +79,7 @@ function AdminDashboardContent() {
   const [vehicles, setVehicles] = useState<any[]>(DEFAULT_VEHICLES)
   const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
   const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICES)
+  const [drivers, setDrivers] = useState<any[]>([])
 
   const [selectedMonth, setSelectedMonth] = useState('ALL')
   const [selectedYear, setSelectedYear] = useState('2026')
@@ -88,17 +87,19 @@ function AdminDashboardContent() {
   const [selectedVehicle, setSelectedVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
+  const [, setPreviewReceipt] = useState<any | null>(null)
 
   const loadStorageData = () => {
     try {
       const storedLogs = localStorage.getItem('fuel_logs')
       const storedVehicles = localStorage.getItem('vehicle_budgets')
       const storedServices = localStorage.getItem('service_history')
+      const storedDrivers = localStorage.getItem('master_drivers')
 
       if (storedLogs) setLogs(JSON.parse(storedLogs))
       if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
       if (storedServices) setServiceHistory(JSON.parse(storedServices))
+      if (storedDrivers) setDrivers(JSON.parse(storedDrivers))
     } catch (e) {
       console.error(e)
     }
@@ -148,7 +149,7 @@ function AdminDashboardContent() {
         <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-slate-900 space-y-5">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold">
-              <Icons.Lock className="w-6 h-6" />
+              🔒
             </div>
             <h1 className="text-lg font-bold">Otorisasi Akses Manajemen</h1>
           </div>
@@ -179,7 +180,6 @@ function AdminDashboardContent() {
     )
   }
 
-  // Filter Logs & Services Berdasarkan Cut-Off
   const cutoffLogs = logs.filter((l) => {
     if (!l.date) return false
     const [lYear, lMonth] = l.date.split('-')
@@ -199,7 +199,6 @@ function AdminDashboardContent() {
     return matchVehicle && matchStart && matchEnd
   })
 
-  // Kalkulasi Terpisah
   const totalFuelCost = cutoffLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
   const totalServiceCost = cutoffServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
   const totalOperationalCost = totalFuelCost + totalServiceCost
@@ -219,7 +218,7 @@ function AdminDashboardContent() {
           </span>
           <button
             onClick={loadStorageData}
-            className="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl"
+            className="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm hover:bg-slate-800 transition"
           >
             🔄 Sinkronkan Data
           </button>
@@ -227,7 +226,6 @@ function AdminDashboardContent() {
 
         {activeTab === 'dashboard' && (
           <>
-            {/* TOOLBAR CUT OFF */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
               <div>
                 <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
@@ -261,7 +259,6 @@ function AdminDashboardContent() {
               </div>
             </div>
 
-            {/* 4 KARTU METRIK UTAMA TERPISAH */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Pengeluaran BBM</span>
@@ -317,6 +314,7 @@ function AdminDashboardContent() {
             vehicleStats={vehicles}
             logs={logs}
             serviceHistory={serviceHistory}
+            drivers={drivers}
           />
         )}
 
