@@ -91,7 +91,7 @@ function AdminDashboardContent() {
   const [endDate, setEndDate] = useState('')
   const [previewReceipt, setPreviewReceipt] = useState<any | null>(null)
 
-  // OPSI TAHUN DINAMIS JANGKA PANJANG (2024 s/d 2035+ OTOMATIS TAMBAH DARI DATA)
+  // OPSI TAHUN DINAMIS JANGKA PANJANG (2024 - 2035+)
   const yearSet = new Set<string>()
   const startYear = 2024
   const endYear = Math.max(new Date().getFullYear() + 10, 2035)
@@ -112,7 +112,6 @@ function AdminDashboardContent() {
   })
   const YEAR_OPTIONS = ['ALL', ...Array.from(yearSet).sort()]
 
-  // Fungsi Sinkronisasi Data Real-Time dari Memori LocalStorage
   const loadStorageData = () => {
     try {
       const storedLogs = localStorage.getItem('fuel_logs')
@@ -177,7 +176,6 @@ function AdminDashboardContent() {
     }
   }
 
-  // Update Status Audit & Simpan Permanen ke LocalStorage
   const handleUpdateStatus = (id: number, newStatus: string, auditNote?: string) => {
     const updatedLogs = logs.map((l) =>
       l.id === id ? { ...l, status: newStatus, audit_note: auditNote || l.audit_note } : l
@@ -190,7 +188,6 @@ function AdminDashboardContent() {
     }
   }
 
-  // Hapus Log & Simpan Permanen
   const handleDeleteLog = (id: number) => {
     if (confirm('Hapus data pengisian ini dari log?')) {
       const updated = logs.filter((l) => l.id !== id)
@@ -199,7 +196,6 @@ function AdminDashboardContent() {
     }
   }
 
-  // TAMBAH CATATAN SERVIS & SIMPAN PERMANEN KE LOCALSTORAGE
   const handleAddServiceRecord = (record: any) => {
     const updatedServiceHistory = [{ ...record, id: Date.now() }, ...serviceHistory]
     setServiceHistory(updatedServiceHistory)
@@ -278,7 +274,7 @@ function AdminDashboardContent() {
     )
   }
 
-  // 1. FILTER LOGS BERDASARKAN CUT-OFF DASHBOARD UTAMA
+  // Filter logs & services berdasarkan cutoff
   const cutoffLogs = logs.filter((log) => {
     if (!log.date) return false
     const [lYear, lMonth] = log.date.split('-')
@@ -287,7 +283,6 @@ function AdminDashboardContent() {
     return matchMonth && matchYear
   })
 
-  // 2. FILTER SERVICES BERDASARKAN CUT-OFF DASHBOARD UTAMA
   const cutoffServices = serviceHistory.filter((s) => {
     if (!s.date) return false
     const [sYear, sMonth] = s.date.split('-')
@@ -296,7 +291,6 @@ function AdminDashboardContent() {
     return matchMonth && matchYear
   })
 
-  // 3. FILTER TAMBAHAN UNTUK TABEL TRANSAKSI (ARMADA / DATE RANGE)
   const filteredLogs = cutoffLogs.filter((log) => {
     const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
     const matchStart = !startDate || log.date >= startDate
@@ -304,7 +298,6 @@ function AdminDashboardContent() {
     return matchVehicle && matchStart && matchEnd
   })
 
-  // KALKULASI DINAMIS METRIK DASHBOARD UTAMA
   const totalCost = cutoffLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
   const totalLiters = cutoffLogs.reduce((acc, l) => acc + (Number(l.liters) || 0), 0)
   const totalKm = cutoffLogs.reduce((acc, l) => acc + (Number(l.distance_km) || 0), 0)
@@ -422,7 +415,14 @@ function AdminDashboardContent() {
           </>
         )}
 
-        {activeTab === 'analytics' && <AnalyticsTab vehicleStats={vehicleStats} totalCost={totalCost} />}
+        {activeTab === 'analytics' && (
+          <AnalyticsTab
+            vehicleStats={vehicleStats}
+            logs={logs}
+            serviceHistory={serviceHistory}
+            totalCost={totalCost}
+          />
+        )}
 
         {activeTab === 'maintenance' && (
           <MaintenanceTab
