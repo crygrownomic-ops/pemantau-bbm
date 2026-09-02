@@ -152,7 +152,8 @@ function SettingsContent() {
     setActiveTab(tabParam)
   }, [tabParam])
 
-  useEffect(() => {
+  // AUTO MIGRATION & SINKRONISASI DATA LOCALSTORAGE
+  const loadMasterData = () => {
     try {
       const storedDrivers = localStorage.getItem('master_drivers')
       const storedVehicles = localStorage.getItem('vehicle_budgets')
@@ -167,11 +168,23 @@ function SettingsContent() {
       }
 
       if (storedVehicles) {
-        const parsedV = JSON.parse(storedVehicles)
-        if (Array.isArray(parsedV) && parsedV.length > 0) setVehicles(parsedV)
-        else localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
+        let parsedV = JSON.parse(storedVehicles)
+        if (Array.isArray(parsedV) && parsedV.length > 0) {
+          // AUTO MIGRATION: Update otomatis struktur armada jika belum ada properti rincian baru
+          parsedV = parsedV.map((v: any) => ({
+            ...v,
+            monthly_service_budget: v.monthly_service_budget !== undefined ? v.monthly_service_budget : 500000,
+            target_km_monthly: v.target_km_monthly !== undefined ? v.target_km_monthly : 2000,
+          }))
+          setVehicles(parsedV)
+          localStorage.setItem('vehicle_budgets', JSON.stringify(parsedV))
+        } else {
+          localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
+          setVehicles(INITIAL_VEHICLES)
+        }
       } else {
         localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
+        setVehicles(INITIAL_VEHICLES)
       }
 
       if (storedFuels) {
@@ -184,7 +197,22 @@ function SettingsContent() {
     } catch (e) {
       console.error(e)
     }
+  }
+
+  useEffect(() => {
+    loadMasterData()
   }, [])
+
+  // MENGURANGI RESIKO TAMPILAN LAMA: TOMBOL RESET MANUALLY
+  const handleResetMasterData = () => {
+    localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
+    localStorage.setItem('master_drivers', JSON.stringify(INITIAL_DRIVERS))
+    localStorage.setItem('master_fuel_prices', JSON.stringify(INITIAL_FUELS))
+    setVehicles(INITIAL_VEHICLES)
+    setDrivers(INITIAL_DRIVERS)
+    setFuels(INITIAL_FUELS)
+    alert('✅ Data Master Armada & Rincian Anggaran berhasil diperbarui ke versi terbaru!')
+  }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -415,7 +443,7 @@ function SettingsContent() {
 
       <main className="flex-1 p-6 space-y-6 overflow-y-auto">
         {/* HEADER MODUL */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h1 className="text-sm font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -434,32 +462,42 @@ function SettingsContent() {
             </p>
           </div>
 
-          {activeTab === 'drivers' && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleOpenAddDriver}
-              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
+              onClick={handleResetMasterData}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-300 transition flex items-center gap-1.5"
+              title="Perbarui struktur data ke versi terbaru"
             >
-              <Icons.Plus className="w-4 h-4" /> Tambah Driver Baru
+              🔄 Reset / Update Data
             </button>
-          )}
 
-          {activeTab === 'vehicles' && (
-            <button
-              onClick={handleOpenAddVehicle}
-              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
-            >
-              <Icons.Plus className="w-4 h-4" /> Tambah Armada Baru
-            </button>
-          )}
+            {activeTab === 'drivers' && (
+              <button
+                onClick={handleOpenAddDriver}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
+                <Icons.Plus className="w-4 h-4" /> Tambah Driver
+              </button>
+            )}
 
-          {activeTab === 'prices' && (
-            <button
-              onClick={handleOpenAddFuel}
-              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
-            >
-              <Icons.Plus className="w-4 h-4" /> Tambah Jenis BBM Baru
-            </button>
-          )}
+            {activeTab === 'vehicles' && (
+              <button
+                onClick={handleOpenAddVehicle}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
+                <Icons.Plus className="w-4 h-4" /> Tambah Armada
+              </button>
+            )}
+
+            {activeTab === 'prices' && (
+              <button
+                onClick={handleOpenAddFuel}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
+              >
+                <Icons.Plus className="w-4 h-4" /> Tambah Jenis BBM
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ================= TAB 1: MASTER DRIVER ================= */}
@@ -588,7 +626,7 @@ function SettingsContent() {
                     <th className="p-3.5">Plat Nomor & Model</th>
                     <th className="p-3.5">Odometer Terkini</th>
                     <th className="p-3.5">Jam Terbang (Target KM)</th>
-                    <th className="p-3.5">Rincian Anggaran BBM</th>
+                    <th className="p-3.5">Anggaran BBM</th>
                     <th className="p-3.5">Anggaran Servis & KIR</th>
                     <th className="p-3.5">Total Budget Operasional</th>
                     <th className="p-3.5">Exp. KIR / STNK</th>
