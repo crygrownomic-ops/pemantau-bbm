@@ -30,7 +30,8 @@ export function MaintenanceTab({
   const [kmDone, setKmDone] = useState('')
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
 
-  // State Filter Tabel Maintenance
+  // STATE FILTER CUT-OFF BULAN & TAHUN
+  const [selectedMonthCutoff, setSelectedMonthCutoff] = useState('ALL') // 'ALL', '2026-09', '2026-08', dll.
   const [filterVehicle, setFilterVehicle] = useState('ALL')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -74,15 +75,26 @@ export function MaintenanceTab({
     setShowAddModal(false)
   }
 
-  // Filter Data Riwayat Maintenance
-  const filteredServiceHistory = serviceHistory.filter((s: any) => {
+  // 1. FILTERING DATA BERDASARKAN CUT-OFF BULAN
+  const monthlyServiceHistory = serviceHistory.filter((s: any) => {
+    if (selectedMonthCutoff === 'ALL') return true
+    return s.date && s.date.startsWith(selectedMonthCutoff)
+  })
+
+  // 2. FILTERING TABEL TAMBAHAN (TANGGAL & VEHICLE)
+  const filteredServiceHistory = monthlyServiceHistory.filter((s: any) => {
     const matchVehicle = filterVehicle === 'ALL' || s.plate_number === filterVehicle
     const matchStart = !startDate || s.date >= startDate
     const matchEnd = !endDate || s.date <= endDate
     return matchVehicle && matchStart && matchEnd
   })
 
-  // FUNGSI EXPORT MAINTENANCE KE EXCEL
+  // 3. KALKULASI RINGKASAN DINAMIS PER BULAN
+  const currentTotalMaintenanceCost = monthlyServiceHistory.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
+  const totalVehicles = vehicleStats.length
+  const avgCostPerVehicle = totalVehicles > 0 ? Math.round(currentTotalMaintenanceCost / totalVehicles) : 0
+
+  // EXPORT DATA PER BULAN KE EXCEL
   const handleExportMaintenanceToExcel = () => {
     if (!filteredServiceHistory || filteredServiceHistory.length === 0) {
       alert('⚠️ Tidak ada data riwayat maintenance untuk diexport!')
@@ -90,7 +102,8 @@ export function MaintenanceTab({
     }
 
     let csvContent = '\uFEFF'
-    csvContent += 'LAPORAN RIWAYAT SERVIS & MAINTENANCE ARMADA — FLEETOPS 360\n'
+    csvContent += 'LAPORAN EVALUASI SERVIS & MAINTENANCE ARMADA — FLEETOPS 360\n'
+    csvContent += `Cut-Off Bulan;${selectedMonthCutoff === 'ALL' ? 'Semua Bulan (YTD)' : selectedMonthCutoff}\n`
     csvContent += `Tanggal Cetak;${new Date().toLocaleDateString('id-ID')}\n\n`
     csvContent += 'Tanggal;Plat Nomor;Kategori;Jenis Pengerjaan;Sparepart Diganti;Odometer KM;Bengkel / Workshop;Biaya Perbaikan (Rp)\n'
 
@@ -101,7 +114,7 @@ export function MaintenanceTab({
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    const fileName = `Laporan_Maintenance_FleetOps360_${new Date().toISOString().split('T')[0]}.csv`
+    const fileName = `Laporan_Maintenance_${selectedMonthCutoff}_${new Date().toISOString().split('T')[0]}.csv`
 
     link.setAttribute('href', url)
     link.setAttribute('download', fileName)
@@ -110,20 +123,45 @@ export function MaintenanceTab({
     document.body.removeChild(link)
   }
 
-  const totalVehicles = vehicleStats.length
-  const avgCostPerVehicle = totalVehicles > 0 ? Math.round(totalMaintenanceCost / totalVehicles) : 0
-
   return (
     <div className="space-y-6">
-      {/* 1. CARDS REKAPITULASI BIAYA & STATUS MAINTENANCE */}
+      {/* TOOLBAR CUT-OFF BULANAN MANAJEMEN */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div>
+          <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            Cut-Off Analisa Evaluasi Maintenance Bulanan
+          </h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Pilih periode bulan untuk memetakan akumulasi biaya perbaikan dan riwayat pengerjaan armada
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-700">Periode Cut-Off:</label>
+          <select
+            value={selectedMonthCutoff}
+            onChange={(e) => setSelectedMonthCutoff(e.target.value)}
+            className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
+          >
+            <option value="ALL">🗓️ Semua Bulan (YTD 2026)</option>
+            <option value="2026-09">📅 September 2026</option>
+            <option value="2026-08">📅 Agustus 2026</option>
+            <option value="2026-07">📅 Juli 2026</option>
+            <option value="2026-06">📅 Juni 2026</option>
+          </select>
+        </div>
+      </div>
+
+      {/* 1. CARDS REKAPITULASI BIAYA & STATUS MAINTENANCE DINAMIS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-slate-500 text-[11px] font-semibold block uppercase tracking-wider">
-              Total Biaya Maintenance & KIR
+              Total Biaya Maintenance ({selectedMonthCutoff === 'ALL' ? 'Semua Bulan' : selectedMonthCutoff})
             </span>
             <strong className="text-xl font-extrabold font-mono text-slate-900 mt-1 block">
-              Rp {(totalMaintenanceCost || 0).toLocaleString('id-ID')}
+              Rp {(currentTotalMaintenanceCost || 0).toLocaleString('id-ID')}
             </strong>
           </div>
           <div className="w-10 h-10 bg-amber-100 text-amber-800 rounded-xl flex items-center justify-center font-bold">
@@ -148,10 +186,10 @@ export function MaintenanceTab({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-slate-500 text-[11px] font-semibold block uppercase tracking-wider">
-              Total Riwayat Pengerjaan
+              Pengerjaan Periode Ini
             </span>
             <strong className="text-xl font-extrabold font-mono text-slate-900 mt-1 block">
-              {serviceHistory.length} Kali Perbaikan
+              {monthlyServiceHistory.length} Kali Perbaikan
             </strong>
           </div>
           <div className="w-10 h-10 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center font-bold">
@@ -160,16 +198,16 @@ export function MaintenanceTab({
         </div>
       </div>
 
-      {/* 2. CARD ARMADA & STATUS KESEHATAN KENDARAAN */}
+      {/* 2. CARD ARMADA, SMART REMINDER & TOTAL OPERATIONAL COST (BBM + SERVIS) */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex justify-between items-center border-b pb-3">
           <div>
             <h2 className="text-xs font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              Status Kesehatan Armada & Pengingat Servis Rutin
+              Status Kesehatan Armada & Rekap Total Biaya (BBM + Servis)
             </h2>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Prediksi jatuh tempo ganti oli berbasis interval Odometer KM dan legalitas kendaraan
+              Monitoring interval ganti oli berbasis Odometer KM serta perbandingan biaya operasional gabungan
             </p>
           </div>
           <button
@@ -182,13 +220,17 @@ export function MaintenanceTab({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {vehicleStats.map((v: any) => {
-            const vServices = serviceHistory.filter((s: any) => s.plate_number === v.plate_number)
+            const vServices = monthlyServiceHistory.filter((s: any) => s.plate_number === v.plate_number)
             const lastService = vServices[0]
             const lastServiceKm = lastService ? Number(lastService.km_done) || 0 : 0
             const nextOilChangeKm = lastServiceKm > 0 ? lastServiceKm + 5000 : (v.last_km || 0) + 5000
 
             const kmSinceLastService = (v.last_km || 0) - lastServiceKm
             const isDueForOil = kmSinceLastService >= 5000 || lastServiceKm === 0
+
+            // Biaya servis kendaraan ini di bulan terpilih
+            const monthServiceCost = vServices.reduce((acc: number, s: any) => acc + (Number(s.cost) || 0), 0)
+            const totalOperationalCombined = (v.spentCost || 0) + monthServiceCost
 
             return (
               <div
@@ -218,16 +260,18 @@ export function MaintenanceTab({
                       <strong className="text-slate-900">{(v.last_km || 0).toLocaleString('id-ID')} KM</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Servis Terakhir:</span>
-                      <span className="text-slate-700">
-                        {lastServiceKm > 0 ? `${lastServiceKm.toLocaleString('id-ID')} KM` : 'Belum Ada Record'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t pt-1 border-slate-100">
                       <span className="text-slate-500">Target Oli Berikutnya:</span>
                       <strong className={isDueForOil ? 'text-rose-600 font-bold' : 'text-indigo-900'}>
                         {nextOilChangeKm.toLocaleString('id-ID')} KM
                       </strong>
+                    </div>
+                    <div className="flex justify-between border-t pt-1 border-slate-100">
+                      <span className="text-slate-500">Biaya Servis Periode Ini:</span>
+                      <strong className="text-amber-700">Rp {monthServiceCost.toLocaleString('id-ID')}</strong>
+                    </div>
+                    <div className="flex justify-between font-sans pt-0.5">
+                      <span className="text-slate-500 text-[10px]">Total Operasional (BBM+Servis):</span>
+                      <strong className="text-slate-900 font-mono text-xs">Rp {totalOperationalCombined.toLocaleString('id-ID')}</strong>
                     </div>
                   </div>
 
@@ -249,7 +293,7 @@ export function MaintenanceTab({
         </div>
       </div>
 
-      {/* 3. TABEL RIWAYAT PERBAIKAN DENGAN FILTER, SEARCH, EXPORT & SCROLL FITUR */}
+      {/* 3. TABEL RIWAYAT PERBAIKAN DENGAN SCROLL & EXPORT */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm space-y-0">
         <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-50/50">
           <div className="flex items-center gap-3">
