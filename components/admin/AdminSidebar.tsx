@@ -16,7 +16,6 @@ export function AdminSidebar() {
     }
   }
 
-  // Deteksi status menu aktif berdasarkan URL
   const isDashboardActive = pathname === '/admin' && (!currentTab || currentTab === 'dashboard')
   const isAnalyticsActive = pathname === '/admin' && currentTab === 'analytics'
   const isMaintenanceActive = pathname === '/admin' && currentTab === 'maintenance'
@@ -26,10 +25,10 @@ export function AdminSidebar() {
   const isPricesActive = pathname === '/admin/settings' && currentTab === 'prices'
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 p-4 space-y-4 flex flex-col justify-between shrink-0 min-h-screen">
+    <aside className="w-64 bg-slate-900 text-slate-300 p-4 space-y-4 flex flex-col justify-between shrink-0 min-h-screen border-r border-slate-800">
       <div className="space-y-4">
         <div className="flex items-center gap-2.5 font-extrabold text-white text-sm pb-3 border-b border-slate-800">
-          <div className="w-8 h-8 bg-amber-500 text-slate-950 rounded-lg flex items-center justify-center font-bold">
+          <div className="w-8 h-8 bg-amber-500 text-slate-950 rounded-lg flex items-center justify-center font-bold shadow-sm">
             <Icons.Fuel className="w-4 h-4" />
           </div>
           <span>FLEETOPS 360</span>
@@ -38,29 +37,29 @@ export function AdminSidebar() {
         <nav className="space-y-1 text-xs">
           <Link
             href="/admin?tab=dashboard"
-            className={`w-full text-left p-2.5 rounded-xl font-bold transition flex items-center gap-2 ${
+            className={`w-full text-left p-2.5 rounded-xl font-bold transition flex items-center gap-2.5 ${
               isDashboardActive ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
             }`}
           >
-            <Icons.Dashboard /> Dashboard Utama
+            <Icons.Dashboard className="w-4 h-4" /> Dashboard Utama
           </Link>
 
           <Link
             href="/admin?tab=analytics"
-            className={`w-full text-left p-2.5 rounded-xl font-bold transition flex items-center gap-2 ${
+            className={`w-full text-left p-2.5 rounded-xl font-bold transition flex items-center gap-2.5 ${
               isAnalyticsActive ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
             }`}
           >
-            <Icons.Analytics /> Analytics & Grafik
+            <Icons.Analytics className="w-4 h-4" /> Analytics & Grafik
           </Link>
 
           <Link
             href="/admin?tab=maintenance"
-            className={`w-full text-left p-2.5 rounded-xl font-bold transition flex items-center gap-2 ${
+            className={`w-full text-left p-2.5 rounded-xl font-bold transition flex items-center gap-2.5 ${
               isMaintenanceActive ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
             }`}
           >
-            <Icons.Wrench /> Servis & Maintenance
+            <Icons.Wrench className="w-4 h-4" /> Servis & Maintenance
           </Link>
 
           <div className="pt-3 space-y-1">
@@ -68,30 +67,30 @@ export function AdminSidebar() {
               <Icons.Settings className="w-3.5 h-3.5" /> Pusat Kelola Operasional
             </div>
 
-            <div className="pl-3 space-y-1 border-l-2 border-slate-700 ml-2">
+            <div className="pl-2 space-y-1 border-l-2 border-slate-800 ml-2">
               <Link
                 href="/admin/settings?tab=drivers"
-                className={`block px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                  isDriversActive ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-300 hover:text-amber-400'
+                className={`flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl transition ${
+                  isDriversActive ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800/50'
                 }`}
               >
-                • Master Driver
+                <Icons.User className="w-3.5 h-3.5" /> Master Driver
               </Link>
               <Link
                 href="/admin/settings?tab=vehicles"
-                className={`block px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                  isVehiclesActive ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-300 hover:text-amber-400'
+                className={`flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl transition ${
+                  isVehiclesActive ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800/50'
                 }`}
               >
-                • Master Armada
+                <Icons.Truck className="w-3.5 h-3.5" /> Master Armada
               </Link>
               <Link
                 href="/admin/settings?tab=prices"
-                className={`block px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                  isPricesActive ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-300 hover:text-amber-400'
+                className={`flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl transition ${
+                  isPricesActive ? 'text-amber-400 font-bold bg-slate-800' : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800/50'
                 }`}
               >
-                • Tarif BBM
+                <Icons.Price className="w-3.5 h-3.5" /> Tarif BBM
               </Link>
             </div>
           </div>

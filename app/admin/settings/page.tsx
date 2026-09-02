@@ -1,8 +1,11 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, Suspense } from 'react'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { AdminSidebar } from '@/components/admin/AdminSidebar'
+import { Icons } from '@/components/admin/Icons'
 
 const INITIAL_DRIVERS = [
   {
@@ -45,20 +48,30 @@ const INITIAL_FUELS = [
   { id: 'F5', name: 'Bio Solar', price: 6800, category: 'Subsidi' },
 ]
 
+// Fungsi Penambahan Titik Ribuan Otomatis
+const formatNumberDots = (val: number | string) => {
+  if (!val && val !== 0) return ''
+  const numStr = String(val).replace(/\D/g, '')
+  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+const parseDotsToNum = (val: string) => {
+  return Number(String(val).replace(/\./g, '')) || 0
+}
+
 function SettingsContent() {
   const searchParams = useSearchParams()
-  const initialTab = (searchParams.get('tab') as 'drivers' | 'vehicles' | 'prices') || 'drivers'
+  const tabParam = (searchParams.get('tab') as 'drivers' | 'vehicles' | 'prices') || 'drivers'
 
-  const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices'>(tabParam)
 
   const [drivers, setDrivers] = useState<any[]>(INITIAL_DRIVERS)
   const [vehicles, setVehicles] = useState<any[]>(INITIAL_VEHICLES)
   const [fuels, setFuels] = useState<any[]>(INITIAL_FUELS)
 
+  // State Modal Tambah / Edit Driver
   const [showDriverModal, setShowDriverModal] = useState(false)
-  const [showVehicleModal, setShowVehicleModal] = useState(false)
-  const [showFuelModal, setShowFuelModal] = useState(false)
-
+  const [editingDriverId, setEditingDriverId] = useState<string | null>(null)
   const [driverForm, setDriverForm] = useState({
     name: '',
     phone: '',
@@ -70,21 +83,35 @@ function SettingsContent() {
     photo: '',
   })
 
+  // State Modal Tambah / Edit Armada
+  const [showVehicleModal, setShowVehicleModal] = useState(false)
+  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null)
   const [vehicleForm, setVehicleForm] = useState({
     plate_number: '',
     model: '',
     year: 2023,
-    monthly_budget: 1500000,
+    monthly_budget_formatted: '1.500.000',
     last_km: 0,
     kir_expiry: '',
     stnk_expiry: '',
   })
 
+  // State Modal Adjust Anggaran Cepat
+  const [adjustingVehicle, setAdjustingVehicle] = useState<any | null>(null)
+  const [quickBudgetFormatted, setQuickBudgetFormatted] = useState('')
+
+  // State Modal Tambah / Edit BBM
+  const [showFuelModal, setShowFuelModal] = useState(false)
+  const [editingFuelId, setEditingFuelId] = useState<string | null>(null)
   const [fuelForm, setFuelForm] = useState({
     name: '',
-    price: 10000,
+    price_formatted: '10.000',
     category: 'Non-Subsidi',
   })
+
+  useEffect(() => {
+    setActiveTab(tabParam)
+  }, [tabParam])
 
   useEffect(() => {
     try {
@@ -105,24 +132,9 @@ function SettingsContent() {
     }
   }, [])
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setDriverForm({ ...driverForm, photo: reader.result as string })
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleSaveDriver = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newDriver = { ...driverForm, id: `D${Date.now()}`, status: 'ACTIVE' }
-    const updated = [newDriver, ...drivers]
-    setDrivers(updated)
-    localStorage.setItem('master_drivers', JSON.stringify(updated))
-    setShowDriverModal(false)
+  // Handler Driver (Tambah/Edit/Hapus)
+  const handleOpenAddDriver = () => {
+    setEditingDriverId(null)
     setDriverForm({
       name: '',
       phone: '',
@@ -133,6 +145,36 @@ function SettingsContent() {
       emergency_contact_phone: '',
       photo: '',
     })
+    setShowDriverModal(true)
+  }
+
+  const handleOpenEditDriver = (driver: any) => {
+    setEditingDriverId(driver.id)
+    setDriverForm({
+      name: driver.name || '',
+      phone: driver.phone || '',
+      sim_type: driver.sim_type || 'SIM A',
+      sim_number: driver.sim_number || '',
+      sim_expiry: driver.sim_expiry || '',
+      emergency_contact_name: driver.emergency_contact_name || '',
+      emergency_contact_phone: driver.emergency_contact_phone || '',
+      photo: driver.photo || '',
+    })
+    setShowDriverModal(true)
+  }
+
+  const handleSaveDriver = (e: React.FormEvent) => {
+    e.preventDefault()
+    let updated: any[]
+    if (editingDriverId) {
+      updated = drivers.map((d) => (d.id === editingDriverId ? { ...d, ...driverForm } : d))
+    } else {
+      const newDriver = { ...driverForm, id: `D${Date.now()}`, status: 'ACTIVE' }
+      updated = [newDriver, ...drivers]
+    }
+    setDrivers(updated)
+    localStorage.setItem('master_drivers', JSON.stringify(updated))
+    setShowDriverModal(false)
   }
 
   const handleDeleteDriver = (id: string) => {
@@ -143,24 +185,73 @@ function SettingsContent() {
     }
   }
 
+  // Handler Armada (Tambah/Edit/Hapus/Adjust Budget)
+  const handleOpenAddVehicle = () => {
+    setEditingVehicleId(null)
+    setVehicleForm({
+      plate_number: '',
+      model: '',
+      year: 2023,
+      monthly_budget_formatted: '1.500.000',
+      last_km: 0,
+      kir_expiry: '',
+      stnk_expiry: '',
+    })
+    setShowVehicleModal(true)
+  }
+
+  const handleOpenEditVehicle = (v: any) => {
+    setEditingVehicleId(v.id)
+    setVehicleForm({
+      plate_number: v.plate_number || '',
+      model: v.model || '',
+      year: v.year || 2023,
+      monthly_budget_formatted: formatNumberDots(v.monthly_budget || 0),
+      last_km: v.last_km || 0,
+      kir_expiry: v.kir_expiry || '',
+      stnk_expiry: v.stnk_expiry || '',
+    })
+    setShowVehicleModal(true)
+  }
+
   const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault()
-    const newVehicle = { ...vehicleForm, id: `V${Date.now()}` }
-    const updated = [newVehicle, ...vehicles]
+    const numericBudget = parseDotsToNum(vehicleForm.monthly_budget_formatted)
+    const payload = {
+      plate_number: vehicleForm.plate_number,
+      model: vehicleForm.model,
+      year: Number(vehicleForm.year),
+      monthly_budget: numericBudget,
+      last_km: Number(vehicleForm.last_km),
+      kir_expiry: vehicleForm.kir_expiry,
+      stnk_expiry: vehicleForm.stnk_expiry,
+    }
+
+    let updated: any[]
+    if (editingVehicleId) {
+      updated = vehicles.map((v) => (v.id === editingVehicleId ? { ...v, ...payload } : v))
+    } else {
+      updated = [{ ...payload, id: `V${Date.now()}` }, ...vehicles]
+    }
+
     setVehicles(updated)
     localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
     setShowVehicleModal(false)
-    setVehicleForm({ plate_number: '', model: '', year: 2023, monthly_budget: 1500000, last_km: 0, kir_expiry: '', stnk_expiry: '' })
   }
 
-  const handleAdjustBudget = (id: string, currentBudget: number) => {
-    const input = prompt('Masukkan nominal Anggaran Bulanan BBM baru (Rp):', currentBudget.toString())
-    if (input !== null) {
-      const newBudget = Number(input) || 0
-      const updated = vehicles.map((v) => (v.id === id ? { ...v, monthly_budget: newBudget } : v))
-      setVehicles(updated)
-      localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
-    }
+  const handleOpenAdjustBudget = (vehicle: any) => {
+    setAdjustingVehicle(vehicle)
+    setQuickBudgetFormatted(formatNumberDots(vehicle.monthly_budget || 0))
+  }
+
+  const handleSaveQuickBudget = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!adjustingVehicle) return
+    const newBudget = parseDotsToNum(quickBudgetFormatted)
+    const updated = vehicles.map((v) => (v.id === adjustingVehicle.id ? { ...v, monthly_budget: newBudget } : v))
+    setVehicles(updated)
+    localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
+    setAdjustingVehicle(null)
   }
 
   const handleDeleteVehicle = (id: string) => {
@@ -171,24 +262,38 @@ function SettingsContent() {
     }
   }
 
+  // Handler Fuel (Tambah/Edit/Hapus)
+  const handleOpenAddFuel = () => {
+    setEditingFuelId(null)
+    setFuelForm({ name: '', price_formatted: '10.000', category: 'Non-Subsidi' })
+    setShowFuelModal(true)
+  }
+
+  const handleOpenEditFuel = (f: any) => {
+    setEditingFuelId(f.id)
+    setFuelForm({
+      name: f.name || '',
+      price_formatted: formatNumberDots(f.price || 0),
+      category: f.category || 'Non-Subsidi',
+    })
+    setShowFuelModal(true)
+  }
+
   const handleSaveFuel = (e: React.FormEvent) => {
     e.preventDefault()
-    const newFuel = { ...fuelForm, id: `F${Date.now()}` }
-    const updated = [...fuels, newFuel]
+    const numericPrice = parseDotsToNum(fuelForm.price_formatted)
+    const payload = { name: fuelForm.name, price: numericPrice, category: fuelForm.category }
+
+    let updated: any[]
+    if (editingFuelId) {
+      updated = fuels.map((f) => (f.id === editingFuelId ? { ...f, ...payload } : f))
+    } else {
+      updated = [...fuels, { ...payload, id: `F${Date.now()}` }]
+    }
+
     setFuels(updated)
     localStorage.setItem('master_fuel_prices', JSON.stringify(updated))
     setShowFuelModal(false)
-    setFuelForm({ name: '', price: 10000, category: 'Non-Subsidi' })
-  }
-
-  const handleUpdateFuelPrice = (id: string, currentPrice: number) => {
-    const input = prompt('Masukkan tarif harga baru per liter (Rp):', currentPrice.toString())
-    if (input !== null) {
-      const newPrice = Number(input) || 0
-      const updated = fuels.map((f) => (f.id === id ? { ...f, price: newPrice } : f))
-      setFuels(updated)
-      localStorage.setItem('master_fuel_prices', JSON.stringify(updated))
-    }
   }
 
   const handleDeleteFuel = (id: string) => {
@@ -201,56 +306,7 @@ function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
-      <aside className="w-64 bg-slate-900 text-slate-300 p-5 space-y-5 flex flex-col justify-between">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-            <div className="w-9 h-9 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-bold shadow-md">
-              ⚙️
-            </div>
-            <div>
-              <h1 className="text-xs font-bold text-white tracking-wide uppercase">FLEETOPS 360</h1>
-              <span className="text-[10px] text-amber-400 font-semibold block">Pusat Kelola Operasional</span>
-            </div>
-          </div>
-
-          <nav className="space-y-1.5 text-xs">
-            <button
-              onClick={() => setActiveTab('drivers')}
-              className={`w-full text-left p-3 rounded-xl font-bold transition ${
-                activeTab === 'drivers' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
-              }`}
-            >
-              👤 Master Driver ({drivers.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('vehicles')}
-              className={`w-full text-left p-3 rounded-xl font-bold transition ${
-                activeTab === 'vehicles' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
-              }`}
-            >
-              🚛 Master Armada ({vehicles.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('prices')}
-              className={`w-full text-left p-3 rounded-xl font-bold transition ${
-                activeTab === 'prices' ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400'
-              }`}
-            >
-              ⛽ Katalog Tarif BBM ({fuels.length})
-            </button>
-          </nav>
-        </div>
-
-        <div className="space-y-2 border-t border-slate-800 pt-4">
-          <Link
-            href="/admin"
-            className="block w-full text-center bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2.5 rounded-xl shadow-md transition"
-          >
-            ← Kembali ke Dashboard Admin
-          </Link>
-          <span className="text-[10px] text-slate-500 text-center block">Dev by Urai Ikhsan Fadhilah</span>
-        </div>
-      </aside>
+      <AdminSidebar />
 
       <main className="flex-1 p-6 space-y-6 overflow-y-auto">
         {activeTab === 'drivers' && (
@@ -261,10 +317,10 @@ function SettingsContent() {
                 <p className="text-xs text-slate-500 mt-0.5">Kelola biodata, foto profil, lisensi SIM, dan kontak darurat driver</p>
               </div>
               <button
-                onClick={() => setShowDriverModal(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition"
+                onClick={handleOpenAddDriver}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
               >
-                + Tambah Driver Baru
+                <Icons.Plus className="w-4 h-4" /> Tambah Driver Baru
               </button>
             </div>
 
@@ -285,12 +341,20 @@ function SettingsContent() {
                         <h3 className="font-bold text-sm text-slate-900">{d.name}</h3>
                         <span className="text-xs font-mono text-slate-500">{d.phone}</span>
                       </div>
-                      <button
-                        onClick={() => handleDeleteDriver(d.id)}
-                        className="text-rose-600 hover:underline text-[11px] font-bold"
-                      >
-                        Hapus
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleOpenEditDriver(d)}
+                          className="text-indigo-600 hover:text-indigo-900 font-bold text-xs flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg"
+                        >
+                          <Icons.Edit /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDriver(d.id)}
+                          className="text-rose-600 hover:text-rose-900 font-bold text-xs flex items-center gap-1 bg-rose-50 px-2 py-1 rounded-lg"
+                        >
+                          <Icons.Trash /> Hapus
+                        </button>
+                      </div>
                     </div>
 
                     <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 text-xs">
@@ -300,7 +364,7 @@ function SettingsContent() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-500">Masa Berlaku SIM:</span>
-                        <strong className="font-mono text-amber-700">{d.sim_expiry}</strong>
+                        <strong className="font-mono text-amber-700">{d.sim_expiry || '-'}</strong>
                       </div>
                       <div className="flex justify-between border-t border-slate-200/60 pt-1 mt-1">
                         <span className="text-slate-500">Kontak Darurat:</span>
@@ -319,13 +383,13 @@ function SettingsContent() {
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Master Data Armada & Kendaraan</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Atur batasan anggaran bulanan BBM, Odometer KM, dan tenggat KIR/STNK</p>
+                <p className="text-xs text-slate-500 mt-0.5">Atur batasan anggaran bulanan BBM, Odometer KM, dan revisi tenggat KIR/STNK</p>
               </div>
               <button
-                onClick={() => setShowVehicleModal(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition"
+                onClick={handleOpenAddVehicle}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
               >
-                + Tambah Armada Baru
+                <Icons.Plus className="w-4 h-4" /> Tambah Armada Baru
               </button>
             </div>
 
@@ -349,22 +413,28 @@ function SettingsContent() {
                         <div className="text-[11px] text-slate-500">{v.model} ({v.year})</div>
                       </td>
                       <td className="p-3.5 font-mono font-bold text-slate-800">
-                        {v.last_km.toLocaleString('id-ID')} KM
+                        {(v.last_km || 0).toLocaleString('id-ID')} KM
                       </td>
                       <td className="p-3.5">
                         <div className="font-mono font-bold text-indigo-900">
                           Rp {(v.monthly_budget || 0).toLocaleString('id-ID')}
                         </div>
                         <button
-                          onClick={() => handleAdjustBudget(v.id, v.monthly_budget)}
-                          className="text-[10px] text-amber-600 hover:underline font-bold"
+                          onClick={() => handleOpenAdjustBudget(v)}
+                          className="text-[10px] text-amber-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-0.5"
                         >
-                          ✏️ Adjust Anggaran
+                          <Icons.Edit className="w-3 h-3" /> Adjust Anggaran
                         </button>
                       </td>
                       <td className="p-3.5 font-mono text-slate-700">{v.kir_expiry || '-'}</td>
                       <td className="p-3.5 font-mono text-slate-700">{v.stnk_expiry || '-'}</td>
-                      <td className="p-3.5 text-center">
+                      <td className="p-3.5 text-center space-x-2">
+                        <button
+                          onClick={() => handleOpenEditVehicle(v)}
+                          className="text-indigo-600 hover:underline font-bold"
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleDeleteVehicle(v.id)}
                           className="text-rose-600 hover:underline font-bold"
@@ -385,13 +455,13 @@ function SettingsContent() {
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Katalog Jenis & Tarif Harga BBM</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Atur daftar pilihan bahan bakar dan penyesuaian harga per liter yang terhubung ke Driver Portal</p>
+                <p className="text-xs text-slate-500 mt-0.5">Atur daftar pilihan bahan bakar dan penyesuaian harga per liter</p>
               </div>
               <button
-                onClick={() => setShowFuelModal(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition"
+                onClick={handleOpenAddFuel}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
               >
-                + Tambah Jenis BBM Baru
+                <Icons.Plus className="w-4 h-4" /> Tambah Jenis BBM Baru
               </button>
             </div>
 
@@ -405,24 +475,23 @@ function SettingsContent() {
                         {f.category}
                       </span>
                     </div>
-                    <button onClick={() => handleDeleteFuel(f.id)} className="text-rose-600 hover:underline text-[11px] font-bold">
-                      Hapus
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleOpenEditFuel(f)} className="text-indigo-600 hover:underline text-xs font-bold">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeleteFuel(f.id)} className="text-rose-600 hover:underline text-xs font-bold">
+                        Hapus
+                      </button>
+                    </div>
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
                     <div>
                       <span className="text-[10px] text-slate-400 block font-sans">Tarif Per Liter:</span>
                       <strong className="text-base font-extrabold font-mono text-slate-900">
-                        Rp {f.price.toLocaleString('id-ID')}
+                        Rp {(f.price || 0).toLocaleString('id-ID')}
                       </strong>
                     </div>
-                    <button
-                      onClick={() => handleUpdateFuelPrice(f.id, f.price)}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl transition"
-                    >
-                      Ubah Harga
-                    </button>
                   </div>
                 </div>
               ))}
@@ -431,11 +500,41 @@ function SettingsContent() {
         )}
       </main>
 
+      {/* MODAL QUICK ADJUST BUDGET DENGAN TITIK OTOMATIS */}
+      {adjustingVehicle && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b pb-2">
+              <h3 className="text-xs font-bold text-slate-900">Adjust Anggaran ({adjustingVehicle.plate_number})</h3>
+              <button onClick={() => setAdjustingVehicle(null)} className="text-slate-400 font-bold">✕</button>
+            </div>
+            <form onSubmit={handleSaveQuickBudget} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Nominal Anggaran Bulanan (Rp)</label>
+                <input
+                  type="text"
+                  className="w-full border p-2.5 rounded-xl font-mono text-base font-bold text-indigo-900 outline-none focus:ring-2 focus:ring-indigo-600"
+                  value={quickBudgetFormatted}
+                  onChange={(e) => setQuickBudgetFormatted(formatNumberDots(e.target.value))}
+                  placeholder="0"
+                  required
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setAdjustingVehicle(null)} className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2 rounded-xl">Batal</button>
+                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2 rounded-xl shadow-md">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TAMBAH / EDIT DRIVER */}
       {showDriverModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Tambah Driver Baru</h3>
+              <h3 className="text-sm font-bold text-slate-900">{editingDriverId ? 'Edit Data Driver' : 'Tambah Driver Baru'}</h3>
               <button onClick={() => setShowDriverModal(false)} className="text-slate-400 font-bold">✕</button>
             </div>
             <form onSubmit={handleSaveDriver} className="space-y-3 text-xs">
@@ -458,24 +557,21 @@ function SettingsContent() {
                 <input type="text" placeholder="Kontak Darurat (Nama) *" className="border p-2.5 rounded-xl outline-none" value={driverForm.emergency_contact_name} onChange={(e) => setDriverForm({ ...driverForm, emergency_contact_name: e.target.value })} required />
                 <input type="text" placeholder="No. HP Darurat *" className="border p-2.5 rounded-xl outline-none" value={driverForm.emergency_contact_phone} onChange={(e) => setDriverForm({ ...driverForm, emergency_contact_phone: e.target.value })} required />
               </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Unggah Foto Profile Driver</label>
-                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-100 file:text-slate-700 font-bold" />
-              </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setShowDriverModal(false)} className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md">Simpan Driver</button>
+                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md">Simpan Data Driver</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* MODAL TAMBAH / EDIT ARMADA */}
       {showVehicleModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Tambah Armada Kendaraan Baru</h3>
+              <h3 className="text-sm font-bold text-slate-900">{editingVehicleId ? 'Edit Data Armada' : 'Tambah Armada Baru'}</h3>
               <button onClick={() => setShowVehicleModal(false)} className="text-slate-400 font-bold">✕</button>
             </div>
             <form onSubmit={handleSaveVehicle} className="space-y-3 text-xs">
@@ -487,7 +583,14 @@ function SettingsContent() {
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">Anggaran Bulanan BBM (Rp) *</label>
-                <input type="number" placeholder="1500000" className="w-full border p-2.5 rounded-xl font-mono font-bold" value={vehicleForm.monthly_budget} onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_budget: Number(e.target.value) })} required />
+                <input
+                  type="text"
+                  placeholder="1.500.000"
+                  className="w-full border p-2.5 rounded-xl font-mono font-bold text-indigo-900"
+                  value={vehicleForm.monthly_budget_formatted}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_budget_formatted: formatNumberDots(e.target.value) })}
+                  required
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -508,16 +611,27 @@ function SettingsContent() {
         </div>
       )}
 
+      {/* MODAL TAMBAH / EDIT BBM */}
       {showFuelModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Tambah Jenis BBM Baru</h3>
+              <h3 className="text-sm font-bold text-slate-900">{editingFuelId ? 'Edit Tarif BBM' : 'Tambah Jenis BBM Baru'}</h3>
               <button onClick={() => setShowFuelModal(false)} className="text-slate-400 font-bold">✕</button>
             </div>
             <form onSubmit={handleSaveFuel} className="space-y-3 text-xs">
               <input type="text" placeholder="Nama BBM (Misal: Pertamax Green 95) *" className="w-full border p-2.5 rounded-xl font-bold" value={fuelForm.name} onChange={(e) => setFuelForm({ ...fuelForm, name: e.target.value })} required />
-              <input type="number" placeholder="Harga Per Liter (Rp) *" className="w-full border p-2.5 rounded-xl font-mono font-bold" value={fuelForm.price} onChange={(e) => setFuelForm({ ...fuelForm, price: Number(e.target.value) })} required />
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Harga Per Liter (Rp) *</label>
+                <input
+                  type="text"
+                  placeholder="10.000"
+                  className="w-full border p-2.5 rounded-xl font-mono font-bold"
+                  value={fuelForm.price_formatted}
+                  onChange={(e) => setFuelForm({ ...fuelForm, price_formatted: formatNumberDots(e.target.value) })}
+                  required
+                />
+              </div>
               <select className="w-full border p-2.5 rounded-xl bg-slate-50 font-bold" value={fuelForm.category} onChange={(e) => setFuelForm({ ...fuelForm, category: e.target.value })}>
                 <option value="Non-Subsidi">Non-Subsidi</option>
                 <option value="Subsidi">Subsidi</option>
