@@ -36,6 +36,16 @@ export function AdminSidebar() {
           </Link>
 
           <Link
+            href="/admin?tab=reimbursement"
+            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === 'reimbursement' ? 'bg-amber-500 text-slate-950 shadow-md' : 'hover:bg-slate-800 text-slate-300'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            Uang Jalan & Reimbursement
+          </Link>
+
+          <Link
             href="/admin?tab=scorecard"
             className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
               activeTab === 'scorecard' ? 'bg-amber-500 text-slate-950 shadow-md' : 'hover:bg-slate-800 text-slate-300'

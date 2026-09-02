@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { PreTripChecklistModal } from '@/components/driver/PreTripChecklistModal'
+import { ReimbursementModal } from '@/components/driver/ReimbursementModal'
 
 const INITIAL_DRIVERS = [
   { id: 'D1', name: 'Ahmad Supardi', sim_type: 'SIM B1 Umum' },
@@ -45,7 +46,6 @@ const DEFAULT_LOGS = [
   },
 ]
 
-// Helper Format Titik Ribuan Otomatis
 const formatNumberDots = (val: number | string) => {
   if (!val && val !== 0) return ''
   const numStr = String(val).replace(/\D/g, '')
@@ -75,10 +75,9 @@ function DriverPortalContent() {
   const [receiptImage, setReceiptImage] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // State Modal Inspection Checklist Siap Jalan
   const [showChecklistModal, setShowChecklistModal] = useState(false)
+  const [showReimbursementModal, setShowReimbursementModal] = useState(false)
 
-  // Muat data terintegrasi dari LocalStorage
   const loadData = () => {
     try {
       const storedDrivers = localStorage.getItem('master_drivers')
@@ -105,7 +104,6 @@ function DriverPortalContent() {
     loadData()
   }, [])
 
-  // Inisialisasi default dropdown
   useEffect(() => {
     if (drivers.length > 0 && !selectedDriver) {
       setSelectedDriver(drivers[0].name)
@@ -119,7 +117,6 @@ function DriverPortalContent() {
     }
   }, [drivers, vehicles, fuels])
 
-  // Update KM Awal otomatis saat ganti armada
   const handleVehicleChange = (plate: string) => {
     setSelectedVehiclePlate(plate)
     const matched = vehicles.find((v) => v.plate_number === plate)
@@ -128,7 +125,6 @@ function DriverPortalContent() {
     }
   }
 
-  // Hitung Estimasi Total Biaya Otomatis saat Liter diisi
   const handleLitersChange = (val: string) => {
     setLitersInput(val)
     const numericLiters = parseFloat(val) || 0
@@ -141,7 +137,6 @@ function DriverPortalContent() {
     }
   }
 
-  // Unggah Foto Struk
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -153,7 +148,6 @@ function DriverPortalContent() {
     }
   }
 
-  // Kirim Laporan Pengisian BBM
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -216,12 +210,10 @@ function DriverPortalContent() {
       console.error(err)
     }
 
-    // 1. Simpan Log Baru ke LocalStorage
     const updatedLogs = [newLog, ...latestLogs]
     setLogs(updatedLogs)
     localStorage.setItem('fuel_logs', JSON.stringify(updatedLogs))
 
-    // 2. Update Odometer KM Terakhir Kendaraan di Master Data
     const updatedVehicles = latestVehicles.map((v: any) =>
       v.plate_number === selectedVehiclePlate ? { ...v, last_km: numericFinalKm } : v
     )
@@ -230,7 +222,6 @@ function DriverPortalContent() {
 
     alert('✅ Laporan Pengisian BBM berhasil dikirim ke Admin!')
 
-    // Reset Form
     setInitialKm(numericFinalKm)
     setFinalKmInput('')
     setLitersInput('')
@@ -263,13 +254,21 @@ function DriverPortalContent() {
           </Link>
         </div>
 
-        {/* TOMBOL QUICK CHECKLIST INSPECTION */}
-        <button
-          onClick={() => setShowChecklistModal(true)}
-          className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs py-3 rounded-2xl shadow-md transition flex items-center justify-center gap-2"
-        >
-          📋 Isikan Checklist Siap Jalan (30 Detik)
-        </button>
+        {/* DUA TOMBOL FITUR DRIVER */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setShowChecklistModal(true)}
+            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+          >
+            📋 Inspection Siap Jalan
+          </button>
+          <button
+            onClick={() => setShowReimbursementModal(true)}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+          >
+            🧾 Klaim Tol & Parkir
+          </button>
+        </div>
 
         {/* FORM LAPORAN PENGISIAN BBM */}
         <div className="bg-slate-900/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
@@ -281,7 +280,6 @@ function DriverPortalContent() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-            {/* PILIH DRIVER */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">Pilih Nama Pengemudi (Driver)</label>
               <select
@@ -297,7 +295,6 @@ function DriverPortalContent() {
               </select>
             </div>
 
-            {/* PILIH ARMADA */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">Armada Kendaraan</label>
               <select
@@ -313,7 +310,6 @@ function DriverPortalContent() {
               </select>
             </div>
 
-            {/* KM ODOMETER */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[10px] text-slate-400 mb-1">KM Awal (Terakhir)</label>
@@ -338,7 +334,6 @@ function DriverPortalContent() {
               </div>
             </div>
 
-            {/* KATALOG JENIS BBM */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">Jenis Bahan Bakar (Katalog Master)</label>
               <select
@@ -354,7 +349,6 @@ function DriverPortalContent() {
               </select>
             </div>
 
-            {/* JUMLAH LITER & TOTAL BIAYA */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-[10px] text-slate-300 font-semibold mb-1">Jumlah Liter *</label>
@@ -382,7 +376,6 @@ function DriverPortalContent() {
               </div>
             </div>
 
-            {/* LOKASI PENGISIAN (PILIHAN DUA TOMBOL SINKRON) */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">Lokasi Pengisian</label>
               <div className="grid grid-cols-2 gap-2">
@@ -410,7 +403,6 @@ function DriverPortalContent() {
                 </button>
               </div>
 
-              {/* CATATAN PENGISIAN ECERAN */}
               {fillLocation === 'ECERAN' && (
                 <div className="mt-2.5 p-2.5 bg-rose-950/40 border border-rose-800/80 rounded-xl space-y-1">
                   <span className="text-[10px] font-bold text-rose-400 block">
@@ -427,7 +419,6 @@ function DriverPortalContent() {
               )}
             </div>
 
-            {/* UNGGAH STRUK */}
             <div>
               <label className="block text-[11px] font-semibold text-slate-300 mb-1">Unggah Foto Struk (Opsional)</label>
               <input
@@ -483,10 +474,16 @@ function DriverPortalContent() {
         </div>
       </div>
 
-      {/* MODAL CHECKLIST INSPECTION */}
       <PreTripChecklistModal
         isOpen={showChecklistModal}
         onClose={() => setShowChecklistModal(false)}
+        vehicles={vehicles}
+        driverName={selectedDriver}
+      />
+
+      <ReimbursementModal
+        isOpen={showReimbursementModal}
+        onClose={() => setShowReimbursementModal(false)}
         vehicles={vehicles}
         driverName={selectedDriver}
       />

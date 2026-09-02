@@ -9,6 +9,7 @@ import { FuelLogsTable } from '@/components/admin/FuelLogsTable'
 import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
 import { MaintenanceTab } from '@/components/admin/MaintenanceTab'
 import { DriverScorecardTab } from '@/components/admin/DriverScorecardTab'
+import { ReimbursementTab } from '@/components/admin/ReimbursementTab'
 import { WhatsAppReminderModal } from '@/components/admin/WhatsAppReminderModal'
 import { ExportReportsModal } from '@/components/admin/ExportReportsModal'
 
@@ -72,7 +73,7 @@ const MONTH_OPTIONS = [
 
 function AdminDashboardContent() {
   const searchParams = useSearchParams()
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'scorecard' | 'analytics' | 'maintenance') || 'dashboard'
+  const activeTab = (searchParams.get('tab') as 'dashboard' | 'reimbursement' | 'scorecard' | 'analytics' | 'maintenance') || 'dashboard'
 
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [usernameInput, setUsernameInput] = useState('')
@@ -406,6 +407,10 @@ function AdminDashboardContent() {
               handleUpdateStatus={handleUpdateStatus}
             />
           </>
+        )}
+
+        {activeTab === 'reimbursement' && (
+          <ReimbursementTab drivers={drivers} vehicles={vehicles} logs={logs} />
         )}
 
         {activeTab === 'scorecard' && (
