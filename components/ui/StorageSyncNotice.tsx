@@ -21,8 +21,19 @@ export function StorageSyncNotice() {
       if (event.key === null) setChangedKey('clear')
     }
 
+    const handleCustomSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ key?: string }>
+      if (customEvent.detail?.key && SHARED_DATA_KEYS.has(customEvent.detail.key)) {
+        setChangedKey(customEvent.detail.key)
+      }
+    }
+
     window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
+    window.addEventListener('fleet-data-sync', handleCustomSync)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('fleet-data-sync', handleCustomSync)
+    }
   }, [])
 
   if (!changedKey) return null
