@@ -1,1123 +1,1608 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
-import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
+import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { AdminSidebar } from '@/components/admin/AdminSidebar'
-import { Icons } from '@/components/admin/Icons'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Modal } from '@/components/ui/Modal'
+import { Icon, type IconName } from '@/components/ui/Icon'
+import { useFleet } from '@/components/providers/FleetProvider'
+import {
+  daysUntil,
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  formatNumberInput,
+  initials,
+  parseNumberInput,
+} from '@/lib/format'
+import { downloadFile } from '@/lib/export'
+import type { AppSettings, Driver, FuelPrice, Vehicle } from '@/lib/types'
 
-const INITIAL_DRIVERS = [
+type TabKey = 'drivers' | 'vehicles' | 'prices' | 'system'
+
+const TABS: Array<{ key: TabKey; label: string; icon: IconName; description: string }> = [
   {
-    id: 'D1',
-    name: 'Ahmad Supardi',
-    nik: '3171012304850001',
-    phone: '081234567890',
-    address: 'Jl. Merdeka No. 12, Jakarta Barat',
-    sim_type: 'SIM B1 Umum',
-    sim_number: '9283-1928-0001',
-    sim_expiry: '2027-05-20',
-    emergency_name: 'Siti Aminah',
-    emergency_relation: 'Istri',
-    emergency_phone: '081298765432',
-    emergency_contact_name: 'Siti Aminah (Istri)',
-    emergency_contact_phone: '081298765432',
-    assigned_vehicle: 'KB 1234 YK',
-    photo: '',
-    status: 'ACTIVE',
+    key: 'drivers',
+    label: 'Master Driver',
+    icon: 'users',
+    description: 'Data pengemudi, dokumen SIM, kontak darurat, dan armada yang ditugaskan.',
   },
   {
-    id: 'D2',
-    name: 'Budi Santoso',
-    nik: '3171011508900002',
-    phone: '085678901234',
-    address: 'Jl. Anggrek Raya No. 45, Tangerang',
-    sim_type: 'SIM A',
-    sim_number: '8123-4567-0002',
-    sim_expiry: '2026-11-10',
-    emergency_name: 'Rudi Santoso',
-    emergency_relation: 'Adik',
-    emergency_phone: '085611223344',
-    emergency_contact_name: 'Rudi Santoso (Adik)',
-    emergency_contact_phone: '085611223344',
-    assigned_vehicle: 'B 1234 ABC',
-    photo: '',
-    status: 'ACTIVE',
+    key: 'vehicles',
+    label: 'Master Armada',
+    icon: 'truck',
+    description: 'Spesifikasi kendaraan, baseline konsumsi BBM, anggaran bulanan, dan legalitas.',
   },
   {
-    id: 'D3',
-    name: 'Udin Kamarudin',
-    nik: '3171012011880003',
-    phone: '082254127596',
-    address: 'Jl. Melati IV No. 8, Jakarta Selatan',
-    sim_type: 'SIM A',
-    sim_number: '83585451',
-    sim_expiry: '2028-11-10',
-    emergency_name: 'Jamila',
-    emergency_relation: 'Istri',
-    emergency_phone: '082254127596',
-    emergency_contact_name: 'Jamila (Istri)',
-    emergency_contact_phone: '082254127596',
-    assigned_vehicle: 'B 5678 XYZ',
-    photo: '',
-    status: 'ACTIVE',
+    key: 'prices',
+    label: 'Tarif BBM',
+    icon: 'fuel',
+    description: 'Katalog harga bahan bakar yang dipakai saat validasi biaya pengisian.',
+  },
+  {
+    key: 'system',
+    label: 'Sistem & Audit',
+    icon: 'settings',
+    description: 'Identitas perusahaan, ambang kualitas, keamanan sesi, cadangan data, dan audit trail.',
   },
 ]
 
-const INITIAL_VEHICLES = [
-  { id: 'V1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza 1.5 G', year: 2022, monthly_budget: 1500000, monthly_service_budget: 500000, target_km_monthly: 1500, last_km: 45860, kir_expiry: '2026-10-15', stnk_expiry: '2027-08-20' },
-  { id: 'V2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max Blind Van', year: 2021, monthly_budget: 2000000, monthly_service_budget: 750000, target_km_monthly: 2500, last_km: 32000, kir_expiry: '2026-09-10', stnk_expiry: '2026-12-05' },
-  { id: 'V3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga Pick Up', year: 2023, monthly_budget: 2500000, monthly_service_budget: 1000000, target_km_monthly: 3500, last_km: 18500, kir_expiry: '2026-12-01', stnk_expiry: '2028-01-15' },
-  { id: 'V4', plate_number: 'KB 1234 YK', model: 'Toyota Innova Zenix', year: 2024, monthly_budget: 2500000, monthly_service_budget: 800000, target_km_monthly: 2000, last_km: 47905, kir_expiry: '2027-02-15', stnk_expiry: '2027-11-11' },
-]
-
-const INITIAL_FUELS = [
-  { id: 'F1', name: 'Pertalite', price: 10000, category: 'Subsidi' },
-  { id: 'F2', name: 'Pertamax', price: 12950, category: 'Non-Subsidi' },
-  { id: 'F3', name: 'Pertamax Turbo', price: 14400, category: 'Non-Subsidi' },
-  { id: 'F4', name: 'Dexlite', price: 14550, category: 'Non-Subsidi' },
-  { id: 'F5', name: 'Bio Solar', price: 6800, category: 'Subsidi' },
-]
-
-const formatNumberDots = (val: number | string) => {
-  if (!val && val !== 0) return ''
-  const numStr = String(val).replace(/\D/g, '')
-  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+const COLLECTION_LABELS: Record<string, string> = {
+  vehicles: 'Armada',
+  drivers: 'Driver',
+  fuelPrices: 'Tarif BBM',
+  fuelLogs: 'Transaksi BBM',
+  serviceHistory: 'Servis',
+  inspections: 'Inspeksi',
+  reimbursementClaims: 'Klaim',
+  cashAdvances: 'Uang Jalan',
+  auditTrail: 'Audit',
+  settings: 'Pengaturan',
 }
 
-const parseDotsToNum = (val: string) => {
-  return Number(String(val).replace(/\./g, '')) || 0
+const EMPTY_DRIVER: Record<string, string> = {
+  name: '',
+  nik: '',
+  phone: '',
+  address: '',
+  sim_type: 'SIM A',
+  sim_number: '',
+  sim_expiry: '',
+  emergency_name: '',
+  emergency_relation: '',
+  emergency_phone: '',
+  assigned_vehicle: '',
+  joined_at: '',
+  status: 'ACTIVE',
 }
 
-function SettingsContent() {
-  const searchParams = useSearchParams()
-  const tabParam = (searchParams.get('tab') as 'drivers' | 'vehicles' | 'prices') || 'drivers'
-
-  const [activeTab, setActiveTab] = useState<'drivers' | 'vehicles' | 'prices'>(tabParam)
-
-  const [drivers, setDrivers] = useState<any[]>(INITIAL_DRIVERS)
-  const [vehicles, setVehicles] = useState<any[]>(INITIAL_VEHICLES)
-  const [fuels, setFuels] = useState<any[]>(INITIAL_FUELS)
-
-  // State Modal Driver
-  const [showDriverModal, setShowDriverModal] = useState(false)
-  const [editingDriverId, setEditingDriverId] = useState<string | null>(null)
-  const [driverForm, setDriverForm] = useState({
-    name: '',
-    nik: '',
-    phone: '',
-    address: '',
-    sim_type: 'SIM B1 Umum',
-    sim_number: '',
-    sim_expiry: '',
-    emergency_name: '',
-    emergency_relation: 'Istri',
-    emergency_phone: '',
-    assigned_vehicle: 'B 1234 ABC',
-    status: 'ACTIVE',
-    photo: '',
-  })
-
-  // State Modal Armada
-  const [showVehicleModal, setShowVehicleModal] = useState(false)
-  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null)
-  const [vehicleForm, setVehicleForm] = useState({
-    plate_number: '',
-    model: '',
-    year: 2023,
-    monthly_budget_formatted: '1.500.000',
-    monthly_service_budget_formatted: '500.000',
-    target_km_monthly: 2000,
-    last_km: 0,
-    kir_expiry: '',
-    stnk_expiry: '',
-  })
-
-  // State Adjust Anggaran
-  const [adjustingVehicle, setAdjustingVehicle] = useState<any | null>(null)
-  const [quickFuelBudgetFormatted, setQuickFuelBudgetFormatted] = useState('')
-  const [quickServiceBudgetFormatted, setQuickServiceBudgetFormatted] = useState('')
-  const [quickTargetKm, setQuickTargetKm] = useState(2000)
-
-  // State Modal BBM
-  const [showFuelModal, setShowFuelModal] = useState(false)
-  const [editingFuelId, setEditingFuelId] = useState<string | null>(null)
-  const [fuelForm, setFuelForm] = useState({
-    name: '',
-    price_formatted: '10.000',
-    category: 'Non-Subsidi',
-  })
-
-  useEffect(() => {
-    setActiveTab(tabParam)
-  }, [tabParam])
-
-  const loadMasterData = () => {
-    try {
-      const storedDrivers = localStorage.getItem('master_drivers')
-      const storedVehicles = localStorage.getItem('vehicle_budgets')
-      const storedFuels = localStorage.getItem('master_fuel_prices')
-
-      if (storedDrivers) {
-        const parsedD = JSON.parse(storedDrivers)
-        if (Array.isArray(parsedD) && parsedD.length > 0) setDrivers(parsedD)
-        else localStorage.setItem('master_drivers', JSON.stringify(INITIAL_DRIVERS))
-      } else {
-        localStorage.setItem('master_drivers', JSON.stringify(INITIAL_DRIVERS))
-      }
-
-      if (storedVehicles) {
-        let parsedV = JSON.parse(storedVehicles)
-        if (Array.isArray(parsedV) && parsedV.length > 0) {
-          parsedV = parsedV.map((v: any) => ({
-            ...v,
-            monthly_service_budget: v.monthly_service_budget !== undefined ? v.monthly_service_budget : 500000,
-            target_km_monthly: v.target_km_monthly !== undefined ? v.target_km_monthly : 2000,
-          }))
-          setVehicles(parsedV)
-          localStorage.setItem('vehicle_budgets', JSON.stringify(parsedV))
-        } else {
-          localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
-          setVehicles(INITIAL_VEHICLES)
-        }
-      } else {
-        localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
-        setVehicles(INITIAL_VEHICLES)
-      }
-
-      if (storedFuels) {
-        const parsedF = JSON.parse(storedFuels)
-        if (Array.isArray(parsedF) && parsedF.length > 0) setFuels(parsedF)
-        else localStorage.setItem('master_fuel_prices', JSON.stringify(INITIAL_FUELS))
-      } else {
-        localStorage.setItem('master_fuel_prices', JSON.stringify(INITIAL_FUELS))
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  useEffect(() => {
-    loadMasterData()
-  }, [])
-
-  const handleResetMasterData = () => {
-    localStorage.setItem('vehicle_budgets', JSON.stringify(INITIAL_VEHICLES))
-    localStorage.setItem('master_drivers', JSON.stringify(INITIAL_DRIVERS))
-    localStorage.setItem('master_fuel_prices', JSON.stringify(INITIAL_FUELS))
-    setVehicles(INITIAL_VEHICLES)
-    setDrivers(INITIAL_DRIVERS)
-    setFuels(INITIAL_FUELS)
-    alert('✅ Data Master Armada & Rincian Anggaran berhasil diperbarui ke versi terbaru!')
-  }
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setDriverForm((prev) => ({ ...prev, photo: reader.result as string }))
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  // Driver Handlers
-  const handleOpenAddDriver = () => {
-    setEditingDriverId(null)
-    setDriverForm({
-      name: '',
-      nik: '',
-      phone: '',
-      address: '',
-      sim_type: 'SIM B1 Umum',
-      sim_number: '',
-      sim_expiry: '',
-      emergency_name: '',
-      emergency_relation: 'Istri',
-      emergency_phone: '',
-      assigned_vehicle: vehicles[0]?.plate_number || 'B 1234 ABC',
-      status: 'ACTIVE',
-      photo: '',
-    })
-    setShowDriverModal(true)
-  }
-
-  const handleOpenEditDriver = (driver: any) => {
-    setEditingDriverId(driver.id)
-    setDriverForm({
-      name: driver.name || '',
-      nik: driver.nik || '',
-      phone: driver.phone || '',
-      address: driver.address || '',
-      sim_type: driver.sim_type || 'SIM B1 Umum',
-      sim_number: driver.sim_number || '',
-      sim_expiry: driver.sim_expiry || '',
-      emergency_name: driver.emergency_name || driver.emergency_contact_name?.split('(')[0]?.trim() || '',
-      emergency_relation: driver.emergency_relation || 'Istri',
-      emergency_phone: driver.emergency_phone || driver.emergency_contact_phone || '',
-      assigned_vehicle: driver.assigned_vehicle || vehicles[0]?.plate_number || 'B 1234 ABC',
-      status: driver.status || 'ACTIVE',
-      photo: driver.photo || driver.photo_url || '',
-    })
-    setShowDriverModal(true)
-  }
-
-  const handleSaveDriver = (e: React.FormEvent) => {
-    e.preventDefault()
-    let updated: any[]
-    const emName = driverForm.emergency_name ? `${driverForm.emergency_name} (${driverForm.emergency_relation || 'Keluarga'})` : ''
-
-    const payload = {
-      ...driverForm,
-      emergency_contact_name: emName,
-      emergency_contact_phone: driverForm.emergency_phone,
-      photo_url: driverForm.photo,
-    }
-
-    if (editingDriverId) {
-      updated = drivers.map((d) => (d.id === editingDriverId ? { ...d, ...payload } : d))
-    } else {
-      const newDriver = { ...payload, id: `D${Date.now()}` }
-      updated = [newDriver, ...drivers]
-    }
-    setDrivers(updated)
-    localStorage.setItem('master_drivers', JSON.stringify(updated))
-    setShowDriverModal(false)
-  }
-
-  const handleDeleteDriver = (id: string, name?: string) => {
-    if (confirm(`Hapus driver ${name || ''} ini dari Master Data?`)) {
-      const updated = drivers.filter((d) => d.id !== id)
-      setDrivers(updated)
-      localStorage.setItem('master_drivers', JSON.stringify(updated))
-    }
-  }
-
-  // Vehicle Handlers
-  const handleOpenAddVehicle = () => {
-    setEditingVehicleId(null)
-    setVehicleForm({
-      plate_number: '',
-      model: '',
-      year: 2023,
-      monthly_budget_formatted: '1.500.000',
-      monthly_service_budget_formatted: '500.000',
-      target_km_monthly: 2000,
-      last_km: 0,
-      kir_expiry: '',
-      stnk_expiry: '',
-    })
-    setShowVehicleModal(true)
-  }
-
-  const handleOpenEditVehicle = (v: any) => {
-    setEditingVehicleId(v.id)
-    setVehicleForm({
-      plate_number: v.plate_number || '',
-      model: v.model || '',
-      year: v.year || 2023,
-      monthly_budget_formatted: formatNumberDots(v.monthly_budget || 0),
-      monthly_service_budget_formatted: formatNumberDots(v.monthly_service_budget || 0),
-      target_km_monthly: v.target_km_monthly || 2000,
-      last_km: v.last_km || 0,
-      kir_expiry: v.kir_expiry || '',
-      stnk_expiry: v.stnk_expiry || '',
-    })
-    setShowVehicleModal(true)
-  }
-
-  const handleSaveVehicle = (e: React.FormEvent) => {
-    e.preventDefault()
-    const numericFuelBudget = parseDotsToNum(vehicleForm.monthly_budget_formatted)
-    const numericServiceBudget = parseDotsToNum(vehicleForm.monthly_service_budget_formatted)
-
-    const payload = {
-      plate_number: vehicleForm.plate_number,
-      model: vehicleForm.model,
-      year: Number(vehicleForm.year),
-      monthly_budget: numericFuelBudget,
-      monthly_service_budget: numericServiceBudget,
-      target_km_monthly: Number(vehicleForm.target_km_monthly) || 2000,
-      last_km: Number(vehicleForm.last_km),
-      kir_expiry: vehicleForm.kir_expiry,
-      stnk_expiry: vehicleForm.stnk_expiry,
-    }
-
-    let updated: any[]
-    if (editingVehicleId) {
-      updated = vehicles.map((v) => (v.id === editingVehicleId ? { ...v, ...payload } : v))
-    } else {
-      updated = [{ ...payload, id: `V${Date.now()}` }, ...vehicles]
-    }
-
-    setVehicles(updated)
-    localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
-    setShowVehicleModal(false)
-  }
-
-  const handleOpenAdjustBudget = (vehicle: any) => {
-    setAdjustingVehicle(vehicle)
-    setQuickFuelBudgetFormatted(formatNumberDots(vehicle.monthly_budget || 0))
-    setQuickServiceBudgetFormatted(formatNumberDots(vehicle.monthly_service_budget || 500000))
-    setQuickTargetKm(vehicle.target_km_monthly || 2000)
-  }
-
-  const handleSaveQuickBudget = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!adjustingVehicle) return
-    const newFuelBudget = parseDotsToNum(quickFuelBudgetFormatted)
-    const newServiceBudget = parseDotsToNum(quickServiceBudgetFormatted)
-
-    const updated = vehicles.map((v) =>
-      v.id === adjustingVehicle.id
-        ? {
-            ...v,
-            monthly_budget: newFuelBudget,
-            monthly_service_budget: newServiceBudget,
-            target_km_monthly: Number(quickTargetKm) || 2000,
-          }
-        : v
-    )
-    setVehicles(updated)
-    localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
-    setAdjustingVehicle(null)
-  }
-
-  const handleDeleteVehicle = (id: string) => {
-    if (confirm('Hapus kendaraan ini dari Master Data?')) {
-      const updated = vehicles.filter((v) => v.id !== id)
-      setVehicles(updated)
-      localStorage.setItem('vehicle_budgets', JSON.stringify(updated))
-    }
-  }
-
-  // Fuel Handlers
-  const handleOpenAddFuel = () => {
-    setEditingFuelId(null)
-    setFuelForm({ name: '', price_formatted: '10.000', category: 'Non-Subsidi' })
-    setShowFuelModal(true)
-  }
-
-  const handleOpenEditFuel = (f: any) => {
-    setEditingFuelId(f.id)
-    setFuelForm({
-      name: f.name || '',
-      price_formatted: formatNumberDots(f.price || 0),
-      category: f.category || 'Non-Subsidi',
-    })
-    setShowFuelModal(true)
-  }
-
-  const handleSaveFuel = (e: React.FormEvent) => {
-    e.preventDefault()
-    const numericPrice = parseDotsToNum(fuelForm.price_formatted)
-    const payload = { name: fuelForm.name, price: numericPrice, category: fuelForm.category }
-
-    let updated: any[]
-    if (editingFuelId) {
-      updated = fuels.map((f) => (f.id === editingFuelId ? { ...f, ...payload } : f))
-    } else {
-      updated = [...fuels, { ...payload, id: `F${Date.now()}` }]
-    }
-
-    setFuels(updated)
-    localStorage.setItem('master_fuel_prices', JSON.stringify(updated))
-    setShowFuelModal(false)
-  }
-
-  const handleDeleteFuel = (id: string) => {
-    if (confirm('Hapus jenis BBM ini dari Master Data?')) {
-      const updated = fuels.filter((f) => f.id !== id)
-      setFuels(updated)
-      localStorage.setItem('master_fuel_prices', JSON.stringify(updated))
-    }
-  }
-
-  const todayStr = new Date().toISOString().split('T')[0]
-
-  return (
-    <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
-      <AdminSidebar />
-
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto">
-        {/* HEADER MODUL */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-sm font-bold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              {activeTab === 'drivers'
-                ? 'Master Data Driver & Pengemudi'
-                : activeTab === 'vehicles'
-                ? 'Master Data Armada & Kendaraan Operasional'
-                : 'Katalog Jenis & Tarif Harga BBM'}
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {activeTab === 'drivers'
-                ? 'Kelola biodata, foto profil, lisensi SIM, kontak darurat, serta penugasan armada driver'
-                : activeTab === 'vehicles'
-                ? 'Atur rincian Anggaran BBM, Anggaran Servis/KIR, Jam Terbang (Target KM), serta legalitas KIR & STNK'
-                : 'Atur daftar pilihan bahan bakar dan penyesuaian harga per liter'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetMasterData}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-2.5 rounded-xl border border-slate-300 transition flex items-center gap-1.5"
-              title="Perbarui struktur data ke versi terbaru"
-            >
-              🔄 Reset / Update Data
-            </button>
-
-            {activeTab === 'drivers' && (
-              <button
-                onClick={handleOpenAddDriver}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
-              >
-                <Icons.Plus className="w-4 h-4" /> Tambah Driver
-              </button>
-            )}
-
-            {activeTab === 'vehicles' && (
-              <button
-                onClick={handleOpenAddVehicle}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
-              >
-                <Icons.Plus className="w-4 h-4" /> Tambah Armada
-              </button>
-            )}
-
-            {activeTab === 'prices' && (
-              <button
-                onClick={handleOpenAddFuel}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
-              >
-                <Icons.Plus className="w-4 h-4" /> Tambah Jenis BBM
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ================= TAB 1: MASTER DRIVER ================= */}
-        {activeTab === 'drivers' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {drivers.map((d) => {
-              const isSimExpiringSoon = d.sim_expiry && d.sim_expiry <= todayStr
-              const photoSrc = d.photo || d.photo_url
-
-              return (
-                <div
-                  key={d.id}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between hover:shadow-md transition"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          {photoSrc ? (
-                            <img
-                              src={photoSrc}
-                              alt={d.name}
-                              className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-400 shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-amber-400 font-extrabold text-lg flex items-center justify-center border-2 border-slate-800 shadow-sm">
-                              {d.name ? d.name.slice(0, 1).toUpperCase() : 'D'}
-                            </div>
-                          )}
-                          <span
-                            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                              d.status === 'ACTIVE' || d.status === 'Aktif' ? 'bg-emerald-500' : 'bg-slate-400'
-                            }`}
-                            title={`Status: ${d.status}`}
-                          ></span>
-                        </div>
-
-                        <div>
-                          <h3 className="font-extrabold text-slate-900 text-sm leading-snug">{d.name}</h3>
-                          <a
-                            href={`https://wa.me/${(d.phone || '').replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] font-mono text-emerald-700 hover:underline flex items-center gap-1 mt-0.5"
-                          >
-                            📱 {d.phone || 'Belum ada HP'}
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleOpenEditDriver(d)}
-                          className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition border border-indigo-200"
-                          title="Edit Driver"
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDriver(d.id, d.name)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition border border-rose-200"
-                          title="Hapus Driver"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1.5 text-xs font-mono">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Lisensi SIM:</span>
-                        <strong className="text-slate-900">{d.sim_type || 'SIM B1'}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Nomor SIM:</span>
-                        <span className="text-slate-800">{d.sim_number || '-'}</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-1 border-slate-200">
-                        <span className="text-slate-500">Masa Berlaku SIM:</span>
-                        <strong className={isSimExpiringSoon ? 'text-rose-600 font-bold' : 'text-slate-900'}>
-                          {d.sim_expiry || '-'}
-                        </strong>
-                      </div>
-                      {isSimExpiringSoon && (
-                        <div className="text-[10px] bg-rose-100 text-rose-700 p-1 rounded font-bold text-center">
-                          ⚠️ SIM Kadaluarsa / Segera Perpanjang
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Armada Utama:</span>
-                        <strong className="text-indigo-900 font-mono font-bold">{d.assigned_vehicle || '-'}</strong>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>Kontak Darurat:</span>
-                        <strong className="text-slate-900">
-                          {d.emergency_name
-                            ? `${d.emergency_name} (${d.emergency_relation || 'Keluarga'})`
-                            : d.emergency_contact_name || '-'}
-                        </strong>
-                      </div>
-                      {(d.emergency_phone || d.emergency_contact_phone) && (
-                        <div className="flex justify-between text-slate-500 text-[10px]">
-                          <span>No. Darurat:</span>
-                          <span className="font-mono">{d.emergency_phone || d.emergency_contact_phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ================= TAB 2: MASTER ARMADA & RINCIAN ANGGARAN ================= */}
-        {activeTab === 'vehicles' && (
-          <div className="space-y-5">
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-900 text-white font-bold">
-                  <tr>
-                    <th className="p-3.5">Plat Nomor & Model</th>
-                    <th className="p-3.5">Odometer Terkini</th>
-                    <th className="p-3.5">Jam Terbang (Target KM)</th>
-                    <th className="p-3.5">Anggaran BBM</th>
-                    <th className="p-3.5">Anggaran Servis & KIR</th>
-                    <th className="p-3.5">Total Budget Operasional</th>
-                    <th className="p-3.5">Exp. KIR / STNK</th>
-                    <th className="p-3.5 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {vehicles.map((v) => {
-                    const fuelB = Number(v.monthly_budget) || 0
-                    const serviceB = Number(v.monthly_service_budget) || 500000
-                    const totalB = fuelB + serviceB
-                    const targetKm = Number(v.target_km_monthly) || 2000
-
-                    const isKirExpiring = v.kir_expiry && v.kir_expiry <= todayStr
-                    const isStnkExpiring = v.stnk_expiry && v.stnk_expiry <= todayStr
-
-                    return (
-                      <tr key={v.id} className="hover:bg-slate-50 transition">
-                        <td className="p-3.5">
-                          <div className="font-bold text-slate-900">{v.plate_number}</div>
-                          <div className="text-[11px] text-slate-500">{v.model} ({v.year || 2023})</div>
-                        </td>
-                        <td className="p-3.5 font-mono font-bold text-slate-800">
-                          {(v.last_km || 0).toLocaleString('id-ID')} KM
-                        </td>
-                        <td className="p-3.5 font-mono">
-                          <span className="bg-indigo-50 text-indigo-900 font-bold px-2 py-1 rounded-lg border border-indigo-100">
-                            🎯 {targetKm.toLocaleString('id-ID')} KM / Bln
-                          </span>
-                        </td>
-                        <td className="p-3.5 font-mono font-bold text-amber-700">
-                          Rp {fuelB.toLocaleString('id-ID')}
-                        </td>
-                        <td className="p-3.5 font-mono font-bold text-indigo-700">
-                          Rp {serviceB.toLocaleString('id-ID')}
-                        </td>
-                        <td className="p-3.5">
-                          <div className="font-mono font-extrabold text-slate-900">
-                            Rp {totalB.toLocaleString('id-ID')}
-                          </div>
-                          <button
-                            onClick={() => handleOpenAdjustBudget(v)}
-                            className="text-[10px] text-amber-600 hover:underline font-bold inline-flex items-center gap-0.5 mt-0.5"
-                          >
-                            <Icons.Edit className="w-3 h-3" /> Adjust Rincian Anggaran
-                          </button>
-                        </td>
-                        <td className="p-3.5 font-mono text-[11px] space-y-0.5">
-                          <div>
-                            KIR: <strong className={isKirExpiring ? 'text-rose-600 font-bold' : 'text-slate-800'}>{v.kir_expiry || '-'}</strong>
-                            {isKirExpiring && <span className="ml-1 text-[9px] bg-rose-100 text-rose-700 px-1 rounded font-bold">Expired</span>}
-                          </div>
-                          <div>
-                            STNK: <strong className={isStnkExpiring ? 'text-rose-600 font-bold' : 'text-slate-800'}>{v.stnk_expiry || '-'}</strong>
-                            {isStnkExpiring && <span className="ml-1 text-[9px] bg-rose-100 text-rose-700 px-1 rounded font-bold">Expired</span>}
-                          </div>
-                        </td>
-                        <td className="p-3.5 text-center space-x-2">
-                          <button
-                            onClick={() => handleOpenEditVehicle(v)}
-                            className="text-indigo-600 hover:underline font-bold"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteVehicle(v.id)}
-                            className="text-rose-600 hover:underline font-bold"
-                          >
-                            Hapus
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 3: TARIF BBM ================= */}
-        {activeTab === 'prices' && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {fuels.map((f) => (
-                <div key={f.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-bold text-sm text-slate-900">{f.name}</h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${f.category === 'Subsidi' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}`}>
-                        {f.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleOpenEditFuel(f)} className="text-indigo-600 hover:underline text-xs font-bold">
-                        Edit
-                      </button>
-                      <button onClick={() => handleDeleteFuel(f.id)} className="text-rose-600 hover:underline text-xs font-bold">
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex justify-between items-center">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-sans">Tarif Per Liter:</span>
-                      <strong className="text-base font-extrabold font-mono text-slate-900">
-                        Rp {(f.price || 0).toLocaleString('id-ID')}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* MODAL QUICK ADJUST ANGGARAN & JAM TERBANG */}
-      {adjustingVehicle && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-xs font-bold text-slate-900">Adjust Rincian Anggaran & Jam Terbang ({adjustingVehicle.plate_number})</h3>
-              <button onClick={() => setAdjustingVehicle(null)} className="text-slate-400 font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveQuickBudget} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Target Jam Terbang / KM Per Bulan</label>
-                <input
-                  type="number"
-                  className="w-full border p-2.5 rounded-xl font-mono text-xs font-bold text-slate-900 outline-none"
-                  value={quickTargetKm}
-                  onChange={(e) => setQuickTargetKm(Number(e.target.value))}
-                  placeholder="2000"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Anggaran BBM Bulanan (Rp) *</label>
-                <input
-                  type="text"
-                  className="w-full border p-2.5 rounded-xl font-mono text-sm font-bold text-amber-700 outline-none"
-                  value={quickFuelBudgetFormatted}
-                  onChange={(e) => setQuickFuelBudgetFormatted(formatNumberDots(e.target.value))}
-                  placeholder="1.500.000"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Anggaran Maintenance & KIR Bulanan (Rp) *</label>
-                <input
-                  type="text"
-                  className="w-full border p-2.5 rounded-xl font-mono text-sm font-bold text-indigo-900 outline-none"
-                  value={quickServiceBudgetFormatted}
-                  onChange={(e) => setQuickServiceBudgetFormatted(formatNumberDots(e.target.value))}
-                  placeholder="500.000"
-                  required
-                />
-              </div>
-
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-mono flex justify-between">
-                <span>Total Budget Operasional:</span>
-                <strong className="text-slate-900">
-                  Rp {(parseDotsToNum(quickFuelBudgetFormatted) + parseDotsToNum(quickServiceBudgetFormatted)).toLocaleString('id-ID')}
-                </strong>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setAdjustingVehicle(null)} className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2 rounded-xl shadow-md">Simpan Anggaran</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH / EDIT DRIVER */}
-      {showDriverModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{editingDriverId ? 'Edit Biodata Driver' : 'Tambah Driver Baru'}</h3>
-              <button onClick={() => setShowDriverModal(false)} className="text-slate-400 font-bold">✕</button>
-            </div>
-
-            <form onSubmit={handleSaveDriver} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Foto Profil Driver</label>
-                <div className="flex items-center gap-3">
-                  {driverForm.photo ? (
-                    <div className="relative">
-                      <img src={driverForm.photo} alt="Preview" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-sm" />
-                      <button
-                        type="button"
-                        onClick={() => setDriverForm((prev) => ({ ...prev, photo: '' }))}
-                        className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-bold"
-                        title="Hapus foto"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 font-bold text-xs flex items-center justify-center border border-slate-300">
-                      Foto
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 file:text-white font-bold cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nama Lengkap *</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Ahmad Supardi"
-                    className="w-full border border-slate-300 p-2.5 rounded-xl outline-none font-bold text-slate-900"
-                    value={driverForm.name}
-                    onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">No. HP / WhatsApp *</label>
-                  <input
-                    type="text"
-                    placeholder="081234567890"
-                    className="w-full border border-slate-300 p-2.5 rounded-xl outline-none font-mono font-bold"
-                    value={driverForm.phone}
-                    onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">NIK KTP (Opsional)</label>
-                  <input
-                    type="text"
-                    placeholder="3171012304850001"
-                    className="w-full border border-slate-300 p-2.5 rounded-xl outline-none font-mono"
-                    value={driverForm.nik}
-                    onChange={(e) => setDriverForm({ ...driverForm, nik: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Status Kepegawaian</label>
-                  <select
-                    className="w-full border border-slate-300 p-2.5 rounded-xl bg-slate-50 font-bold outline-none"
-                    value={driverForm.status}
-                    onChange={(e) => setDriverForm({ ...driverForm, status: e.target.value })}
-                  >
-                    <option value="ACTIVE">🟢 Aktif</option>
-                    <option value="INACTIVE">⚪ Non-Aktif</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Alamat Domisili</label>
-                <input
-                  type="text"
-                  placeholder="Alamat tempat tinggal lengkap..."
-                  className="w-full border border-slate-300 p-2.5 rounded-xl outline-none"
-                  value={driverForm.address}
-                  onChange={(e) => setDriverForm({ ...driverForm, address: e.target.value })}
-                />
-              </div>
-
-              <div className="border-t border-slate-100 pt-2 grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-700 mb-1">Jenis SIM *</label>
-                  <select
-                    className="w-full border border-slate-300 p-2 rounded-xl bg-slate-50 font-bold text-xs outline-none"
-                    value={driverForm.sim_type}
-                    onChange={(e) => setDriverForm({ ...driverForm, sim_type: e.target.value })}
-                  >
-                    <option value="SIM A">SIM A</option>
-                    <option value="SIM B1">SIM B1</option>
-                    <option value="SIM B1 Umum">SIM B1 Umum</option>
-                    <option value="SIM B2 Umum">SIM B2 Umum</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-700 mb-1">Nomor SIM *</label>
-                  <input
-                    type="text"
-                    placeholder="9283-1928-0001"
-                    className="w-full border border-slate-300 p-2 rounded-xl outline-none font-mono text-xs"
-                    value={driverForm.sim_number}
-                    onChange={(e) => setDriverForm({ ...driverForm, sim_number: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-700 mb-1">Masa Berlaku SIM *</label>
-                  <input
-                    type="date"
-                    className="w-full border border-slate-300 p-1.5 rounded-xl outline-none font-mono text-xs bg-slate-50"
-                    value={driverForm.sim_expiry}
-                    onChange={(e) => setDriverForm({ ...driverForm, sim_expiry: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-2 grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-700 mb-1">Nama Kontak Darurat</label>
-                  <input
-                    type="text"
-                    placeholder="Nama Istri/Kerabat"
-                    className="w-full border border-slate-300 p-2 rounded-xl outline-none text-xs"
-                    value={driverForm.emergency_name}
-                    onChange={(e) => setDriverForm({ ...driverForm, emergency_name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-700 mb-1">Hubungan</label>
-                  <input
-                    type="text"
-                    placeholder="Istri / Adik / Ortu"
-                    className="w-full border border-slate-300 p-2 rounded-xl outline-none text-xs"
-                    value={driverForm.emergency_relation}
-                    onChange={(e) => setDriverForm({ ...driverForm, emergency_relation: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-700 mb-1">No. HP Darurat</label>
-                  <input
-                    type="text"
-                    placeholder="0812xxxx"
-                    className="w-full border border-slate-300 p-2 rounded-xl outline-none font-mono text-xs"
-                    value={driverForm.emergency_phone}
-                    onChange={(e) => setDriverForm({ ...driverForm, emergency_phone: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Prapilih Armada Utama Kendaraan</label>
-                <select
-                  className="w-full border border-slate-300 p-2.5 rounded-xl bg-slate-50 font-bold text-indigo-900 outline-none"
-                  value={driverForm.assigned_vehicle}
-                  onChange={(e) => setDriverForm({ ...driverForm, assigned_vehicle: e.target.value })}
-                >
-                  {vehicles.map((v) => (
-                    <option key={v.plate_number} value={v.plate_number}>
-                      {v.plate_number} — {v.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDriverModal(false)}
-                  className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md"
-                >
-                  Simpan Data Driver
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH / EDIT ARMADA */}
-      {showVehicleModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{editingVehicleId ? 'Edit Data Armada' : 'Tambah Armada Baru'}</h3>
-              <button onClick={() => setShowVehicleModal(false)} className="text-slate-400 font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveVehicle} className="space-y-3 text-xs">
-              <input type="text" placeholder="Plat Nomor (Contoh: B 1234 ABC) *" className="w-full border p-2.5 rounded-xl font-bold uppercase" value={vehicleForm.plate_number} onChange={(e) => setVehicleForm({ ...vehicleForm, plate_number: e.target.value })} required />
-              <input type="text" placeholder="Model / Tipe Kendaraan *" className="w-full border p-2.5 rounded-xl" value={vehicleForm.model} onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })} required />
-              <div className="grid grid-cols-2 gap-2">
-                <input type="number" placeholder="Tahun *" className="border p-2.5 rounded-xl font-mono" value={vehicleForm.year} onChange={(e) => setVehicleForm({ ...vehicleForm, year: Number(e.target.value) })} required />
-                <input type="number" placeholder="KM Odometer Terkini *" className="border p-2.5 rounded-xl font-mono" value={vehicleForm.last_km} onChange={(e) => setVehicleForm({ ...vehicleForm, last_km: Number(e.target.value) })} required />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Anggaran BBM (Rp) *</label>
-                  <input
-                    type="text"
-                    placeholder="1.500.000"
-                    className="w-full border p-2.5 rounded-xl font-mono font-bold text-amber-700"
-                    value={vehicleForm.monthly_budget_formatted}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_budget_formatted: formatNumberDots(e.target.value) })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Anggaran Servis (Rp) *</label>
-                  <input
-                    type="text"
-                    placeholder="500.000"
-                    className="w-full border p-2.5 rounded-xl font-mono font-bold text-indigo-900"
-                    value={vehicleForm.monthly_service_budget_formatted}
-                    onChange={(e) => setVehicleForm({ ...vehicleForm, monthly_service_budget_formatted: formatNumberDots(e.target.value) })}
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Target Jam Terbang (KM / Bulan) *</label>
-                <input
-                  type="number"
-                  placeholder="2000"
-                  className="w-full border p-2.5 rounded-xl font-mono font-bold text-slate-900"
-                  value={vehicleForm.target_km_monthly}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, target_km_monthly: Number(e.target.value) })}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-1">Tanggal Expired KIR</label>
-                  <input type="date" className="w-full border p-2 rounded-xl" value={vehicleForm.kir_expiry} onChange={(e) => setVehicleForm({ ...vehicleForm, kir_expiry: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-500 mb-1">Tanggal Expired STNK</label>
-                  <input type="date" className="w-full border p-2 rounded-xl" value={vehicleForm.stnk_expiry} onChange={(e) => setVehicleForm({ ...vehicleForm, stnk_expiry: e.target.value })} />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowVehicleModal(false)} className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md">Simpan Armada</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH / EDIT BBM */}
-      {showFuelModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">{editingFuelId ? 'Edit Tarif BBM' : 'Tambah Jenis BBM Baru'}</h3>
-              <button onClick={() => setShowFuelModal(false)} className="text-slate-400 font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveFuel} className="space-y-3 text-xs">
-              <input type="text" placeholder="Nama BBM (Misal: Pertamax Green 95) *" className="w-full border p-2.5 rounded-xl font-bold" value={fuelForm.name} onChange={(e) => setFuelForm({ ...fuelForm, name: e.target.value })} required />
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Harga Per Liter (Rp) *</label>
-                <input
-                  type="text"
-                  placeholder="10.000"
-                  className="w-full border p-2.5 rounded-xl font-mono font-bold"
-                  value={fuelForm.price_formatted}
-                  onChange={(e) => setFuelForm({ ...fuelForm, price_formatted: formatNumberDots(e.target.value) })}
-                  required
-                />
-              </div>
-              <select className="w-full border p-2.5 rounded-xl bg-slate-50 font-bold" value={fuelForm.category} onChange={(e) => setFuelForm({ ...fuelForm, category: e.target.value })}>
-                <option value="Non-Subsidi">Non-Subsidi</option>
-                <option value="Subsidi">Subsidi</option>
-              </select>
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowFuelModal(false)} className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md">Simpan BBM</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+const EMPTY_VEHICLE: Record<string, string> = {
+  plate_number: '',
+  model: '',
+  year: String(new Date().getFullYear()),
+  monthly_budget: '',
+  monthly_service_budget: '',
+  target_km_monthly: '',
+  baseline_km_per_liter: '',
+  last_km: '',
+  kir_expiry: '',
+  stnk_expiry: '',
+  status: 'ACTIVE',
+}
+
+const EMPTY_PRICE: Record<string, string> = {
+  name: '',
+  category: 'Non-Subsidi',
+  price: '',
 }
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-900 text-white p-6">Memuat Master Data...</div>}>
+    <Suspense
+      fallback={
+        <div className="card flex items-center gap-3 p-6 text-xs font-bold text-slate-500">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-navy-800" />
+          Memuat pengaturan…
+        </div>
+      }
+    >
       <SettingsContent />
     </Suspense>
+  )
+}
+
+function SettingsContent() {
+  const { data, loading, error, refreshing, refresh } = useFleet()
+  const searchParams = useSearchParams()
+  const rawTab = searchParams.get('tab') || 'drivers'
+  const tab = (TABS.some((item) => item.key === rawTab) ? rawTab : 'drivers') as TabKey
+  const activeTab = TABS.find((item) => item.key === tab) || TABS[0]
+
+  if (loading && !data) {
+    return (
+      <div className="card space-y-3 p-6">
+        <div className="h-4 w-40 animate-pulse rounded bg-slate-100" />
+        <div className="h-3 w-72 animate-pulse rounded bg-slate-100" />
+        <div className="h-40 animate-pulse rounded-xl bg-slate-50" />
+      </div>
+    )
+  }
+
+  if (error && !data) {
+    return (
+      <div className="card flex flex-col items-center gap-3 p-10 text-center">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <Icon name="alert" className="h-5 w-5" />
+        </span>
+        <p className="text-sm font-extrabold text-slate-800">Data pengaturan gagal dimuat</p>
+        <p className="max-w-md text-xs text-slate-500">{error}</p>
+        <button type="button" onClick={() => void refresh()} className="btn btn-primary">
+          <Icon name="refresh" className="h-3.5 w-3.5" />
+          Coba lagi
+        </button>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        eyebrow="Master & Sistem"
+        title={activeTab.label}
+        description={activeTab.description}
+        actions={
+          <button type="button" onClick={() => void refresh()} disabled={refreshing} className="btn btn-ghost">
+            <Icon name="refresh" className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Muat ulang
+          </button>
+        }
+      />
+
+      <div className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5">
+        {TABS.map((item) => {
+          const active = item.key === tab
+          return (
+            <Link
+              key={item.key}
+              href={`/admin/settings?tab=${item.key}`}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-extrabold transition ${
+                active
+                  ? 'bg-navy-900 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-navy-900'
+              }`}
+            >
+              <Icon name={item.icon} className="h-3.5 w-3.5" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
+
+      {tab === 'drivers' && <DriversTab />}
+      {tab === 'vehicles' && <VehiclesTab />}
+      {tab === 'prices' && <PricesTab />}
+      {tab === 'system' && <SystemTab />}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared bits                                                         */
+/* ------------------------------------------------------------------ */
+
+function Field({
+  label,
+  hint,
+  children,
+  className = '',
+}: {
+  label: string
+  hint?: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={className}>
+      <span className="label">{label}</span>
+      {children}
+      {hint && <p className="mt-1 text-[10px] leading-relaxed text-slate-400">{hint}</p>}
+    </div>
+  )
+}
+
+function StatusPill({ status }: { status?: string }) {
+  const active = (status || 'ACTIVE') === 'ACTIVE'
+  return <span className={`badge ${active ? 'badge-green' : 'badge-slate'}`}>{active ? 'Aktif' : 'Nonaktif'}</span>
+}
+
+function LegalPill({ date }: { date: string }) {
+  const days = daysUntil(date)
+  if (days === null) return <span className="badge badge-slate">Belum diisi</span>
+  if (days < 0) return <span className="badge badge-red">Lewat {Math.abs(days)} hari</span>
+  if (days <= 45) return <span className="badge badge-amber">{days} hari lagi</span>
+  return <span className="badge badge-green">{days} hari lagi</span>
+}
+
+function EmptyState({ title, description, action }: { title: string; description: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <Icon name="file" className="h-5 w-5" />
+      </span>
+      <div>
+        <p className="text-sm font-extrabold text-slate-800">{title}</p>
+        <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500">{description}</p>
+      </div>
+      {action}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Drivers                                                             */
+/* ------------------------------------------------------------------ */
+
+function DriversTab() {
+  const { data, create, update, remove } = useFleet()
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('ALL')
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Driver | null>(null)
+  const [form, setForm] = useState<Record<string, string>>(EMPTY_DRIVER)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const drivers = data?.drivers || []
+  const vehicles = data?.vehicles || []
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase()
+    return drivers.filter((driver) => {
+      const matchesStatus = status === 'ALL' || (driver.status || 'ACTIVE') === status
+      const haystack = [driver.name, driver.nik, driver.phone, driver.sim_number, driver.assigned_vehicle]
+        .join(' ')
+        .toLowerCase()
+      return matchesStatus && (!term || haystack.includes(term))
+    })
+  }, [drivers, query, status])
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ ...EMPTY_DRIVER, assigned_vehicle: vehicles[0]?.plate_number || '' })
+    setOpen(true)
+  }
+
+  const openEdit = (driver: Driver) => {
+    setEditing(driver)
+    setForm({
+      name: driver.name || '',
+      nik: driver.nik || '',
+      phone: driver.phone || '',
+      address: driver.address || '',
+      sim_type: driver.sim_type || 'SIM A',
+      sim_number: driver.sim_number || '',
+      sim_expiry: driver.sim_expiry || '',
+      emergency_name: driver.emergency_name || '',
+      emergency_relation: driver.emergency_relation || '',
+      emergency_phone: driver.emergency_phone || driver.emergency_contact_phone || '',
+      assigned_vehicle: driver.assigned_vehicle || '',
+      joined_at: driver.joined_at || '',
+      status: driver.status || 'ACTIVE',
+    })
+    setOpen(true)
+  }
+
+  const setField = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }))
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (saving) return
+    if (!form.name.trim()) return
+    setSaving(true)
+
+    const emergencyName = form.emergency_name.trim()
+    const emergencyRelation = form.emergency_relation.trim()
+    const payload = {
+      name: form.name.trim(),
+      nik: form.nik.trim(),
+      phone: form.phone.trim(),
+      address: form.address.trim(),
+      sim_type: form.sim_type.trim(),
+      sim_number: form.sim_number.trim(),
+      sim_expiry: form.sim_expiry,
+      emergency_name: emergencyName,
+      emergency_relation: emergencyRelation,
+      emergency_phone: form.emergency_phone.trim(),
+      emergency_contact_name: emergencyName
+        ? `${emergencyName}${emergencyRelation ? ` (${emergencyRelation})` : ''}`
+        : '',
+      emergency_contact_phone: form.emergency_phone.trim(),
+      assigned_vehicle: form.assigned_vehicle,
+      status: form.status,
+      joined_at: form.joined_at || new Date().toISOString().slice(0, 10),
+    }
+
+    try {
+      if (editing) await update('drivers', editing.id, payload)
+      else await create('drivers', payload)
+      setOpen(false)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await remove('drivers', deleteTarget.id)
+      setDeleteTarget(null)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Total driver" value={formatNumber(drivers.length)} icon="users" />
+        <SummaryCard
+          label="Driver aktif"
+          value={formatNumber(drivers.filter((driver) => (driver.status || 'ACTIVE') === 'ACTIVE').length)}
+          icon="check"
+        />
+        <SummaryCard
+          label="SIM mendekati kedaluwarsa"
+          value={formatNumber(
+            drivers.filter((driver) => {
+              const days = daysUntil(driver.sim_expiry)
+              return days !== null && days <= 60
+            }).length
+          )}
+          icon="alert"
+          tone="amber"
+        />
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="card-header flex-col gap-3 sm:flex-row sm:items-center">
+          <div>
+            <p className="card-title">Daftar pengemudi</p>
+            <p className="card-subtitle">{filtered.length} dari {drivers.length} driver ditampilkan.</p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Cari nama, NIK, SIM…"
+                className="input py-2 pl-9 sm:w-56"
+              />
+            </div>
+            <select value={status} onChange={(event) => setStatus(event.target.value)} className="input py-2 sm:w-36">
+              <option value="ALL">Semua status</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Nonaktif</option>
+            </select>
+            <button type="button" onClick={openCreate} className="btn btn-gold">
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              Tambah driver
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="Tidak ada driver ditemukan"
+            description="Ubah kata kunci atau tambahkan pengemudi baru ke master data."
+            action={
+              <button type="button" onClick={openCreate} className="btn btn-primary">
+                <Icon name="plus" className="h-3.5 w-3.5" />
+                Tambah driver
+              </button>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>Kontak</th>
+                  <th>SIM</th>
+                  <th>Armada</th>
+                  <th>Status</th>
+                  <th className="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((driver) => (
+                  <tr key={driver.id}>
+                    <td>
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy-900 text-[10px] font-extrabold text-gold-300">
+                          {initials(driver.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-slate-800">{driver.name}</p>
+                          <p className="truncate font-mono text-[10px] text-slate-400">{driver.nik || 'NIK belum diisi'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <p className="text-xs font-semibold text-slate-700">{driver.phone || '-'}</p>
+                      <p className="max-w-[180px] truncate text-[10px] text-slate-400">{driver.address || 'Alamat belum diisi'}</p>
+                    </td>
+                    <td>
+                      <p className="text-xs font-semibold text-slate-700">{driver.sim_type || '-'}</p>
+                      <p className="font-mono text-[10px] text-slate-400">{driver.sim_number || '-'}</p>
+                      <div className="mt-1">
+                        <LegalPill date={driver.sim_expiry || ''} />
+                      </div>
+                    </td>
+                    <td>
+                      <p className="font-mono text-[11px] font-bold text-slate-700">{driver.assigned_vehicle || 'Belum ditugaskan'}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {driver.emergency_name ? `Darurat: ${driver.emergency_name}` : 'Kontak darurat belum diisi'}
+                      </p>
+                    </td>
+                    <td>
+                      <StatusPill status={driver.status} />
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(driver)}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-navy-50 hover:text-navy-800"
+                          title="Ubah driver"
+                          aria-label={`Ubah ${driver.name}`}
+                        >
+                          <Icon name="edit" className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(driver)}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          title="Hapus driver"
+                          aria-label={`Hapus ${driver.name}`}
+                        >
+                          <Icon name="trash" className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={editing ? 'Ubah data driver' : 'Tambah driver baru'}
+        description="Data ini dipakai untuk validasi identitas pengemudi pada transaksi BBM dan klaim."
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nama lengkap" className="sm:col-span-2">
+              <input
+                className="input"
+                value={form.name}
+                onChange={(event) => setField('name', event.target.value)}
+                placeholder="Nama sesuai KTP"
+                required
+              />
+            </Field>
+            <Field label="NIK">
+              <input
+                className="input font-mono"
+                value={form.nik}
+                onChange={(event) => setField('nik', event.target.value)}
+                placeholder="16 digit NIK"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Nomor telepon">
+              <input
+                className="input font-mono"
+                value={form.phone}
+                onChange={(event) => setField('phone', event.target.value)}
+                placeholder="08xxxxxxxxxx"
+                inputMode="tel"
+              />
+            </Field>
+            <Field label="Alamat" className="sm:col-span-2">
+              <textarea
+                className="input min-h-[70px] resize-y"
+                value={form.address}
+                onChange={(event) => setField('address', event.target.value)}
+                placeholder="Alamat domisili"
+              />
+            </Field>
+            <Field label="Jenis SIM">
+              <select className="input" value={form.sim_type} onChange={(event) => setField('sim_type', event.target.value)}>
+                <option value="SIM A">SIM A</option>
+                <option value="SIM B1">SIM B1</option>
+                <option value="SIM B1 Umum">SIM B1 Umum</option>
+                <option value="SIM B2 Umum">SIM B2 Umum</option>
+                <option value="SIM C">SIM C</option>
+              </select>
+            </Field>
+            <Field label="Nomor SIM">
+              <input
+                className="input font-mono"
+                value={form.sim_number}
+                onChange={(event) => setField('sim_number', event.target.value)}
+                placeholder="Nomor SIM"
+              />
+            </Field>
+            <Field label="Masa berlaku SIM">
+              <input
+                type="date"
+                className="input"
+                value={form.sim_expiry}
+                onChange={(event) => setField('sim_expiry', event.target.value)}
+              />
+            </Field>
+            <Field label="Armada ditugaskan">
+              <select
+                className="input"
+                value={form.assigned_vehicle}
+                onChange={(event) => setField('assigned_vehicle', event.target.value)}
+              >
+                <option value="">Belum ditugaskan</option>
+                {vehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.plate_number}>
+                    {vehicle.plate_number} — {vehicle.model}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Kontak darurat">
+              <input
+                className="input"
+                value={form.emergency_name}
+                onChange={(event) => setField('emergency_name', event.target.value)}
+                placeholder="Nama kontak darurat"
+              />
+            </Field>
+            <Field label="Hubungan">
+              <input
+                className="input"
+                value={form.emergency_relation}
+                onChange={(event) => setField('emergency_relation', event.target.value)}
+                placeholder="Istri, orang tua, saudara…"
+              />
+            </Field>
+            <Field label="Telepon darurat">
+              <input
+                className="input font-mono"
+                value={form.emergency_phone}
+                onChange={(event) => setField('emergency_phone', event.target.value)}
+                placeholder="08xxxxxxxxxx"
+                inputMode="tel"
+              />
+            </Field>
+            <Field label="Tanggal bergabung">
+              <input
+                type="date"
+                className="input"
+                value={form.joined_at}
+                onChange={(event) => setField('joined_at', event.target.value)}
+              />
+            </Field>
+            <Field label="Status">
+              <select className="input" value={form.status} onChange={(event) => setField('status', event.target.value)}>
+                <option value="ACTIVE">Aktif</option>
+                <option value="INACTIVE">Nonaktif</option>
+              </select>
+            </Field>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="submit" disabled={saving || !form.name.trim()} className="btn btn-primary">
+              {saving ? 'Menyimpan…' : editing ? 'Simpan perubahan' : 'Tambah driver'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDelete
+        open={Boolean(deleteTarget)}
+        title="Hapus driver?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.name} akan dihapus dari master driver. Riwayat transaksi yang sudah ada tetap tersimpan.`
+            : ''
+        }
+        busy={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Vehicles                                                            */
+/* ------------------------------------------------------------------ */
+
+function VehiclesTab() {
+  const { data, create, update, remove } = useFleet()
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('ALL')
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Vehicle | null>(null)
+  const [form, setForm] = useState<Record<string, string>>(EMPTY_VEHICLE)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Vehicle | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const vehicles = data?.vehicles || []
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase()
+    return vehicles.filter((vehicle) => {
+      const matchesStatus = status === 'ALL' || (vehicle.status || 'ACTIVE') === status
+      const haystack = [vehicle.plate_number, vehicle.model, String(vehicle.year)].join(' ').toLowerCase()
+      return matchesStatus && (!term || haystack.includes(term))
+    })
+  }, [vehicles, query, status])
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ ...EMPTY_VEHICLE })
+    setOpen(true)
+  }
+
+  const openEdit = (vehicle: Vehicle) => {
+    setEditing(vehicle)
+    setForm({
+      plate_number: vehicle.plate_number || '',
+      model: vehicle.model || '',
+      year: String(vehicle.year || new Date().getFullYear()),
+      monthly_budget: formatNumberInput(vehicle.monthly_budget),
+      monthly_service_budget: formatNumberInput(vehicle.monthly_service_budget),
+      target_km_monthly: formatNumberInput(vehicle.target_km_monthly),
+      baseline_km_per_liter: String(vehicle.baseline_km_per_liter || ''),
+      last_km: formatNumberInput(vehicle.last_km),
+      kir_expiry: vehicle.kir_expiry || '',
+      stnk_expiry: vehicle.stnk_expiry || '',
+      status: vehicle.status || 'ACTIVE',
+    })
+    setOpen(true)
+  }
+
+  const setField = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }))
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (saving) return
+    if (!form.plate_number.trim() || !form.model.trim()) return
+    setSaving(true)
+
+    const payload = {
+      plate_number: form.plate_number.trim().toUpperCase(),
+      model: form.model.trim(),
+      year: Number(form.year) || new Date().getFullYear(),
+      monthly_budget: parseNumberInput(form.monthly_budget),
+      monthly_service_budget: parseNumberInput(form.monthly_service_budget),
+      target_km_monthly: parseNumberInput(form.target_km_monthly),
+      baseline_km_per_liter: Number(String(form.baseline_km_per_liter).replace(',', '.')) || 0,
+      last_km: parseNumberInput(form.last_km),
+      kir_expiry: form.kir_expiry,
+      stnk_expiry: form.stnk_expiry,
+      status: form.status,
+    }
+
+    try {
+      if (editing) await update('vehicles', editing.id, payload)
+      else await create('vehicles', payload)
+      setOpen(false)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await remove('vehicles', deleteTarget.id)
+      setDeleteTarget(null)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Total armada" value={formatNumber(vehicles.length)} icon="truck" />
+        <SummaryCard
+          label="Armada aktif"
+          value={formatNumber(vehicles.filter((vehicle) => (vehicle.status || 'ACTIVE') === 'ACTIVE').length)}
+          icon="check"
+        />
+        <SummaryCard
+          label="Legalitas ≤ 45 hari"
+          value={formatNumber(
+            vehicles.filter((vehicle) => {
+              const kir = daysUntil(vehicle.kir_expiry)
+              const stnk = daysUntil(vehicle.stnk_expiry)
+              return (kir !== null && kir <= 45) || (stnk !== null && stnk <= 45)
+            }).length
+          )}
+          icon="shield"
+          tone="amber"
+        />
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="card-header flex-col gap-3 sm:flex-row sm:items-center">
+          <div>
+            <p className="card-title">Armada terdaftar</p>
+            <p className="card-subtitle">Baseline KM/L menjadi acuan skor kualitas konsumsi BBM.</p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Cari plat atau model…"
+                className="input py-2 pl-9 sm:w-56"
+              />
+            </div>
+            <select value={status} onChange={(event) => setStatus(event.target.value)} className="input py-2 sm:w-36">
+              <option value="ALL">Semua status</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Nonaktif</option>
+            </select>
+            <button type="button" onClick={openCreate} className="btn btn-gold">
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              Tambah armada
+            </button>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="Tidak ada armada ditemukan"
+            description="Tambahkan kendaraan agar driver dapat mengirim laporan pengisian BBM."
+            action={
+              <button type="button" onClick={openCreate} className="btn btn-primary">
+                <Icon name="plus" className="h-3.5 w-3.5" />
+                Tambah armada
+              </button>
+            }
+          />
+        ) : (
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((vehicle) => (
+              <div key={vehicle.id} className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-navy-200">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-extrabold tracking-tight text-navy-950">{vehicle.plate_number}</span>
+                      <StatusPill status={vehicle.status} />
+                    </div>
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">{vehicle.model}</p>
+                    <p className="text-[10px] text-slate-400">Tahun {vehicle.year}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(vehicle)}
+                      className="rounded-lg p-1.5 text-slate-400 transition hover:bg-navy-50 hover:text-navy-800"
+                      title="Ubah armada"
+                      aria-label={`Ubah ${vehicle.plate_number}`}
+                    >
+                      <Icon name="edit" className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(vehicle)}
+                      className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                      title="Hapus armada"
+                      aria-label={`Hapus ${vehicle.plate_number}`}
+                    >
+                      <Icon name="trash" className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-2.5">
+                  <div>
+                    <p className="stat-label">Odometer</p>
+                    <p className="font-mono text-xs font-bold text-slate-800">{formatNumber(vehicle.last_km)} km</p>
+                  </div>
+                  <div>
+                    <p className="stat-label">Baseline</p>
+                    <p className="font-mono text-xs font-bold text-slate-800">{vehicle.baseline_km_per_liter} km/L</p>
+                  </div>
+                  <div>
+                    <p className="stat-label">Anggaran BBM</p>
+                    <p className="font-mono text-[11px] font-bold text-slate-800">{formatCurrency(vehicle.monthly_budget)}</p>
+                  </div>
+                  <div>
+                    <p className="stat-label">Target KM</p>
+                    <p className="font-mono text-xs font-bold text-slate-800">{formatNumber(vehicle.target_km_monthly)} km</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-2.5 text-[10px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-500">KIR · {formatDate(vehicle.kir_expiry)}</span>
+                    <LegalPill date={vehicle.kir_expiry} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-500">STNK · {formatDate(vehicle.stnk_expiry)}</span>
+                    <LegalPill date={vehicle.stnk_expiry} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={editing ? 'Ubah data armada' : 'Tambah armada baru'}
+        description="Baseline KM/L dan anggaran bulanan dipakai untuk menghitung kualitas serta efisiensi biaya."
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nomor plat">
+              <input
+                className="input font-mono uppercase"
+                value={form.plate_number}
+                onChange={(event) => setField('plate_number', event.target.value.toUpperCase())}
+                placeholder="B 1234 ABC"
+                required
+              />
+            </Field>
+            <Field label="Model kendaraan">
+              <input
+                className="input"
+                value={form.model}
+                onChange={(event) => setField('model', event.target.value)}
+                placeholder="Toyota Avanza 1.5 G"
+                required
+              />
+            </Field>
+            <Field label="Tahun">
+              <input
+                className="input font-mono"
+                value={form.year}
+                onChange={(event) => setField('year', event.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="2024"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Odometer terakhir (km)">
+              <input
+                className="input font-mono"
+                value={form.last_km}
+                onChange={(event) => setField('last_km', formatNumberInput(event.target.value))}
+                placeholder="45.000"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Baseline konsumsi (km/L)" hint="Acuan pabrikan atau hasil uji operasional.">
+              <input
+                className="input font-mono"
+                value={form.baseline_km_per_liter}
+                onChange={(event) => setField('baseline_km_per_liter', event.target.value.replace(/[^0-9.,]/g, ''))}
+                placeholder="13"
+                inputMode="decimal"
+              />
+            </Field>
+            <Field label="Target KM per bulan">
+              <input
+                className="input font-mono"
+                value={form.target_km_monthly}
+                onChange={(event) => setField('target_km_monthly', formatNumberInput(event.target.value))}
+                placeholder="1.500"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Anggaran BBM per bulan">
+              <input
+                className="input font-mono"
+                value={form.monthly_budget}
+                onChange={(event) => setField('monthly_budget', formatNumberInput(event.target.value))}
+                placeholder="1.500.000"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Anggaran servis per bulan">
+              <input
+                className="input font-mono"
+                value={form.monthly_service_budget}
+                onChange={(event) => setField('monthly_service_budget', formatNumberInput(event.target.value))}
+                placeholder="500.000"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Masa berlaku KIR">
+              <input
+                type="date"
+                className="input"
+                value={form.kir_expiry}
+                onChange={(event) => setField('kir_expiry', event.target.value)}
+              />
+            </Field>
+            <Field label="Masa berlaku STNK">
+              <input
+                type="date"
+                className="input"
+                value={form.stnk_expiry}
+                onChange={(event) => setField('stnk_expiry', event.target.value)}
+              />
+            </Field>
+            <Field label="Status armada">
+              <select className="input" value={form.status} onChange={(event) => setField('status', event.target.value)}>
+                <option value="ACTIVE">Aktif</option>
+                <option value="INACTIVE">Nonaktif</option>
+              </select>
+            </Field>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !form.plate_number.trim() || !form.model.trim()}
+              className="btn btn-primary"
+            >
+              {saving ? 'Menyimpan…' : editing ? 'Simpan perubahan' : 'Tambah armada'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDelete
+        open={Boolean(deleteTarget)}
+        title="Hapus armada?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.plate_number} — ${deleteTarget.model} akan dihapus dari master armada. Riwayat transaksi tetap tersimpan.`
+            : ''
+        }
+        busy={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Fuel prices                                                         */
+/* ------------------------------------------------------------------ */
+
+function PricesTab() {
+  const { data, create, update, remove } = useFleet()
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<FuelPrice | null>(null)
+  const [form, setForm] = useState<Record<string, string>>(EMPTY_PRICE)
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<FuelPrice | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const prices = data?.fuelPrices || []
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ ...EMPTY_PRICE })
+    setOpen(true)
+  }
+
+  const openEdit = (price: FuelPrice) => {
+    setEditing(price)
+    setForm({ name: price.name, category: price.category || 'Non-Subsidi', price: formatNumberInput(price.price) })
+    setOpen(true)
+  }
+
+  const setField = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }))
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (saving) return
+    if (!form.name.trim()) return
+    setSaving(true)
+
+    const payload = {
+      name: form.name.trim(),
+      category: form.category,
+      price: parseNumberInput(form.price),
+    }
+
+    try {
+      if (editing) await update('fuelPrices', editing.id, payload)
+      else await create('fuelPrices', payload)
+      setOpen(false)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await remove('fuelPrices', deleteTarget.id)
+      setDeleteTarget(null)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Jenis BBM" value={formatNumber(prices.length)} icon="fuel" />
+        <SummaryCard
+          label="Harga rata-rata"
+          value={formatCurrency(prices.length ? Math.round(prices.reduce((total, price) => total + Number(price.price || 0), 0) / prices.length) : 0)}
+          icon="chart"
+        />
+        <SummaryCard
+          label="Harga tertinggi"
+          value={formatCurrency(prices.reduce((max, price) => Math.max(max, Number(price.price || 0)), 0))}
+          icon="spark"
+          tone="amber"
+        />
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="card-header">
+          <div>
+            <p className="card-title">Katalog tarif BBM</p>
+            <p className="card-subtitle">Harga di sini menjadi nilai default saat driver mengirim laporan pengisian.</p>
+          </div>
+          <button type="button" onClick={openCreate} className="btn btn-gold">
+            <Icon name="plus" className="h-3.5 w-3.5" />
+            Tambah tarif
+          </button>
+        </div>
+
+        {prices.length === 0 ? (
+          <EmptyState
+            title="Belum ada tarif BBM"
+            description="Tambahkan minimal satu jenis bahan bakar agar laporan pengisian dapat dihitung."
+            action={
+              <button type="button" onClick={openCreate} className="btn btn-primary">
+                <Icon name="plus" className="h-3.5 w-3.5" />
+                Tambah tarif
+              </button>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th>Jenis BBM</th>
+                  <th>Kategori</th>
+                  <th>Harga per liter</th>
+                  <th className="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prices.map((price) => (
+                  <tr key={price.id}>
+                    <td>
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-50 text-gold-700">
+                          <Icon name="fuel" className="h-4 w-4" />
+                        </span>
+                        <span className="text-xs font-bold text-slate-800">{price.name}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${price.category === 'Subsidi' ? 'badge-green' : 'badge-blue'}`}>
+                        {price.category || 'Non-Subsidi'}
+                      </span>
+                    </td>
+                    <td className="font-mono text-xs font-bold text-slate-800">{formatCurrency(price.price)}</td>
+                    <td>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(price)}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-navy-50 hover:text-navy-800"
+                          title="Ubah tarif"
+                          aria-label={`Ubah ${price.name}`}
+                        >
+                          <Icon name="edit" className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(price)}
+                          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                          title="Hapus tarif"
+                          aria-label={`Hapus ${price.name}`}
+                        >
+                          <Icon name="trash" className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={editing ? 'Ubah tarif BBM' : 'Tambah tarif BBM'}
+        description="Pastikan harga sesuai kebijakan terbaru agar perhitungan biaya transaksi akurat."
+        size="sm"
+      >
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <Field label="Nama jenis BBM">
+            <input
+              className="input"
+              value={form.name}
+              onChange={(event) => setField('name', event.target.value)}
+              placeholder="Pertalite"
+              required
+            />
+          </Field>
+          <Field label="Kategori">
+            <select className="input" value={form.category} onChange={(event) => setField('category', event.target.value)}>
+              <option value="Subsidi">Subsidi</option>
+              <option value="Non-Subsidi">Non-Subsidi</option>
+            </select>
+          </Field>
+          <Field label="Harga per liter">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">
+                Rp
+              </span>
+              <input
+                className="input pl-9 font-mono"
+                value={form.price}
+                onChange={(event) => setField('price', formatNumberInput(event.target.value))}
+                placeholder="10.000"
+                inputMode="numeric"
+                required
+              />
+            </div>
+          </Field>
+
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="submit" disabled={saving || !form.name.trim()} className="btn btn-primary">
+              {saving ? 'Menyimpan…' : editing ? 'Simpan perubahan' : 'Tambah tarif'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDelete
+        open={Boolean(deleteTarget)}
+        title="Hapus tarif BBM?"
+        description={deleteTarget ? `${deleteTarget.name} akan dihapus dari katalog. Transaksi lama tidak berubah.` : ''}
+        busy={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* System                                                              */
+/* ------------------------------------------------------------------ */
+
+function SystemTab() {
+  const { data, updateSettings, resetDemo } = useFleet()
+  const settings = data?.settings
+  const [form, setForm] = useState<AppSettings>(
+    settings || {
+      company_name: '',
+      company_short: '',
+      currency: 'IDR',
+      fuel_anomaly_threshold: 72,
+      quality_target: 85,
+      session_hours: 8,
+    }
+  )
+  const [saving, setSaving] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [auditQuery, setAuditQuery] = useState('')
+  const [auditCollection, setAuditCollection] = useState('ALL')
+
+  useEffect(() => {
+    if (settings) setForm(settings)
+  }, [settings])
+
+  const auditTrail = data?.auditTrail || []
+
+  const filteredAudit = useMemo(() => {
+    const term = auditQuery.trim().toLowerCase()
+    return auditTrail.filter((entry) => {
+      const matchesCollection = auditCollection === 'ALL' || entry.collection === auditCollection
+      const haystack = [entry.actor, entry.action, entry.summary, entry.collection, entry.itemId].join(' ').toLowerCase()
+      return matchesCollection && (!term || haystack.includes(term))
+    })
+  }, [auditTrail, auditQuery, auditCollection])
+
+  const setField = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
+    setForm((current) => ({ ...current, [key]: value }))
+
+  const handleSave = async (event: FormEvent) => {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    try {
+      await updateSettings(form)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleBackup = () => {
+    if (!data) return
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    downloadFile(`fleetops-backup-${stamp}.json`, JSON.stringify(data, null, 2), 'application/json')
+  }
+
+  const handleReset = async () => {
+    if (resetting) return
+    setResetting(true)
+    try {
+      await resetDemo()
+      setResetOpen(false)
+    } catch {
+      // Notifikasi kegagalan sudah ditampilkan oleh provider.
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <form onSubmit={handleSave} className="card">
+          <div className="card-header">
+            <div>
+              <p className="card-title">Identitas &amp; ambang kualitas</p>
+              <p className="card-subtitle">Pengaturan ini dipakai di seluruh dashboard dan laporan.</p>
+            </div>
+            <span className="badge badge-blue">Admin</span>
+          </div>
+          <div className="grid gap-3 p-5 sm:grid-cols-2">
+            <Field label="Nama perusahaan" className="sm:col-span-2">
+              <input
+                className="input"
+                value={form.company_name}
+                onChange={(event) => setField('company_name', event.target.value)}
+                placeholder="PT Nusantara Logistik Prima"
+                required
+              />
+            </Field>
+            <Field label="Singkatan perusahaan">
+              <input
+                className="input uppercase"
+                value={form.company_short}
+                onChange={(event) => setField('company_short', event.target.value.toUpperCase())}
+                placeholder="NLP"
+                maxLength={24}
+              />
+            </Field>
+            <Field label="Mata uang">
+              <input
+                className="input uppercase"
+                value={form.currency}
+                onChange={(event) => setField('currency', event.target.value.toUpperCase())}
+                placeholder="IDR"
+                maxLength={8}
+              />
+            </Field>
+            <Field label="Target skor kualitas" hint="Ambang hijau pada gauge dan laporan kualitas.">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="input font-mono"
+                value={form.quality_target}
+                onChange={(event) => setField('quality_target', Number(event.target.value))}
+              />
+            </Field>
+            <Field label="Ambang anomali BBM" hint="Transaksi di bawah nilai ini masuk pusat perhatian.">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="input font-mono"
+                value={form.fuel_anomaly_threshold}
+                onChange={(event) => setField('fuel_anomaly_threshold', Number(event.target.value))}
+              />
+            </Field>
+            <Field label="Durasi sesi (jam)" hint="Berlaku untuk cookie sesi login.">
+              <input
+                type="number"
+                min={1}
+                max={72}
+                className="input font-mono"
+                value={form.session_hours}
+                onChange={(event) => setField('session_hours', Number(event.target.value))}
+              />
+            </Field>
+            <div className="flex items-end">
+              <button type="submit" disabled={saving || !form.company_name.trim()} className="btn btn-primary w-full">
+                <Icon name="check" className="h-3.5 w-3.5" />
+                {saving ? 'Menyimpan…' : 'Simpan pengaturan'}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <div className="space-y-4">
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Keamanan &amp; sesi</p>
+                <p className="card-subtitle">Kontrol akses berbasis peran.</p>
+              </div>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Icon name="shield" className="h-4 w-4" />
+              </span>
+            </div>
+            <ul className="space-y-2.5 p-5 text-[11px] text-slate-600">
+              <SecurityRow label="Cookie sesi" value="HttpOnly · SameSite Lax" />
+              <SecurityRow label="Penandatanganan" value="HMAC-SHA256" />
+              <SecurityRow label="Hash password" value="scrypt (64 byte)" />
+              <SecurityRow label="Pembatasan login" value="8 percobaan / 10 menit" />
+              <SecurityRow label="Proteksi CSRF" value="Same-origin check" />
+            </ul>
+            <div className="border-t border-slate-100 bg-slate-50/70 px-5 py-3 text-[10px] leading-relaxed text-slate-500">
+              Kredensial produksi diatur melalui variabel lingkungan <code className="font-mono">ADMIN_PASSWORD_HASH</code> dan{' '}
+              <code className="font-mono">SESSION_SECRET</code>. Jangan gunakan nilai contoh di server produksi.
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div>
+                <p className="card-title">Cadangan &amp; pemulihan</p>
+                <p className="card-subtitle">Unduh salinan database JSON lengkap.</p>
+              </div>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-50 text-navy-700">
+                <Icon name="database" className="h-4 w-4" />
+              </span>
+            </div>
+            <div className="space-y-2 p-5">
+              <button type="button" onClick={handleBackup} className="btn btn-ghost w-full justify-start">
+                <Icon name="download" className="h-3.5 w-3.5" />
+                Unduh cadangan JSON
+              </button>
+              <button type="button" onClick={() => setResetOpen(true)} className="btn btn-ghost w-full justify-start text-rose-600 hover:border-rose-200 hover:bg-rose-50">
+                <Icon name="refresh" className="h-3.5 w-3.5" />
+                Kembalikan data contoh
+              </button>
+              <p className="pt-1 text-[10px] leading-relaxed text-slate-400">
+                Reset akan mengganti seluruh data operasional dengan data contoh awal. Lakukan backup terlebih dahulu.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="card-header flex-col gap-3 sm:flex-row sm:items-center">
+          <div>
+            <p className="card-title">Audit trail</p>
+            <p className="card-subtitle">Jejak perubahan data terbaru, maksimal 500 entri.</p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={auditQuery}
+                onChange={(event) => setAuditQuery(event.target.value)}
+                placeholder="Cari aktor atau ringkasan…"
+                className="input py-2 pl-9 sm:w-56"
+              />
+            </div>
+            <select
+              value={auditCollection}
+              onChange={(event) => setAuditCollection(event.target.value)}
+              className="input py-2 sm:w-44"
+            >
+              <option value="ALL">Semua modul</option>
+              {Object.entries(COLLECTION_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {filteredAudit.length === 0 ? (
+          <EmptyState title="Belum ada aktivitas" description="Perubahan data oleh admin dan driver akan tercatat otomatis di sini." />
+        ) : (
+          <div className="max-h-[460px] overflow-auto">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th>Waktu</th>
+                  <th>Aktor</th>
+                  <th>Modul</th>
+                  <th>Aksi</th>
+                  <th>Ringkasan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAudit.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="whitespace-nowrap font-mono text-[10px] text-slate-500">
+                      {new Date(entry.at).toLocaleString('id-ID', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td>
+                      <p className="text-[11px] font-bold text-slate-800">{entry.actor}</p>
+                      <span className={`badge ${entry.role === 'admin' ? 'badge-blue' : 'badge-slate'}`}>{entry.role}</span>
+                    </td>
+                    <td className="text-[11px] font-semibold text-slate-600">
+                      {COLLECTION_LABELS[entry.collection] || entry.collection}
+                    </td>
+                    <td>
+                      <span className="badge badge-slate font-mono">{entry.action}</span>
+                    </td>
+                    <td className="max-w-[420px] text-[11px] leading-relaxed text-slate-600">{entry.summary}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        title="Kembalikan data contoh?"
+        description="Tindakan ini tidak dapat dibatalkan setelah dijalankan."
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-[11px] leading-relaxed text-rose-700">
+            <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              Seluruh transaksi BBM, klaim, servis, inspeksi, dan audit trail akan diganti dengan data contoh awal.
+              Unduh cadangan JSON terlebih dahulu bila data ini masih dibutuhkan.
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={() => setResetOpen(false)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="button" onClick={handleReset} disabled={resetting} className="btn btn-danger">
+              {resetting ? 'Memproses…' : 'Ya, kembalikan data'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function SecurityRow({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="flex items-center justify-between gap-3">
+      <span className="font-semibold text-slate-500">{label}</span>
+      <span className="text-right font-mono text-[10px] font-bold text-slate-700">{value}</span>
+    </li>
+  )
+}
+
+function SummaryCard({
+  label,
+  value,
+  icon,
+  tone = 'navy',
+}: {
+  label: string
+  value: string
+  icon: IconName
+  tone?: 'navy' | 'amber'
+}) {
+  return (
+    <div className="card flex items-center gap-3 p-4">
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+          tone === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-navy-50 text-navy-700'
+        }`}
+      >
+        <Icon name={icon} className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="stat-label">{label}</p>
+        <p className="truncate font-mono text-base font-bold tracking-tight text-navy-950">{value}</p>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmDelete({
+  open,
+  title,
+  description,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean
+  title: string
+  description: string
+  busy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <Modal open={open} onClose={onCancel} title={title} size="sm">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-[11px] leading-relaxed text-rose-700">
+          <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>{description}</p>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button type="button" onClick={onCancel} className="btn btn-ghost">
+            Batal
+          </button>
+          <button type="button" onClick={onConfirm} disabled={busy} className="btn btn-danger">
+            {busy ? 'Menghapus…' : 'Hapus'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }

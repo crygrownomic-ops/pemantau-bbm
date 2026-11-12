@@ -1,309 +1,579 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
+import { Icon } from '@/components/ui/Icon'
+import { Modal } from '@/components/ui/Modal'
+import { useFleet } from '@/components/providers/FleetProvider'
+import { downloadFile, toCsv } from '@/lib/export'
+import {
+  formatCurrency,
+  formatDate,
+  formatNumberInput,
+  parseNumberInput,
+} from '@/lib/format'
+import type { CashAdvance, ReimbursementClaim } from '@/lib/types'
 
-const formatNumberDots = (val: number | string) => {
-  if (!val && val !== 0) return ''
-  const numStr = String(val).replace(/\D/g, '')
-  if (!numStr) return ''
-  return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+const CLAIM_STATUS: Record<ReimbursementClaim['status'], { label: string; badge: string }> = {
+  PENDING: { label: 'Menunggu', badge: 'badge-amber' },
+  APPROVED: { label: 'Disetujui', badge: 'badge-green' },
+  REJECTED: { label: 'Ditolak', badge: 'badge-red' },
 }
 
-const parseDotsToNum = (val: string) => {
-  return Number(String(val).replace(/\./g, '')) || 0
-}
+const CATEGORY_OPTIONS = ['Tol', 'Parkir', 'Retribusi', 'Timbangan', 'Lainnya']
 
-const DEFAULT_ADVANCES = [
-  { id: 'ADV-1', driver_name: 'Ahmad Supardi', plate_number: 'B 1234 ABC', amount: 500000, date: '2026-08-30', notes: 'Uang jalan luar kota Bandung' },
-  { id: 'ADV-2', driver_name: 'Budi Santoso', plate_number: 'B 5678 XYZ', amount: 350000, date: '2026-08-31', notes: 'Uang jalan dalam kota Tangerang' },
-]
+export function ReimbursementTab() {
+  const { data, create, update, remove, notify } = useFleet()
+  const [statusFilter, setStatusFilter] = useState<'ALL' | ReimbursementClaim['status']>('ALL')
+  const [search, setSearch] = useState('')
+  const [advanceOpen, setAdvanceOpen] = useState(false)
+  const [receiptClaim, setReceiptClaim] = useState<ReimbursementClaim | null>(null)
+  const [deleteAdvance, setDeleteAdvance] = useState<CashAdvance | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
-export function ReimbursementTab({
-  drivers = [],
-  vehicles = [],
-  logs = [],
-}: {
-  drivers: any[]
-  vehicles: any[]
-  logs: any[]
-}) {
-  const [advances, setAdvances] = useState<any[]>(DEFAULT_ADVANCES)
-  const [claims, setClaims] = useState<any[]>([])
-  const [showAdvanceModal, setShowAdvanceModal] = useState(false)
-
-  const [formDriver, setFormDriver] = useState(drivers[0]?.name || 'Ahmad Supardi')
-  const [formPlate, setFormPlate] = useState(vehicles[0]?.plate_number || 'B 1234 ABC')
-  const [formAmountInput, setFormAmountInput] = useState('500.000')
+  const [formDriver, setFormDriver] = useState('')
+  const [formPlate, setFormPlate] = useState('')
+  const [formAmount, setFormAmount] = useState('')
   const [formNotes, setFormNotes] = useState('')
 
-  const loadData = () => {
-    try {
-      const storedAdv = localStorage.getItem('cash_advances')
-      const storedClm = localStorage.getItem('reimbursement_claims')
-      if (storedAdv) setAdvances(JSON.parse(storedAdv))
-      if (storedClm) setClaims(JSON.parse(storedClm))
-    } catch (e) {
-      console.error(e)
+  const claims = data?.reimbursementClaims || []
+  const advances = data?.cashAdvances || []
+  const drivers = data?.drivers || []
+  const vehicles = data?.vehicles || []
+  const logs = data?.fuelLogs || []
+
+  const filteredClaims = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return claims.filter((claim) => {
+      const matchStatus = statusFilter === 'ALL' || claim.status === statusFilter
+      const matchKeyword =
+        !keyword ||
+        [claim.driver_name, claim.plate_number, claim.category, claim.notes, claim.id]
+          .join(' ')
+          .toLowerCase()
+          .includes(keyword)
+      return matchStatus && matchKeyword
+    })
+  }, [claims, statusFilter, search])
+
+  const totals = useMemo(() => {
+    const totalAdvances = advances.reduce((total, advance) => total + (Number(advance.amount) || 0), 0)
+    const approvedClaims = claims.filter((claim) => claim.status === 'APPROVED')
+    const totalClaims = approvedClaims.reduce((total, claim) => total + (Number(claim.amount) || 0), 0)
+    const totalFuel = logs.reduce((total, log) => total + (Number(log.total_cost) || 0), 0)
+    const pending = claims.filter((claim) => claim.status === 'PENDING')
+    const pendingAmount = pending.reduce((total, claim) => total + (Number(claim.amount) || 0), 0)
+    return {
+      totalAdvances,
+      totalClaims,
+      totalFuel,
+      approvedCount: approvedClaims.length,
+      pendingCount: pending.length,
+      pendingAmount,
+      balance: totalAdvances - totalFuel - totalClaims,
     }
-  }
+  }, [advances, claims, logs])
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const handleAddAdvance = (e: React.FormEvent) => {
-    e.preventDefault()
-    const amount = parseDotsToNum(formAmountInput)
-
-    const newAdvance = {
-      id: `ADV-${Date.now()}`,
-      driver_name: formDriver,
-      plate_number: formPlate,
-      amount,
-      date: new Date().toISOString().split('T')[0],
-      notes: formNotes,
-    }
-
-    const updated = [newAdvance, ...advances]
-    setAdvances(updated)
-    localStorage.setItem('cash_advances', JSON.stringify(updated))
-    setShowAdvanceModal(false)
+  const openAdvance = () => {
+    setFormDriver(drivers[0]?.name || '')
+    setFormPlate(vehicles[0]?.plate_number || '')
+    setFormAmount('')
     setFormNotes('')
+    setAdvanceOpen(true)
   }
 
-  const handleUpdateClaimStatus = (id: string, newStatus: string) => {
-    const updated = claims.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
-    setClaims(updated)
-    localStorage.setItem('reimbursement_claims', JSON.stringify(updated))
+  const submitAdvance = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const amount = parseNumberInput(formAmount)
+    if (!formDriver || !formPlate) {
+      notify('Driver dan armada wajib dipilih.', 'error')
+      return
+    }
+    if (amount <= 0) {
+      notify('Nominal kasbon harus lebih dari 0.', 'error')
+      return
+    }
+    try {
+      await create('cashAdvances', {
+        driver_name: formDriver,
+        plate_number: formPlate,
+        amount,
+        date: new Date().toISOString().slice(0, 10),
+        notes: formNotes.trim(),
+      })
+      setAdvanceOpen(false)
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Kasbon gagal disimpan.', 'error')
+    }
   }
 
-  // Agregasi Finansial
-  const totalAdvances = advances.reduce((acc, a) => acc + (Number(a.amount) || 0), 0)
-  const approvedClaims = claims.filter((c) => c.status === 'APPROVED')
-  const totalClaimsCost = approvedClaims.reduce((acc, c) => acc + (Number(c.amount) || 0), 0)
-  const totalFuelCost = logs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
+  const reviewClaim = async (claim: ReimbursementClaim, status: 'APPROVED' | 'REJECTED') => {
+    setBusyId(String(claim.id))
+    try {
+      await update('reimbursementClaims', claim.id, { status })
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Klaim gagal diproses.', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
-  // Rekonsiliasi Kasbon vs Total Operasional Terpakai
-  const totalSpentInTrip = totalFuelCost + totalClaimsCost
-  const remainingCashBalance = totalAdvances - totalSpentInTrip
+  const confirmDeleteAdvance = async () => {
+    if (!deleteAdvance) return
+    setBusyId(String(deleteAdvance.id))
+    try {
+      await remove('cashAdvances', deleteAdvance.id)
+      setDeleteAdvance(null)
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Kasbon gagal dihapus.', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const exportClaims = () => {
+    if (filteredClaims.length === 0) {
+      notify('Tidak ada klaim pada filter ini untuk diekspor.', 'info')
+      return
+    }
+    const rows: unknown[][] = [
+      ['LAPORAN KLAIM REIMBURSEMENT — FLEETOPS 360'],
+      ['Dicetak', new Date().toLocaleString('id-ID')],
+      [],
+      ['ID', 'Tanggal', 'Driver', 'Armada', 'Kategori', 'Nominal', 'Catatan', 'Status', 'Diverifikasi oleh', 'Waktu verifikasi'],
+      ...filteredClaims.map((claim) => [
+        claim.id,
+        claim.date,
+        claim.driver_name,
+        claim.plate_number,
+        claim.category,
+        claim.amount,
+        claim.notes || '',
+        CLAIM_STATUS[claim.status].label,
+        claim.reviewed_by || '',
+        claim.reviewed_at || '',
+      ]),
+    ]
+    downloadFile(`Klaim_Reimbursement_${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows))
+  }
+
+  if (!data) return null
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* HEADER BAR */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-sm font-extrabold text-slate-900 tracking-wider uppercase flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
-            Modul Uang Jalan & Reimbursement Operasional
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Pencatatan kasbon, verifikasi klaim Tol/Parkir supir, dan rekonsiliasi sisa kas jalan
+          <p className="mb-1.5 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-gold-600">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold-400" />
+            Cash & Claim Control
+          </p>
+          <h1 className="text-xl font-extrabold tracking-tight text-navy-950 sm:text-2xl">Uang Jalan &amp; Reimbursement</h1>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+            Rekonsiliasi kasbon driver, verifikasi klaim tol/parkir, dan sisa kas operasional dalam satu modul.
           </p>
         </div>
-
-        <button
-          onClick={() => setShowAdvanceModal(true)}
-          className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition flex items-center gap-1.5"
-        >
-          + Berikan Kasbon / Uang Jalan
-        </button>
-      </div>
-
-      {/* 4 KARTU REKONSILIASI KAS JALAN */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Total Kasbon Dikeluarkan</span>
-          <strong className="text-lg font-mono font-extrabold text-slate-900 block">
-            Rp {totalAdvances.toLocaleString('id-ID')}
-          </strong>
-          <span className="text-[10px] text-slate-500">{advances.length} Penyerahan Uang Jalan</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Klaim Tol / Parkir (Approved)</span>
-          <strong className="text-lg font-mono font-extrabold text-indigo-900 block">
-            Rp {totalClaimsCost.toLocaleString('id-ID')}
-          </strong>
-          <span className="text-[10px] text-indigo-700 font-bold">{approvedClaims.length} Struk Disetujui</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Total BBM Terpakai</span>
-          <strong className="text-lg font-mono font-extrabold text-amber-700 block">
-            Rp {totalFuelCost.toLocaleString('id-ID')}
-          </strong>
-          <span className="text-[10px] text-slate-500">Biaya Bensin di Jalan</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Sisa Kas Jalan / Selisih</span>
-          <strong className={`text-lg font-mono font-extrabold block ${remainingCashBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-            Rp {remainingCashBalance.toLocaleString('id-ID')}
-          </strong>
-          <span className="text-[10px] text-slate-500">
-            {remainingCashBalance >= 0 ? 'Sisa Kas di Supir' : 'Supir Kurang Bayar (Nalangi)'}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={exportClaims} className="btn btn-ghost">
+            <Icon name="download" className="h-3.5 w-3.5" />
+            Ekspor klaim
+          </button>
+          <button type="button" onClick={openAdvance} className="btn btn-primary">
+            <Icon name="plus" className="h-3.5 w-3.5" />
+            Berikan kasbon
+          </button>
         </div>
       </div>
 
-      {/* TABEL VERIFIKASI KLAIM REIMBURSEMENT DRIVER */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-            Daftar Pengajuan Klaim Reimbursement Supir
-          </h3>
-          <span className="text-[10px] font-bold bg-indigo-100 text-indigo-900 px-2.5 py-1 rounded-full">
-            {claims.filter((c) => c.status === 'PENDING').length} Butuh Persetujuan
-          </span>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="card p-4">
+          <div className="flex items-start justify-between">
+            <p className="stat-label">Total kasbon</p>
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-navy-50 text-navy-800">
+              <Icon name="receipt" className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <p className="stat-value mt-2">{formatCurrency(totals.totalAdvances)}</p>
+          <p className="mt-1 text-[10px] font-medium text-slate-500">{advances.length} penyerahan uang jalan</p>
+        </div>
+        <div className="card p-4">
+          <div className="flex items-start justify-between">
+            <p className="stat-label">Klaim disetujui</p>
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+              <Icon name="check" className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <p className="stat-value mt-2">{formatCurrency(totals.totalClaims)}</p>
+          <p className="mt-1 text-[10px] font-medium text-slate-500">{totals.approvedCount} nota disetujui</p>
+        </div>
+        <div className="card p-4">
+          <div className="flex items-start justify-between">
+            <p className="stat-label">Biaya BBM</p>
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gold-50 text-gold-700">
+              <Icon name="fuel" className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <p className="stat-value mt-2">{formatCurrency(totals.totalFuel)}</p>
+          <p className="mt-1 text-[10px] font-medium text-slate-500">Pemakaian bahan bakar tercatat</p>
+        </div>
+        <div className="card p-4">
+          <div className="flex items-start justify-between">
+            <p className="stat-label">Sisa kas jalan</p>
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+                totals.balance >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+              }`}
+            >
+              <Icon name="database" className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <p className={`stat-value mt-2 ${totals.balance < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+            {formatCurrency(totals.balance)}
+          </p>
+          <p className="mt-1 text-[10px] font-medium text-slate-500">
+            {totals.balance >= 0 ? 'Sisa kas di driver' : 'Driver menalangi biaya'}
+          </p>
+        </div>
+      </div>
+
+      {totals.pendingCount > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <Icon name="alert" className="h-3.5 w-3.5" />
+            </span>
+            <div>
+              <p className="text-[11px] font-extrabold text-amber-900">
+                {totals.pendingCount} klaim menunggu verifikasi
+              </p>
+              <p className="text-[10px] text-amber-700">
+                Total nominal {formatCurrency(totals.pendingAmount)} perlu ditinjau sebelum tutup buku.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('PENDING')}
+            className="btn btn-ghost border-amber-200 bg-white/70 px-3 py-2 text-[10px] text-amber-900"
+          >
+            Tampilkan klaim pending
+          </button>
+        </div>
+      )}
+
+      <section className="card overflow-hidden">
+        <div className="card-header flex-col gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="card-title">Pengajuan klaim driver</h2>
+            <p className="card-subtitle">Verifikasi nota tol, parkir, retribusi, dan biaya perjalanan lainnya.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Cari driver, armada, kategori…"
+                className="input w-full py-2 pl-9 sm:w-56"
+                aria-label="Cari klaim"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+              className="input w-auto py-2 font-semibold"
+              aria-label="Filter status klaim"
+            >
+              <option value="ALL">Semua status</option>
+              <option value="PENDING">Menunggu</option>
+              <option value="APPROVED">Disetujui</option>
+              <option value="REJECTED">Ditolak</option>
+            </select>
+            <span className="badge badge-slate">{filteredClaims.length} klaim</span>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-900 text-white font-bold">
+        <div className="scroll-thin max-h-[440px] overflow-auto">
+          <table className="table-base min-w-[880px]">
+            <thead>
               <tr>
-                <th className="p-3.5">Tanggal & Supir</th>
-                <th className="p-3.5">Armada</th>
-                <th className="p-3.5">Kategori</th>
-                <th className="p-3.5">Catatan / Keterangan</th>
-                <th className="p-3.5 text-right">Nominal Klaim</th>
-                <th className="p-3.5 text-center">Status</th>
-                <th className="p-3.5 text-center">Aksi Verifikasi</th>
+                <th>Tanggal &amp; driver</th>
+                <th>Armada</th>
+                <th>Kategori</th>
+                <th>Keterangan</th>
+                <th className="text-right">Nominal</th>
+                <th>Status</th>
+                <th className="text-center">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {claims.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400 italic">
-                    Belum ada pengajuan reimbursement dari supir.
-                  </td>
-                </tr>
-              ) : (
-                claims.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50 transition">
-                    <td className="p-3.5">
-                      <strong className="text-slate-900 block font-bold">{c.driver_name}</strong>
-                      <span className="text-[10px] text-slate-400 font-mono">{c.date} ({c.time || '10:00'})</span>
+            <tbody>
+              {filteredClaims.map((claim) => {
+                const meta = CLAIM_STATUS[claim.status] || CLAIM_STATUS.PENDING
+                const busy = busyId === String(claim.id)
+                return (
+                  <tr key={claim.id}>
+                    <td>
+                      <p className="font-bold text-slate-900">{claim.driver_name}</p>
+                      <p className="font-mono text-[10px] text-slate-400">
+                        {formatDate(claim.date)} {claim.time ? `· ${claim.time}` : ''}
+                      </p>
                     </td>
-                    <td className="p-3.5 font-mono font-bold text-slate-800">{c.plate_number}</td>
-                    <td className="p-3.5 font-bold text-indigo-900">{c.category}</td>
-                    <td className="p-3.5 text-slate-600">{c.notes || '-'}</td>
-                    <td className="p-3.5 text-right font-mono font-extrabold text-slate-900">
-                      Rp {(Number(c.amount) || 0).toLocaleString('id-ID')}
+                    <td className="font-mono font-bold text-slate-800">{claim.plate_number}</td>
+                    <td>
+                      <span className="badge badge-blue">{claim.category}</span>
                     </td>
-                    <td className="p-3.5 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          c.status === 'APPROVED'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : c.status === 'REJECTED'
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-amber-100 text-amber-800 animate-pulse'
-                        }`}
-                      >
-                        {c.status === 'APPROVED' ? '✅ Disetujui' : c.status === 'REJECTED' ? '❌ Ditolak' : '⏳ Menunggu'}
-                      </span>
+                    <td className="max-w-[220px] text-slate-600">
+                      <span className="line-clamp-2">{claim.notes || '-'}</span>
                     </td>
-                    <td className="p-3.5 text-center space-x-1">
-                      {c.status === 'PENDING' && (
-                        <>
+                    <td className="whitespace-nowrap text-right font-mono font-bold text-slate-900">
+                      {formatCurrency(claim.amount)}
+                    </td>
+                    <td>
+                      <span className={`badge ${meta.badge}`}>{meta.label}</span>
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-center gap-1">
+                        {claim.receipt_photo && (
                           <button
-                            onClick={() => handleUpdateClaimStatus(c.id, 'APPROVED')}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded text-[10px]"
+                            type="button"
+                            onClick={() => setReceiptClaim(claim)}
+                            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-navy-50 hover:text-navy-800"
+                            title="Lihat bukti nota"
+                            aria-label="Lihat bukti nota"
                           >
-                            Setujui
+                            <Icon name="eye" className="h-3.5 w-3.5" />
                           </button>
-                          <button
-                            onClick={() => handleUpdateClaimStatus(c.id, 'REJECTED')}
-                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2 py-1 rounded text-[10px]"
-                          >
-                            Tolak
-                          </button>
-                        </>
-                      )}
-                      {c.status !== 'PENDING' && <span className="text-slate-400 text-[10px] italic">Telah Diproses</span>}
+                        )}
+                        {claim.status === 'PENDING' ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void reviewClaim(claim, 'APPROVED')}
+                              className="rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                              Setujui
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void reviewClaim(claim, 'REJECTED')}
+                              className="rounded-lg bg-rose-600 px-2 py-1 text-[10px] font-bold text-white transition hover:bg-rose-700 disabled:opacity-60"
+                            >
+                              Tolak
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-slate-400">
+                            {claim.reviewed_by ? `oleh ${claim.reviewed_by}` : 'Selesai'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ))
+                )
+              })}
+              {filteredClaims.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center">
+                    <p className="text-xs font-bold text-slate-600">Belum ada klaim pada filter ini</p>
+                    <p className="mt-1 text-[11px] text-slate-400">Klaim baru dari driver akan muncul otomatis.</p>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      {/* MODAL INPUT KASBON / UANG JALAN */}
-      {showAdvanceModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100 text-slate-900 text-xs">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Penyerahan Uang Jalan / Kasbon Driver</h3>
-              <button onClick={() => setShowAdvanceModal(false)} className="text-slate-400 font-bold">✕</button>
+      <section className="card overflow-hidden">
+        <div className="card-header">
+          <div>
+            <h2 className="card-title">Riwayat kasbon / uang jalan</h2>
+            <p className="card-subtitle">Catatan penyerahan dana operasional kepada driver.</p>
+          </div>
+          <span className="badge badge-slate">{formatCurrency(totals.totalAdvances)}</span>
+        </div>
+        <div className="scroll-thin max-h-[300px] overflow-auto">
+          <table className="table-base min-w-[720px]">
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Driver</th>
+                <th>Armada</th>
+                <th>Keperluan</th>
+                <th className="text-right">Nominal</th>
+                <th className="text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {advances.map((advance) => (
+                <tr key={advance.id}>
+                  <td className="whitespace-nowrap font-mono text-[11px] text-slate-500">{formatDate(advance.date)}</td>
+                  <td className="font-bold text-slate-900">{advance.driver_name}</td>
+                  <td className="font-mono text-slate-700">{advance.plate_number}</td>
+                  <td className="max-w-[260px] text-slate-600">{advance.notes || '-'}</td>
+                  <td className="whitespace-nowrap text-right font-mono font-bold text-slate-900">
+                    {formatCurrency(advance.amount)}
+                  </td>
+                  <td className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteAdvance(advance)}
+                      className="rounded-lg p-1.5 text-rose-500 transition hover:bg-rose-50"
+                      title="Hapus kasbon"
+                      aria-label="Hapus kasbon"
+                    >
+                      <Icon name="trash" className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {advances.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-[11px] text-slate-400">
+                    Belum ada kasbon tercatat.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <Modal
+        open={advanceOpen}
+        onClose={() => setAdvanceOpen(false)}
+        title="Penyerahan uang jalan"
+        description="Catat dana operasional yang diberikan kepada driver."
+      >
+        <form onSubmit={submitAdvance} className="space-y-3.5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="advance-driver" className="label">
+                Driver
+              </label>
+              <select
+                id="advance-driver"
+                value={formDriver}
+                onChange={(event) => setFormDriver(event.target.value)}
+                className="input"
+                required
+              >
+                <option value="">Pilih driver</option>
+                {drivers.map((driver) => (
+                  <option key={driver.id} value={driver.name}>
+                    {driver.name}
+                  </option>
+                ))}
+              </select>
             </div>
+            <div>
+              <label htmlFor="advance-plate" className="label">
+                Armada
+              </label>
+              <select
+                id="advance-plate"
+                value={formPlate}
+                onChange={(event) => setFormPlate(event.target.value)}
+                className="input"
+                required
+              >
+                <option value="">Pilih armada</option>
+                {vehicles.map((vehicle) => (
+                  <option key={vehicle.id} value={vehicle.plate_number}>
+                    {vehicle.plate_number} — {vehicle.model}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="advance-amount" className="label">
+              Nominal kasbon
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                Rp
+              </span>
+              <input
+                id="advance-amount"
+                type="text"
+                inputMode="numeric"
+                value={formAmount}
+                onChange={(event) => setFormAmount(formatNumberInput(event.target.value))}
+                className="input pl-9 font-mono font-bold"
+                placeholder="500.000"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="advance-notes" className="label">
+              Keperluan jalan
+            </label>
+            <input
+              id="advance-notes"
+              type="text"
+              value={formNotes}
+              onChange={(event) => setFormNotes(event.target.value)}
+              className="input"
+              placeholder="Contoh: uang jalan pengiriman Jakarta – Bandung"
+            />
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+            <button type="button" onClick={() => setAdvanceOpen(false)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="submit" className="btn btn-primary">
+              <Icon name="check" className="h-3.5 w-3.5" />
+              Simpan kasbon
+            </button>
+          </div>
+        </form>
+      </Modal>
 
-            <form onSubmit={handleAddAdvance} className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold mb-1">Pilih Driver / Supir *</label>
-                <select
-                  value={formDriver}
-                  onChange={(e) => setFormDriver(e.target.value)}
-                  className="w-full border p-2.5 rounded-xl font-bold bg-slate-50"
-                >
-                  {drivers.map((d: any) => (
-                    <option key={d.name} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <Modal
+        open={Boolean(receiptClaim)}
+        onClose={() => setReceiptClaim(null)}
+        title="Bukti nota klaim"
+        description={
+          receiptClaim ? `${receiptClaim.driver_name} · ${receiptClaim.category} · ${formatCurrency(receiptClaim.amount)}` : undefined
+        }
+      >
+        {receiptClaim?.receipt_photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={receiptClaim.receipt_photo}
+            alt={`Nota ${receiptClaim.driver_name}`}
+            className="max-h-[60vh] w-full rounded-xl border border-slate-200 object-contain"
+          />
+        ) : (
+          <p className="py-8 text-center text-xs text-slate-400">Bukti nota tidak tersedia.</p>
+        )}
+      </Modal>
 
-              <div>
-                <label className="block text-[11px] font-semibold mb-1">Armada Kendaraan *</label>
-                <select
-                  value={formPlate}
-                  onChange={(e) => setFormPlate(e.target.value)}
-                  className="w-full border p-2.5 rounded-xl font-bold bg-slate-50"
-                >
-                  {vehicles.map((v: any) => (
-                    <option key={v.plate_number} value={v.plate_number}>
-                      {v.plate_number} ({v.model})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold mb-1">Nominal Kasbon / Uang Jalan (Rp) *</label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-2.5 font-bold text-slate-400">Rp</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="w-full border p-2.5 pl-8 rounded-xl font-mono font-bold text-slate-900 outline-none"
-                    value={formAmountInput}
-                    onChange={(e) => setFormAmountInput(formatNumberDots(e.target.value))}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold mb-1">Catatan / Keperluan Jalan</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Uang jalan operasional pengiriman Jakarta - Bandung"
-                  className="w-full border p-2.5 rounded-xl"
-                  value={formNotes}
-                  onChange={(e) => setFormNotes(e.target.value)}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowAdvanceModal(false)} className="w-1/2 bg-slate-100 font-bold py-2.5 rounded-xl">Batal</button>
-                <button type="submit" className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md">Simpan Uang Jalan</button>
-              </div>
-            </form>
+      <Modal
+        open={Boolean(deleteAdvance)}
+        onClose={() => setDeleteAdvance(null)}
+        title="Hapus kasbon"
+        description="Kasbon yang dihapus tidak dapat dikembalikan."
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs leading-relaxed text-slate-600">
+            Hapus kasbon <span className="font-bold text-slate-900">{deleteAdvance?.driver_name}</span> senilai{' '}
+            <span className="font-bold text-slate-900">{deleteAdvance ? formatCurrency(deleteAdvance.amount) : ''}</span>?
+          </p>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setDeleteAdvance(null)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="button" onClick={() => void confirmDeleteAdvance()} className="btn btn-danger">
+              Hapus
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

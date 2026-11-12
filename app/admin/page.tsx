@@ -1,599 +1,533 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { AdminSidebar } from '@/components/admin/AdminSidebar'
+import { Suspense, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Icon, type IconName } from '@/components/ui/Icon'
+import { Modal } from '@/components/ui/Modal'
+import { QualityGauge, TrendChart, type TrendPoint } from '@/components/ui/Charts'
+import { useFleet } from '@/components/providers/FleetProvider'
 import { FuelLogsTable } from '@/components/admin/FuelLogsTable'
+import { ReimbursementTab } from '@/components/admin/ReimbursementTab'
+import { DriverScorecardTab } from '@/components/admin/DriverScorecardTab'
 import { AnalyticsTab } from '@/components/admin/AnalyticsTab'
 import { MaintenanceTab } from '@/components/admin/MaintenanceTab'
-import { DriverScorecardTab } from '@/components/admin/DriverScorecardTab'
-import { ReimbursementTab } from '@/components/admin/ReimbursementTab'
-import { WhatsAppReminderModal } from '@/components/admin/WhatsAppReminderModal'
-import { ExportReportsModal } from '@/components/admin/ExportReportsModal'
+import { aggregateQuality, efficiencyOf, isAnomalous, summarizeVehicleQuality } from '@/lib/fuel'
+import { daysUntil, formatCompactCurrency, formatCurrency, formatNumber, MONTH_NAMES } from '@/lib/format'
+import { downloadFile, fleetSummaryCsv } from '@/lib/export'
 
-const DEFAULT_VEHICLES = [
-  { id: 'V1', plate_number: 'B 1234 ABC', model: 'Toyota Avanza 1.5 G', monthly_budget: 1500000, monthly_service_budget: 500000, target_km_monthly: 1500, last_km: 45860, kir_expiry: '2026-10-15', stnk_expiry: '2027-08-20' },
-  { id: 'V2', plate_number: 'B 5678 XYZ', model: 'Daihatsu Gran Max', monthly_budget: 2000000, monthly_service_budget: 750000, target_km_monthly: 2500, last_km: 32000, kir_expiry: '2026-09-10', stnk_expiry: '2026-12-05' },
-  { id: 'V3', plate_number: 'B 9012 DEF', model: 'Isuzu Traga Pick Up', monthly_budget: 2500000, monthly_service_budget: 1000000, target_km_monthly: 3500, last_km: 18500, kir_expiry: '2026-12-01', stnk_expiry: '2028-01-15' },
-  { id: 'V4', plate_number: 'KB 1234 YK', model: 'Toyota Innova Zenix', monthly_budget: 2500000, monthly_service_budget: 800000, target_km_monthly: 2000, last_km: 47905, kir_expiry: '2027-02-15', stnk_expiry: '2027-11-11' },
-]
+type TabKey = 'dashboard' | 'reimbursement' | 'scorecard' | 'analytics' | 'maintenance'
 
-const DEFAULT_LOGS = [
-  {
-    id: 1,
-    plate_number: 'B 1234 ABC',
-    vehicle_model: 'Toyota Avanza',
-    driver_name: 'Ahmad Supardi',
-    initial_km: 45250,
-    final_km: 45750,
-    distance_km: 500,
-    liters: 15,
-    unit_price: 10000,
-    km_per_liter: 33.33,
-    total_cost: 150000,
-    fuel_type: 'Pertalite',
-    fill_location: 'SPBU Resmi',
-    date: '2026-08-31',
-    status: 'VERIFIED',
-    audit_note: '',
-  },
-]
-
-const DEFAULT_SERVICES = [
-  {
-    id: 1,
-    plate_number: 'B 1234 ABC',
-    category: 'Servis Rutin & Oli',
-    service_type: 'Ganti Oli & Filter Mesin',
-    parts_replaced: 'Oli Shell Helix 4L',
-    cost: 450000,
-    workshop: 'Auto2000',
-    km_done: 40000,
-    date: '2026-06-15',
-  },
-]
-
-function AdminDashboardContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const activeTab = (searchParams.get('tab') as 'dashboard' | 'reimbursement' | 'scorecard' | 'analytics' | 'maintenance') || 'dashboard'
-
-  const currentYearNum = new Date().getFullYear()
-
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [usernameInput, setUsernameInput] = useState('')
-  const [passwordInput, setPasswordInput] = useState('')
-  const [authError, setAuthError] = useState(false)
-
-  const [vehicles, setVehicles] = useState<any[]>(DEFAULT_VEHICLES)
-  const [logs, setLogs] = useState<any[]>(DEFAULT_LOGS)
-  const [serviceHistory, setServiceHistory] = useState<any[]>(DEFAULT_SERVICES)
-  const [drivers, setDrivers] = useState<any[]>([])
-  const [inspections, setInspections] = useState<any[]>([])
-  const [reimbursements, setReimbursements] = useState<any[]>([])
-
-  // Filter State
-  const [selectedMonth, setSelectedMonth] = useState('ALL')
-  const [selectedYear, setSelectedYear] = useState(String(currentYearNum))
-  const [customYears, setCustomYears] = useState<string[]>([])
-
-  const [selectedVehicle, setSelectedVehicle] = useState('ALL')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [, setPreviewReceipt] = useState<any | null>(null)
-
-  const [showWaModal, setShowWaModal] = useState(false)
-  const [showExportModal, setShowExportModal] = useState(false)
-  const [showNotifMenu, setShowNotifMenu] = useState(false)
-
-  const loadStorageData = () => {
-    try {
-      const storedLogs = localStorage.getItem('fuel_logs')
-      const storedVehicles = localStorage.getItem('vehicle_budgets')
-      const storedServices = localStorage.getItem('service_history')
-      const storedDrivers = localStorage.getItem('master_drivers')
-      const storedInspections = localStorage.getItem('pre_trip_inspections')
-      const storedClaims = localStorage.getItem('reimbursement_claims')
-
-      if (storedLogs) setLogs(JSON.parse(storedLogs))
-      if (storedVehicles) setVehicles(JSON.parse(storedVehicles))
-      if (storedServices) setServiceHistory(JSON.parse(storedServices))
-      if (storedDrivers) setDrivers(JSON.parse(storedDrivers))
-      if (storedInspections) setInspections(JSON.parse(storedInspections))
-      if (storedClaims) setReimbursements(JSON.parse(storedClaims))
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('admin_authenticated') === 'true') {
-      setIsAuthenticated(true)
-    }
-    loadStorageData()
-  }, [])
-
-  const availableYearsSet = new Set<string>()
-  for (let y = 2024; y <= currentYearNum + 3; y++) {
-    availableYearsSet.add(String(y))
-  }
-  logs.forEach((l: any) => {
-    if (l.date) {
-      const yr = l.date.split('-')[0]
-      if (yr) availableYearsSet.add(yr)
-    }
-  })
-  customYears.forEach((cy) => availableYearsSet.add(cy))
-  const YEAR_OPTIONS = ['ALL', ...Array.from(availableYearsSet).sort()]
-
-  const handleAddCustomYear = () => {
-    const nextYearPrompt = prompt('Masukkan Tahun Proyeksi Baru (Contoh: 2028):')
-    if (nextYearPrompt && !isNaN(Number(nextYearPrompt)) && nextYearPrompt.length === 4) {
-      setCustomYears((prev) => [...prev, nextYearPrompt])
-      setSelectedYear(nextYearPrompt)
-    }
-  }
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (usernameInput.trim().toLowerCase() === 'admin' && passwordInput === 'admin123') {
-      setIsAuthenticated(true)
-      localStorage.setItem('admin_authenticated', 'true')
-      setAuthError(false)
-    } else {
-      setAuthError(true)
-    }
-  }
-
-  const handleUpdateStatus = (id: number, newStatus: string, auditNote?: string) => {
-    const updated = logs.map((l) => (l.id === id ? { ...l, status: newStatus, audit_note: auditNote || l.audit_note } : l))
-    setLogs(updated)
-    localStorage.setItem('fuel_logs', JSON.stringify(updated))
-  }
-
-  const handleDeleteLog = (id: number) => {
-    if (confirm('Hapus log pengisian BBM ini?')) {
-      const updated = logs.filter((l) => l.id !== id)
-      setLogs(updated)
-      localStorage.setItem('fuel_logs', JSON.stringify(updated))
-    }
-  }
-
-  const handleAddServiceRecord = (record: any) => {
-    const updated = [{ ...record, id: Date.now() }, ...serviceHistory]
-    setServiceHistory(updated)
-    localStorage.setItem('service_history', JSON.stringify(updated))
-  }
-
-  // FUNGSI QUICK JUMP / ARAHKAN LANGSUNG KE TEMUAN
-  const handleJumpToLog = (plateNumber: string) => {
-    setSelectedVehicle(plateNumber)
-    setShowNotifMenu(false)
-    setTimeout(() => {
-      const elem = document.getElementById('fuel-logs-table')
-      if (elem) {
-        elem.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 100)
-  }
-
-  const handleJumpToTab = (tabName: string) => {
-    setShowNotifMenu(false)
-    router.push(`/admin?tab=${tabName}`)
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-slate-100 font-sans">
-        <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full text-slate-900 space-y-5">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold">
-              🔒
-            </div>
-            <h1 className="text-lg font-bold">Otorisasi Akses Manajemen</h1>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Username Admin"
-              className="w-full px-3 py-2 border rounded-xl text-xs"
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full px-3 py-2 border rounded-xl text-xs"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              required
-            />
-            {authError && <p className="text-[11px] text-rose-600 font-bold text-center">Username/Password Salah!</p>}
-            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs">
-              Masuk Dashboard
-            </button>
-          </form>
-        </div>
-      </div>
-    )
-  }
-
-  // PENYEMPURNAAN LOGIKA ALERT:
-  // HANYA MUNCUL JIKA STATUS BELUM DIVERIFIKASI (status !== 'VERIFIED')
-  const pendingClaims = reimbursements.filter((r) => r.status === 'PENDING')
-  const flaggedLogs = logs.filter((l) => l.status !== 'VERIFIED' && (l.fill_location === 'ECERAN' || l.status === 'FLAGGED'))
-  const maintenanceAlerts = vehicles.filter((v) => ((v.last_km || 0) % 10000) >= 8500)
-  const totalNotifications = pendingClaims.length + flaggedLogs.length + maintenanceAlerts.length
-
-  const cutoffLogs = logs.filter((l) => {
-    if (!l.date) return false
-    const [lYear, lMonth] = l.date.split('-')
-    return (selectedMonth === 'ALL' || lMonth === selectedMonth) && (selectedYear === 'ALL' || lYear === selectedYear)
-  })
-
-  const cutoffServices = serviceHistory.filter((s) => {
-    if (!s.date) return false
-    const [sYear, sMonth] = s.date.split('-')
-    return (selectedMonth === 'ALL' || sMonth === selectedMonth) && (selectedYear === 'ALL' || sYear === selectedYear)
-  })
-
-  const filteredLogs = cutoffLogs.filter((log) => {
-    const matchVehicle = selectedVehicle === 'ALL' || log.plate_number === selectedVehicle
-    const matchStart = !startDate || log.date >= startDate
-    const matchEnd = !endDate || log.date <= endDate
-    return matchVehicle && matchStart && matchEnd
-  })
-
-  const totalFuelCost = cutoffLogs.reduce((acc, l) => acc + (Number(l.total_cost) || 0), 0)
-  const totalServiceCost = cutoffServices.reduce((acc, s) => acc + (Number(s.cost) || 0), 0)
-  const totalOperationalCost = totalFuelCost + totalServiceCost
-
-  const totalFuelBudget = vehicles.reduce((acc, v) => acc + (Number(v.monthly_budget) || 0), 0)
-  const totalServiceBudget = vehicles.reduce((acc, v) => acc + (Number(v.monthly_service_budget) || 500000), 0)
+function KpiCard({
+  label,
+  value,
+  hint,
+  icon,
+  tone = 'navy',
+  badge,
+}: {
+  label: string
+  value: string
+  hint: string
+  icon: IconName
+  tone?: 'navy' | 'gold' | 'green' | 'red'
+  badge?: string
+}) {
+  const toneClass = {
+    navy: 'bg-navy-50 text-navy-800',
+    gold: 'bg-gold-50 text-gold-700',
+    green: 'bg-emerald-50 text-emerald-700',
+    red: 'bg-rose-50 text-rose-700',
+  }[tone]
 
   return (
-    <div className="min-h-screen bg-slate-100 flex font-sans text-slate-800">
-      <AdminSidebar />
-
-      <main className="flex-1 p-6 space-y-5 overflow-y-auto">
-        {/* HEADER CONTROLS */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm gap-2">
-          <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Realtime Control Center — FleetOps 360
-          </span>
-
-          <div className="flex items-center gap-2 relative">
-            <button
-              onClick={() => setShowNotifMenu(!showNotifMenu)}
-              className="relative bg-slate-900 text-amber-400 p-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              🔔 <span className="hidden sm:inline">Alerts</span>
-              {totalNotifications > 0 && (
-                <span className="bg-rose-600 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center font-extrabold animate-bounce">
-                  {totalNotifications}
-                </span>
-              )}
-            </button>
-
-            {/* DROPDOWN NOTIFIKASI REALTIME */}
-            {showNotifMenu && (
-              <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 space-y-3 z-50 text-xs">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <h3 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
-                    🔔 Pusat Notifikasi Realtime ({totalNotifications})
-                  </h3>
-                  <button onClick={() => setShowNotifMenu(false)} className="text-slate-400 font-bold">✕</button>
-                </div>
-
-                <div className="max-h-60 overflow-y-auto space-y-2">
-                  {pendingClaims.length > 0 && (
-                    <div
-                      onClick={() => handleJumpToTab('reimbursement')}
-                      className="bg-indigo-50 p-2.5 rounded-xl border border-indigo-200 space-y-1 cursor-pointer hover:bg-indigo-100 transition"
-                    >
-                      <strong className="text-indigo-900 block font-bold text-[11px]">🧾 Klaim Uang Jalan Pending ({pendingClaims.length})</strong>
-                      <p className="text-[10px] text-indigo-700">Klik untuk memverifikasi reimbursement supir.</p>
-                    </div>
-                  )}
-
-                  {flaggedLogs.length > 0 && (
-                    <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-200 space-y-1">
-                      <strong className="text-rose-900 block font-bold text-[11px]">⚠️ Pengisian BBM Anomali/Eceran ({flaggedLogs.length})</strong>
-                      {flaggedLogs.map((fl) => (
-                        <div
-                          key={fl.id}
-                          onClick={() => handleJumpToLog(fl.plate_number)}
-                          className="text-[10px] text-rose-700 bg-white p-1.5 rounded border border-rose-100 flex justify-between items-center cursor-pointer hover:bg-rose-100 transition"
-                        >
-                          <span>{fl.plate_number} — {fl.driver_name}</span>
-                          <span className="font-bold underline">Periksa →</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {maintenanceAlerts.length > 0 && (
-                    <div
-                      onClick={() => handleJumpToTab('maintenance')}
-                      className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-1 cursor-pointer hover:bg-amber-100 transition"
-                    >
-                      <strong className="text-amber-900 block font-bold text-[11px]">🛠️ Jadwal Servis Dekat ({maintenanceAlerts.length})</strong>
-                      <p className="text-[10px] text-amber-700">Klik untuk melihat jadwal perbaikan armada.</p>
-                    </div>
-                  )}
-
-                  {totalNotifications === 0 && (
-                    <p className="text-center py-4 text-slate-400 italic">🟢 Tidak ada peringatan pending.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => setShowWaModal(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
-            >
-              📱 WA Legalitas
-            </button>
-
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="bg-indigo-900 hover:bg-indigo-800 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition flex items-center gap-1.5"
-            >
-              📊 Export Laporan
-            </button>
-
-            <button
-              onClick={loadStorageData}
-              className="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm hover:bg-slate-800 transition"
-            >
-              🔄 Refresh
-            </button>
-          </div>
-        </div>
-
-        {activeTab === 'dashboard' && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* CARD ANTI-FRAUD ANOMALI BBM */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <span className="text-rose-600">🚨</span> Smart Anti-Fraud Anomali BBM
-                  </h3>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${flaggedLogs.length > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                    {flaggedLogs.length > 0 ? `⚠️ ${flaggedLogs.length} Terdeteksi` : '🟢 Aman 100%'}
-                  </span>
-                </div>
-
-                {flaggedLogs.length > 0 ? (
-                  <div className="space-y-1.5 max-h-32 overflow-y-auto font-mono text-xs">
-                    {flaggedLogs.map((fl) => (
-                      <div
-                        key={fl.id}
-                        onClick={() => handleJumpToLog(fl.plate_number)}
-                        className="bg-rose-50 hover:bg-rose-100 transition p-2 rounded-xl border border-rose-200 flex justify-between items-center text-[11px] cursor-pointer"
-                        title="Klik untuk langsung menuju transaksi ini"
-                      >
-                        <div>
-                          <strong className="text-rose-900">{fl.plate_number}</strong> — {fl.driver_name}
-                          <span className="block text-[10px] text-rose-700">Rasio: {fl.km_per_liter} KM/L ({fl.date})</span>
-                        </div>
-                        <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded shadow-sm">
-                          Periksa Nota →
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500 py-2">
-                    Tidak ada indikasi penggelembungan nota BBM atau selisih odometer yang belum diverifikasi.
-                  </p>
-                )}
-              </div>
-
-              {/* CARD PREVENTIVE MAINTENANCE */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <span className="text-amber-500">🛠️</span> Preventive Maintenance (Jadwal Servis KM)
-                  </h3>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${maintenanceAlerts.length > 0 ? 'bg-amber-100 text-amber-900' : 'bg-indigo-100 text-indigo-800'}`}>
-                    {maintenanceAlerts.length > 0 ? `⏳ ${maintenanceAlerts.length} Butuh Servis` : '🟢 Kondisi Prima'}
-                  </span>
-                </div>
-
-                {maintenanceAlerts.length > 0 ? (
-                  <div className="space-y-1.5 max-h-32 overflow-y-auto font-mono text-xs">
-                    {maintenanceAlerts.map((mv) => (
-                      <div
-                        key={mv.id}
-                        onClick={() => handleJumpToTab('maintenance')}
-                        className="bg-amber-50 hover:bg-amber-100 transition p-2 rounded-xl border border-amber-200 flex justify-between items-center text-[11px] cursor-pointer"
-                        title="Klik untuk membuka modul Servis & Maintenance"
-                      >
-                        <div>
-                          <strong className="text-amber-900">{mv.plate_number}</strong> ({mv.model})
-                          <span className="block text-[10px] text-amber-700">Odometer: {mv.last_km.toLocaleString('id-ID')} KM</span>
-                        </div>
-                        <span className="text-[10px] bg-amber-600 text-white font-bold px-2 py-0.5 rounded shadow-sm">
-                          Jadwal Ganti Oli →
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500 py-2">
-                    Seluruh odometer armada masih jauh dari batas waktu perbaikan berkala berikutnya.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* CUT-OFF FILTER DASHBOARD */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
-              <div>
-                <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
-                  Cut-Off Filter Dashboard
-                </h2>
-                <p className="text-[11px] text-slate-500">Filter ringkasan biaya BBM & Perbaikan per bulan/tahun</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-bold text-slate-700">Bulan:</label>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
-                  >
-                    <option value="ALL">Semua Bulan</option>
-                    <option value="01">Januari</option>
-                    <option value="02">Februari</option>
-                    <option value="03">Maret</option>
-                    <option value="04">April</option>
-                    <option value="05">Mei</option>
-                    <option value="06">Juni</option>
-                    <option value="07">Juli</option>
-                    <option value="08">Agustus</option>
-                    <option value="09">September</option>
-                    <option value="10">Oktober</option>
-                    <option value="11">November</option>
-                    <option value="12">Desember</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <label className="text-xs font-bold text-slate-700">Tahun:</label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    className="text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer"
-                  >
-                    {YEAR_OPTIONS.map((y) => (
-                      <option key={y} value={y}>
-                        {y === 'ALL' ? 'Semua Tahun' : y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleAddCustomYear}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-2.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer"
-                  title="Tambah Pilihan Tahun Baru"
-                >
-                  + Tahun
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Pengeluaran BBM</span>
-                <strong className="text-lg font-mono font-extrabold text-amber-700 block">
-                  Rp {totalFuelCost.toLocaleString('id-ID')}
-                </strong>
-                <span className="text-[10px] text-slate-500">Plafon: Rp {totalFuelBudget.toLocaleString('id-ID')}</span>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Biaya Perbaikan & Servis</span>
-                <strong className="text-lg font-mono font-extrabold text-indigo-900 block">
-                  Rp {totalServiceCost.toLocaleString('id-ID')}
-                </strong>
-                <span className="text-[10px] text-slate-500">Plafon: Rp {totalServiceBudget.toLocaleString('id-ID')}</span>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Total Operasional</span>
-                <strong className="text-lg font-mono font-extrabold text-slate-900 block">
-                  Rp {totalOperationalCost.toLocaleString('id-ID')}
-                </strong>
-                <span className="text-[10px] text-emerald-700 font-bold">BBM + Servis Combined</span>
-              </div>
-
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Inspection Supir Hari Ini</span>
-                <strong className="text-lg font-mono font-extrabold text-slate-900 block">
-                  {inspections.length} Checklist
-                </strong>
-                <span className="text-[10px] text-emerald-600 font-bold">📋 Status Siap Jalan</span>
-              </div>
-            </div>
-
-            {/* TABEL TRANSAKSI DENGAN TARGET ANCHOR */}
-            <div id="fuel-logs-table">
-              <FuelLogsTable
-                filteredLogs={filteredLogs}
-                safeVehicles={vehicles}
-                startDate={startDate}
-                setStartDate={setStartDate}
-                endDate={endDate}
-                setEndDate={setEndDate}
-                selectedVehicle={selectedVehicle}
-                setSelectedVehicle={setSelectedVehicle}
-                setPreviewReceipt={setPreviewReceipt}
-                handleDeleteLog={handleDeleteLog}
-                handleUpdateStatus={handleUpdateStatus}
-              />
-            </div>
-          </>
-        )}
-
-        {activeTab === 'reimbursement' && (
-          <ReimbursementTab drivers={drivers} vehicles={vehicles} logs={logs} />
-        )}
-
-        {activeTab === 'scorecard' && (
-          <DriverScorecardTab drivers={drivers} logs={logs} inspections={inspections} />
-        )}
-
-        {activeTab === 'analytics' && (
-          <AnalyticsTab
-            vehicleStats={vehicles}
-            logs={logs}
-            serviceHistory={serviceHistory}
-            drivers={drivers}
-          />
-        )}
-
-        {activeTab === 'maintenance' && (
-          <MaintenanceTab
-            vehicleStats={vehicles}
-            serviceHistory={serviceHistory}
-            totalMaintenanceCost={totalServiceCost}
-            onAddServiceRecord={handleAddServiceRecord}
-          />
-        )}
-      </main>
-
-      <WhatsAppReminderModal
-        isOpen={showWaModal}
-        onClose={() => setShowWaModal(false)}
-        vehicles={vehicles}
-        drivers={drivers}
-      />
-
-      <ExportReportsModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        logs={logs}
-        serviceHistory={serviceHistory}
-        vehicles={vehicles}
-      />
+    <div className="card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="stat-label">{label}</p>
+        <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${toneClass}`}>
+          <Icon name={icon} className="h-3.5 w-3.5" />
+        </span>
+      </div>
+      <p className="stat-value mt-2">{value}</p>
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <p className="text-[10px] font-medium leading-tight text-slate-500">{hint}</p>
+        {badge && <span className="badge badge-slate shrink-0">{badge}</span>}
+      </div>
     </div>
   )
 }
 
+function gradeFor(score: number) {
+  if (score >= 92) return { label: 'Sangat Efisien', tone: 'badge-green', color: 'text-emerald-700' }
+  if (score >= 78) return { label: 'Normal', tone: 'badge-blue', color: 'text-navy-700' }
+  if (score >= 60) return { label: 'Perlu Perhatian', tone: 'badge-amber', color: 'text-amber-700' }
+  return { label: 'Kritis', tone: 'badge-red', color: 'text-rose-700' }
+}
+
+function DashboardView() {
+  const { data } = useFleet()
+  const [month, setMonth] = useState('ALL')
+  const [year, setYear] = useState(() => String(new Date().getFullYear()))
+  const [vehicleFilter, setVehicleFilter] = useState('ALL')
+  const [legalOpen, setLegalOpen] = useState(false)
+
+  if (!data) return null
+
+  const years = Array.from(
+    new Set([
+      ...data.fuelLogs.map((log) => log.date?.slice(0, 4)).filter(Boolean),
+      ...data.serviceHistory.map((record) => record.date?.slice(0, 4)).filter(Boolean),
+      String(new Date().getFullYear()),
+    ])
+  ).sort()
+
+  const logsInPeriod = data.fuelLogs.filter((log) => {
+    if (!log.date) return false
+    const [logYear, logMonth] = log.date.split('-')
+    return (year === 'ALL' || logYear === year) && (month === 'ALL' || logMonth === month)
+  })
+
+  const filteredLogs = logsInPeriod.filter((log) => vehicleFilter === 'ALL' || log.plate_number === vehicleFilter)
+
+  const servicesInPeriod = data.serviceHistory.filter((record) => {
+    if (!record.date) return false
+    const [recordYear, recordMonth] = record.date.split('-')
+    return (year === 'ALL' || recordYear === year) && (month === 'ALL' || recordMonth === month)
+  })
+
+  const claimsInPeriod = data.reimbursementClaims.filter((claim) => {
+    if (!claim.date || claim.status !== 'APPROVED') return false
+    const [claimYear, claimMonth] = claim.date.split('-')
+    return (year === 'ALL' || claimYear === year) && (month === 'ALL' || claimMonth === month)
+  })
+
+  const monthsInPeriod = new Set(logsInPeriod.map((log) => log.date?.slice(0, 7)).filter(Boolean)).size || 1
+  const fuelBudget = data.vehicles.reduce((total, vehicle) => total + (Number(vehicle.monthly_budget) || 0), 0) * monthsInPeriod
+  const serviceBudget = data.vehicles.reduce((total, vehicle) => total + (Number(vehicle.monthly_service_budget) || 0), 0) * monthsInPeriod
+
+  const fuelSpend = filteredLogs.reduce((total, log) => total + (Number(log.total_cost) || 0), 0)
+  const serviceSpend = servicesInPeriod.reduce((total, record) => total + (Number(record.cost) || 0), 0)
+  const claimSpend = claimsInPeriod.reduce((total, claim) => total + (Number(claim.amount) || 0), 0)
+  const totalOperational = fuelSpend + serviceSpend + claimSpend
+
+  const quality = aggregateQuality(filteredLogs, data.vehicles)
+  const grade = gradeFor(quality.avgScore)
+  const vehicleMap = new Map(data.vehicles.map((vehicle) => [vehicle.plate_number, vehicle]))
+  const anomalies = filteredLogs.filter((log) => isAnomalous(log, vehicleMap.get(log.plate_number)))
+  const pendingClaims = data.reimbursementClaims.filter((claim) => claim.status === 'PENDING')
+
+  const baselineAvg =
+    data.vehicles.length > 0
+      ? data.vehicles.reduce((total, vehicle) => total + (Number(vehicle.baseline_km_per_liter) || 0), 0) / data.vehicles.length
+      : 0
+
+  const summaries = data.vehicles
+    .map((vehicle) => summarizeVehicleQuality(vehicle, filteredLogs))
+    .sort((a, b) => a.qualityScore - b.qualityScore)
+
+  const trendYear = year === 'ALL' ? String(new Date().getFullYear()) : year
+  const trend: TrendPoint[] = MONTH_NAMES.map((label, index) => {
+    const monthKey = String(index + 1).padStart(2, '0')
+    const monthLogs = data.fuelLogs.filter((log) => log.date?.startsWith(`${trendYear}-${monthKey}`))
+    const monthServices = data.serviceHistory.filter((record) => record.date?.startsWith(`${trendYear}-${monthKey}`))
+    const monthClaims = data.reimbursementClaims.filter(
+      (claim) => claim.date?.startsWith(`${trendYear}-${monthKey}`) && claim.status === 'APPROVED'
+    )
+    return {
+      label: label.slice(0, 3),
+      fuel: monthLogs.reduce((total, log) => total + (Number(log.total_cost) || 0), 0),
+      service: monthServices.reduce((total, record) => total + (Number(record.cost) || 0), 0),
+      claims: monthClaims.reduce((total, claim) => total + (Number(claim.amount) || 0), 0),
+    }
+  })
+
+  const legalAlerts = data.vehicles
+    .flatMap((vehicle) => {
+      const kir = daysUntil(vehicle.kir_expiry)
+      const stnk = daysUntil(vehicle.stnk_expiry)
+      const driver = data.drivers.find((item) => item.assigned_vehicle === vehicle.plate_number)
+      const items: Array<{ plate: string; model: string; kind: string; date: string; days: number; driver?: string; phone?: string }> = []
+      if (kir !== null && kir <= 60) items.push({ plate: vehicle.plate_number, model: vehicle.model, kind: 'KIR', date: vehicle.kir_expiry, days: kir, driver: driver?.name, phone: driver?.phone })
+      if (stnk !== null && stnk <= 60) items.push({ plate: vehicle.plate_number, model: vehicle.model, kind: 'STNK', date: vehicle.stnk_expiry, days: stnk, driver: driver?.name, phone: driver?.phone })
+      return items
+    })
+    .sort((a, b) => a.days - b.days)
+
+  const exportSummary = () => {
+    downloadFile(
+      `Ringkasan_FleetOps_${year}-${month}_${new Date().toISOString().slice(0, 10)}.csv`,
+      fleetSummaryCsv(data.vehicles, filteredLogs, servicesInPeriod)
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        eyebrow="Control Center"
+        title="Kualitas Konsumsi BBM"
+        description={`${data.settings.company_name} · verifikasi efisiensi, anggaran, dan anomali operasional armada dalam satu tampilan.`}
+        actions={
+          <>
+            <button type="button" onClick={() => setLegalOpen(true)} className="btn btn-ghost">
+              <Icon name="shield" className="h-3.5 w-3.5" />
+              Legalitas
+              {legalAlerts.length > 0 && <span className="badge badge-amber">{legalAlerts.length}</span>}
+            </button>
+            <button type="button" onClick={exportSummary} className="btn btn-primary">
+              <Icon name="download" className="h-3.5 w-3.5" />
+              Unduh laporan
+            </button>
+          </>
+        }
+      />
+
+      <div className="card p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+            <Icon name="filter" className="h-3.5 w-3.5 text-slate-400" />
+            Periode analisis
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={month} onChange={(event) => setMonth(event.target.value)} className="input w-auto py-2 font-semibold">
+              <option value="ALL">Semua bulan</option>
+              {MONTH_NAMES.map((name, index) => (
+                <option key={name} value={String(index + 1).padStart(2, '0')}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select value={year} onChange={(event) => setYear(event.target.value)} className="input w-auto py-2 font-semibold">
+              <option value="ALL">Semua tahun</option>
+              {years.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <select
+              value={vehicleFilter}
+              onChange={(event) => setVehicleFilter(event.target.value)}
+              className="input w-auto py-2 font-semibold"
+            >
+              <option value="ALL">Semua armada</option>
+              {data.vehicles.map((vehicle) => (
+                <option key={vehicle.plate_number} value={vehicle.plate_number}>
+                  {vehicle.plate_number}
+                </option>
+              ))}
+            </select>
+            <span className="badge badge-slate">{filteredLogs.length} transaksi</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Skor Kualitas"
+          value={`${quality.avgScore}/100`}
+          hint={`Target kualitas ${data.settings.quality_target}`}
+          icon="gauge"
+          tone={quality.avgScore >= 78 ? 'green' : quality.avgScore >= 60 ? 'gold' : 'red'}
+          badge={grade.label}
+        />
+        <KpiCard
+          label="Biaya BBM"
+          value={formatCompactCurrency(fuelSpend)}
+          hint={`Anggaran ${formatCompactCurrency(fuelBudget)} · ${fuelBudget > 0 ? Math.round((fuelSpend / fuelBudget) * 100) : 0}% terpakai`}
+          icon="fuel"
+          tone="gold"
+        />
+        <KpiCard
+          label="Efisiensi Rata-rata"
+          value={`${quality.avgEfficiency} KM/L`}
+          hint={`Baseline armada ${baselineAvg.toFixed(1)} KM/L`}
+          icon="chart"
+          tone={quality.avgEfficiency >= baselineAvg * 0.9 ? 'green' : 'gold'}
+          badge={`${quality.avgEfficiency >= baselineAvg ? '+' : ''}${baselineAvg > 0 ? Math.round(((quality.avgEfficiency - baselineAvg) / baselineAvg) * 100) : 0}%`}
+        />
+        <KpiCard
+          label="Anomali BBM"
+          value={`${anomalies.length}`}
+          hint={`${pendingClaims.length} klaim menunggu verifikasi`}
+          icon="alert"
+          tone={anomalies.length > 0 ? 'red' : 'green'}
+          badge={anomalies.length > 0 ? 'Perlu audit' : 'Bersih'}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <section className="card xl:col-span-8">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Tren biaya operasional {trendYear}</h2>
+              <p className="card-subtitle">Perbandingan biaya BBM, servis, dan klaim jalan per bulan</p>
+            </div>
+            <span className="badge badge-slate">{formatCompactCurrency(totalOperational)} total</span>
+          </div>
+          <div className="p-4">
+            <TrendChart data={trend} />
+          </div>
+        </section>
+
+        <section className="card xl:col-span-4">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Kesehatan konsumsi</h2>
+              <p className="card-subtitle">Skor gabungan terhadap baseline armada</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-4 p-5">
+            <QualityGauge score={quality.avgScore} size={148} />
+            <div className="text-center">
+              <span className={`badge ${grade.tone}`}>{grade.label}</span>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                {quality.avgScore >= data.settings.quality_target
+                  ? 'Konsumsi armada berada pada batas kualitas yang ditetapkan manajemen.'
+                  : `Masih ${Math.max(0, data.settings.quality_target - quality.avgScore)} poin di bawah target kualitas.`}
+              </p>
+            </div>
+            <div className="grid w-full grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-center">
+              <div>
+                <p className="stat-label">Jarak</p>
+                <p className="mt-1 font-mono text-xs font-bold text-slate-800">{formatNumber(filteredLogs.reduce((total, log) => total + (Number(log.distance_km) || 0), 0))}</p>
+                <p className="text-[9px] text-slate-400">KM</p>
+              </div>
+              <div>
+                <p className="stat-label">Liter</p>
+                <p className="mt-1 font-mono text-xs font-bold text-slate-800">{formatNumber(Math.round(filteredLogs.reduce((total, log) => total + (Number(log.liters) || 0), 0)))}</p>
+                <p className="text-[9px] text-slate-400">LITER</p>
+              </div>
+              <div>
+                <p className="stat-label">Anomali</p>
+                <p className={`mt-1 font-mono text-xs font-bold ${anomalies.length ? 'text-rose-600' : 'text-emerald-600'}`}>{anomalies.length}</p>
+                <p className="text-[9px] text-slate-400">TEMUAN</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <section className="card overflow-hidden xl:col-span-8">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Kualitas per armada</h2>
+              <p className="card-subtitle">Diurutkan dari skor terendah agar prioritas audit terlihat</p>
+            </div>
+            <span className="badge badge-slate">{summaries.length} unit</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="table-base min-w-[720px]">
+              <thead>
+                <tr>
+                  <th>Armada</th>
+                  <th>KM/L</th>
+                  <th>Baseline</th>
+                  <th>Varians</th>
+                  <th>Skor</th>
+                  <th>Anomali</th>
+                  <th className="text-right">Biaya BBM</th>
+                  <th>Anggaran</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summaries.map((summary) => {
+                  const summaryGrade = gradeFor(summary.qualityScore)
+                  return (
+                    <tr key={summary.vehicle.id}>
+                      <td>
+                        <p className="font-bold text-slate-900">{summary.vehicle.plate_number}</p>
+                        <p className="text-[10px] text-slate-400">{summary.vehicle.model}</p>
+                      </td>
+                      <td className="font-mono font-bold text-slate-800">{summary.avgEfficiency || '-'}</td>
+                      <td className="font-mono text-slate-500">{summary.baseline}</td>
+                      <td>
+                        <span className={`font-mono text-[11px] font-bold ${summary.variancePct < -10 ? 'text-rose-600' : summary.variancePct > 5 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                          {summary.variancePct > 0 ? '+' : ''}
+                          {summary.variancePct}%
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono text-xs font-bold ${summaryGrade.color}`}>{summary.qualityScore}</span>
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${summary.qualityScore >= 78 ? 'bg-emerald-500' : summary.qualityScore >= 60 ? 'bg-gold-400' : 'bg-rose-500'}`}
+                              style={{ width: `${Math.max(4, summary.qualityScore)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {summary.anomalyCount > 0 ? (
+                          <span className="badge badge-red">{summary.anomalyCount} temuan</span>
+                        ) : (
+                          <span className="badge badge-green">Bersih</span>
+                        )}
+                      </td>
+                      <td className="text-right font-mono font-bold text-slate-900">{formatCurrency(summary.totalCost)}</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${summary.budgetUsagePct > 100 ? 'bg-rose-500' : summary.budgetUsagePct > 80 ? 'bg-gold-400' : 'bg-emerald-500'}`}
+                              style={{ width: `${Math.min(100, Math.max(4, summary.budgetUsagePct))}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-[10px] font-bold text-slate-500">{summary.budgetUsagePct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {summaries.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
+                      Tidak ada armada pada filter ini.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="card xl:col-span-4">
+          <div className="card-header">
+            <div>
+              <h2 className="card-title">Perlu perhatian</h2>
+              <p className="card-subtitle">Temuan yang memengaruhi kualitas BBM</p>
+            </div>
+            {anomalies.length > 0 && <span className="badge badge-red">{anomalies.length}</span>}
+          </div>
+          <div className="scroll-thin max-h-[380px] space-y-2 overflow-y-auto p-3">
+            {anomalies.slice(0, 6).map((log) => (
+              <div key={String(log.id)} className="rounded-xl border border-rose-100 bg-rose-50/60 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-extrabold text-rose-900">{log.plate_number}</p>
+                    <p className="text-[10px] text-rose-700">{log.driver_name} · {log.date}</p>
+                  </div>
+                  <span className="badge badge-red">{efficiencyOf(log)} KM/L</span>
+                </div>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-rose-700">
+                  {log.audit_note || (log.fill_location === 'ECERAN' ? 'Pengisian eceran non-SPBU terdeteksi.' : 'Rasio konsumsi di bawah batas wajar armada.')}
+                </p>
+              </div>
+            ))}
+            {anomalies.length === 0 && (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Icon name="check" className="h-5 w-5" />
+                </span>
+                <p className="text-[11px] font-bold text-slate-700">Tidak ada anomali</p>
+                <p className="max-w-[200px] text-[10px] leading-relaxed text-slate-400">
+                  Semua transaksi pada periode ini berada dalam batas kualitas.
+                </p>
+              </div>
+            )}
+
+            {pendingClaims.length > 0 && (
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                <p className="text-[11px] font-extrabold text-amber-900">{pendingClaims.length} klaim menunggu</p>
+                <p className="mt-0.5 text-[10px] text-amber-700">Buka modul Uang Jalan &amp; Klaim untuk memverifikasi nota driver.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <FuelLogsTable logs={filteredLogs} vehicles={data.vehicles} drivers={data.drivers} />
+
+      <Modal
+        open={legalOpen}
+        onClose={() => setLegalOpen(false)}
+        title="Pengingat legalitas armada"
+        description="KIR dan STNK yang jatuh tempo dalam 60 hari ke depan."
+        size="lg"
+      >
+        <div className="space-y-2">
+          {legalAlerts.length === 0 ? (
+            <p className="py-8 text-center text-xs text-slate-400">Seluruh dokumen armada masih dalam masa berlaku aman.</p>
+          ) : (
+            legalAlerts.map((item) => {
+              const phone = (item.phone || '').replace(/\D/g, '').replace(/^0/, '62')
+              const message = encodeURIComponent(
+                `Pengingat legalitas ${item.kind} armada ${item.plate} (${item.model}) jatuh tempo ${item.date}. Mohon segera diproses.`
+              )
+              return (
+                <div key={`${item.plate}-${item.kind}`} className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">{item.plate} · {item.kind}</p>
+                    <p className="text-[10px] text-slate-500">{item.model} · jatuh tempo {item.date} ({item.days < 0 ? `${Math.abs(item.days)} hari lewat` : `${item.days} hari lagi`})</p>
+                  </div>
+                  {phone ? (
+                    <a href={`https://wa.me/${phone}?text=${message}`} target="_blank" rel="noreferrer" className="btn btn-ghost px-3 py-2 text-[10px]">
+                      <Icon name="external" className="h-3 w-3" />
+                      Ingatkan {item.driver}
+                    </a>
+                  ) : (
+                    <span className="badge badge-slate">Tanpa kontak driver</span>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function AdminContent() {
+  const searchParams = useSearchParams()
+  const { data, loading, error, refresh } = useFleet()
+  const tab = (searchParams.get('tab') as TabKey) || 'dashboard'
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-4">
+        <div className="h-8 w-64 animate-pulse rounded-lg bg-slate-200/70" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="card h-28 animate-pulse bg-slate-100" />
+          ))}
+        </div>
+        <div className="card h-72 animate-pulse bg-slate-100" />
+      </div>
+    )
+  }
+
+  if (error && !data) {
+    return (
+      <div className="card mx-auto mt-10 max-w-md p-6 text-center">
+        <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+          <Icon name="alert" className="h-5 w-5" />
+        </span>
+        <h2 className="mt-3 text-sm font-extrabold text-slate-900">Data gagal dimuat</h2>
+        <p className="mt-1 text-xs text-slate-500">{error}</p>
+        <button type="button" onClick={() => void refresh()} className="btn btn-primary mt-4">
+          <Icon name="refresh" className="h-3.5 w-3.5" />
+          Coba lagi
+        </button>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  if (tab === 'reimbursement') return <ReimbursementTab />
+  if (tab === 'scorecard') return <DriverScorecardTab />
+  if (tab === 'analytics') return <AnalyticsTab />
+  if (tab === 'maintenance') return <MaintenanceTab />
+
+  return <DashboardView />
+}
+
 export default function AdminDashboard() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-900 text-white p-6">Memuat Dashboard...</div>}>
-      <AdminDashboardContent />
+    <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-slate-100" />}>
+      <AdminContent />
     </Suspense>
   )
 }
