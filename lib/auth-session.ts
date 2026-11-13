@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
-import type { Role, SessionUser } from './types'
+import type { SessionUser } from './types'
 
 export const SESSION_COOKIE = 'fleetops_session'
 export const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60
@@ -41,7 +41,8 @@ export function verifySessionToken(token: string | undefined | null): SessionUse
     const user = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as SessionUser
     if (!user || !user.role || !user.username) return null
     if (!user.exp || user.exp < Math.floor(Date.now() / 1000)) return null
-    if (user.role !== 'admin' && user.role !== 'driver') return null
+    if (user.role !== 'admin' && user.role !== 'driver' && user.role !== 'owner') return null
+    if (user.role !== 'owner' && !user.tenantId) return null
     return user
   } catch {
     return null
@@ -65,12 +66,12 @@ export function verifyPassword(password: string, stored: string): boolean {
   return safeEqual(password, stored)
 }
 
-interface CredentialUser {
+export interface CredentialUser {
   username: string
   password?: string
   passwordHash?: string
   name: string
-  role: Role
+  role: 'admin' | 'driver'
   driverName?: string
 }
 
@@ -111,7 +112,11 @@ export function getCredentialUsers(): CredentialUser[] {
   return users
 }
 
-export function authenticate(username: string, password: string): SessionUser | null {
+/** Autentikasi kredensial dari variabel lingkungan (tenant bawaan). */
+export function authenticateEnv(
+  username: string,
+  password: string
+): Omit<SessionUser, 'exp'> | null {
   const normalized = String(username || '').trim().toLowerCase()
   const user = getCredentialUsers().find((item) => item.username.trim().toLowerCase() === normalized)
   if (!user) return null
@@ -122,7 +127,6 @@ export function authenticate(username: string, password: string): SessionUser | 
     name: user.name,
     role: user.role,
     driverName: user.driverName,
-    exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
   }
 }
 

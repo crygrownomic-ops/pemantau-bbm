@@ -16,6 +16,8 @@ export async function GET() {
       name: session.name,
       role: session.role,
       driverName: session.driverName,
+      tenantId: session.tenantId,
+      tenantName: session.tenantName,
     },
   })
 }

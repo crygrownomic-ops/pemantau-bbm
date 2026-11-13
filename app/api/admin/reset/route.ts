@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { isSameOrigin } from '@/lib/auth-session'
-import { resetDatabase } from '@/lib/server/store'
+import { databaseForSession, resetDatabase } from '@/lib/server/store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   const session = await getSession()
-  if (!session) {
+  if (!session || !session.tenantId) {
     return NextResponse.json({ ok: false, message: 'Sesi tidak valid. Silakan login ulang.' }, { status: 401 })
   }
   if (session.role !== 'admin') {
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const database = await resetDatabase()
-    return NextResponse.json({ ok: true, data: database })
+    const database = await resetDatabase(session.tenantId)
+    return NextResponse.json({ ok: true, data: databaseForSession(database, session) })
   } catch (error) {
     console.error('Failed to reset database', error)
     return NextResponse.json({ ok: false, message: 'Gagal mereset database.' }, { status: 500 })

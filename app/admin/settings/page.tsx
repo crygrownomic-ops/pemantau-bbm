@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Modal } from '@/components/ui/Modal'
@@ -17,9 +17,17 @@ import {
   parseNumberInput,
 } from '@/lib/format'
 import { downloadFile } from '@/lib/export'
-import type { AppSettings, AuditEntry, Driver, FleetDatabase, FuelPrice, Vehicle } from '@/lib/types'
+import type {
+  AppSettings,
+  AuditEntry,
+  Driver,
+  FleetDatabase,
+  FuelPrice,
+  TenantUser,
+  Vehicle,
+} from '@/lib/types'
 
-type TabKey = 'drivers' | 'vehicles' | 'prices' | 'system'
+type TabKey = 'drivers' | 'vehicles' | 'prices' | 'users' | 'system'
 
 const TABS: Array<{ key: TabKey; label: string; icon: IconName; description: string }> = [
   {
@@ -39,6 +47,12 @@ const TABS: Array<{ key: TabKey; label: string; icon: IconName; description: str
     label: 'Tarif BBM',
     icon: 'fuel',
     description: 'Katalog harga bahan bakar yang dipakai saat validasi biaya pengisian.',
+  },
+  {
+    key: 'users',
+    label: 'Pengguna',
+    icon: 'lock',
+    description: 'Kelola akun admin dan driver yang dapat masuk ke perusahaan ini sesuai batas paket.',
   },
   {
     key: 'system',
@@ -184,6 +198,7 @@ function SettingsContent() {
       {tab === 'drivers' && <DriversTab />}
       {tab === 'vehicles' && <VehiclesTab />}
       {tab === 'prices' && <PricesTab />}
+      {tab === 'users' && <UsersTab />}
       {tab === 'system' && <SystemTab />}
     </div>
   )
@@ -1231,6 +1246,413 @@ function PricesTab() {
 /* ------------------------------------------------------------------ */
 /* System                                                              */
 /* ------------------------------------------------------------------ */
+
+function UsersTab() {
+  const { data, refresh, notify } = useFleet()
+  const [limits, setLimits] = useState<{ vehicles: number; drivers: number; users: number } | null>(null)
+  const [plan, setPlan] = useState('')
+  const [currentUsername, setCurrentUsername] = useState('')
+  const [query, setQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState('ALL')
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<TenantUser | null>(null)
+  const [form, setForm] = useState({
+    name: '',
+    username: '',
+    password: '',
+    role: 'admin' as TenantUser['role'],
+    driver_name: '',
+    status: 'ACTIVE' as TenantUser['status'],
+  })
+  const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<TenantUser | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const users = useMemo(() => data?.users ?? [], [data])
+  const drivers = useMemo(() => data?.drivers ?? [], [data])
+
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      fetch('/api/users', { credentials: 'same-origin', cache: 'no-store' })
+        .then((response) => response.json())
+        .catch(() => null),
+      fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' })
+        .then((response) => response.json())
+        .catch(() => null),
+    ]).then(([usersPayload, sessionPayload]) => {
+      if (!active) return
+      const payload = usersPayload as { limits?: typeof limits; plan?: string } | null
+      if (payload?.limits) setLimits(payload.limits)
+      if (payload?.plan) setPlan(payload.plan)
+      const session = sessionPayload as { user?: { username?: string } } | null
+      setCurrentUsername(session?.user?.username || '')
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase()
+    return users.filter((user) => {
+      const matchesRole = roleFilter === 'ALL' || user.role === roleFilter
+      const haystack = [user.name, user.username, user.driver_name].join(' ').toLowerCase()
+      return matchesRole && (!term || haystack.includes(term))
+    })
+  }, [users, query, roleFilter])
+
+  const userLimit = limits?.users ?? 0
+  const atLimit = userLimit > 0 && users.length >= userLimit
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({
+      name: '',
+      username: '',
+      password: '',
+      role: 'admin',
+      driver_name: '',
+      status: 'ACTIVE',
+    })
+    setOpen(true)
+  }
+
+  const openEdit = (user: TenantUser) => {
+    setEditing(user)
+    setForm({
+      name: user.name || '',
+      username: user.username,
+      password: '',
+      role: user.role,
+      driver_name: user.driver_name || '',
+      status: user.status || 'ACTIVE',
+    })
+    setOpen(true)
+  }
+
+  const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm((current) => ({ ...current, [key]: value }))
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (saving) return
+    if (!form.name.trim()) return
+    setSaving(true)
+    try {
+      const payload: Record<string, unknown> = {
+        name: form.name.trim(),
+        role: form.role,
+        driver_name: form.role === 'driver' ? form.driver_name.trim() : '',
+        status: form.status,
+      }
+      if (form.password) payload.password = form.password
+
+      const url = editing ? '/api/users' : '/api/users'
+      const body = editing ? { ...payload, id: editing.id } : { ...payload, username: form.username.trim().toLowerCase() }
+      const response = await fetch(url, {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'same-origin',
+      })
+      const result = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+      if (!response.ok || !result || result.ok === false) {
+        throw new Error(result?.message || 'Gagal menyimpan pengguna.')
+      }
+      notify(editing ? 'Akun pengguna berhasil diperbarui.' : 'Akun pengguna berhasil dibuat.')
+      await refresh()
+      setOpen(false)
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Gagal menyimpan pengguna.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/users?id=${encodeURIComponent(deleteTarget.id)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      })
+      const result = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+      if (!response.ok || !result || result.ok === false) {
+        throw new Error(result?.message || 'Gagal menghapus pengguna.')
+      }
+      notify('Akun pengguna berhasil dihapus.', 'info')
+      await refresh()
+      setDeleteTarget(null)
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Gagal menghapus pengguna.', 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard label="Total akun" value={formatNumber(users.length)} icon="users" />
+        <SummaryCard
+          label="Admin aktif"
+          value={formatNumber(users.filter((user) => user.role === 'admin' && user.status !== 'INACTIVE').length)}
+          icon="lock"
+        />
+        <SummaryCard
+          label="Batas paket"
+          value={userLimit > 0 ? `${users.length} / ${userLimit}` : '—'}
+          icon="package"
+          tone={atLimit ? 'amber' : 'navy'}
+        />
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="card-header flex-col gap-3 sm:flex-row sm:items-center">
+          <div>
+            <p className="card-title">Akun pengguna perusahaan</p>
+            <p className="card-subtitle">
+              {filtered.length} dari {users.length} akun ditampilkan
+              {plan ? ` · paket ${plan.toUpperCase()}` : ''}.
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Cari nama atau username…"
+                className="input py-2 pl-9 sm:w-56"
+              />
+            </div>
+            <select
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+              className="input py-2 sm:w-36"
+            >
+              <option value="ALL">Semua peran</option>
+              <option value="admin">Admin</option>
+              <option value="driver">Driver</option>
+            </select>
+            <button type="button" onClick={openCreate} disabled={atLimit} className="btn btn-gold">
+              <Icon name="userPlus" className="h-3.5 w-3.5" />
+              Tambah akun
+            </button>
+          </div>
+        </div>
+
+        {atLimit && (
+          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[11px] font-semibold text-amber-800">
+            <Icon name="alert" className="mt-px h-3.5 w-3.5 shrink-0" />
+            Batas akun paket {plan ? plan.toUpperCase() : ''} tercapai ({userLimit} akun). Tingkatkan paket untuk
+            menambah pengguna.
+          </div>
+        )}
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="Tidak ada akun ditemukan"
+            description="Ubah kata kunci atau tambahkan akun baru untuk tim operasional Anda."
+            action={
+              !atLimit ? (
+                <button type="button" onClick={openCreate} className="btn btn-primary">
+                  <Icon name="userPlus" className="h-3.5 w-3.5" />
+                  Tambah akun
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table-base min-w-[760px]">
+              <thead>
+                <tr>
+                  <th>Pengguna</th>
+                  <th>Peran</th>
+                  <th>Driver terkait</th>
+                  <th>Status</th>
+                  <th>Login terakhir</th>
+                  <th className="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((user) => {
+                  const self = user.username.toLowerCase() === currentUsername.toLowerCase()
+                  return (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy-900 text-[10px] font-extrabold text-gold-300">
+                            {initials(user.name)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-1.5 truncate text-xs font-bold text-slate-800">
+                              {user.name}
+                              {self && <span className="badge badge-slate">Anda</span>}
+                            </p>
+                            <p className="truncate font-mono text-[10px] text-slate-400">{user.username}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge ${user.role === 'admin' ? 'badge-blue' : 'badge-slate'}`}>
+                          {user.role === 'admin' ? 'Admin' : 'Driver'}
+                        </span>
+                      </td>
+                      <td className="text-xs font-semibold text-slate-600">{user.driver_name || '-'}</td>
+                      <td>
+                        <StatusPill status={user.status} />
+                      </td>
+                      <td className="whitespace-nowrap text-[11px] text-slate-500">
+                        {user.last_login_at ? formatDate(user.last_login_at.slice(0, 10)) : 'Belum pernah'}
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(user)}
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-navy-50 hover:text-navy-800"
+                            title="Ubah akun"
+                            aria-label={`Ubah ${user.name}`}
+                          >
+                            <Icon name="edit" className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget(user)}
+                            disabled={self}
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                            title={self ? 'Tidak dapat menghapus akun sendiri' : 'Hapus akun'}
+                            aria-label={`Hapus ${user.name}`}
+                          >
+                            <Icon name="trash" className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={editing ? 'Ubah akun pengguna' : 'Tambah akun pengguna'}
+        description="Akun ini dapat dipakai untuk masuk ke perusahaan ini menggunakan kode perusahaan Anda."
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nama lengkap" className="sm:col-span-2">
+              <input
+                className="input"
+                value={form.name}
+                onChange={(event) => setField('name', event.target.value)}
+                placeholder="Nama pengguna"
+                required
+              />
+            </Field>
+            <Field label="Username" hint={editing ? 'Username tidak dapat diubah.' : 'Huruf kecil, angka, titik, atau garis bawah.'}>
+              <input
+                className="input font-mono lowercase"
+                value={form.username}
+                onChange={(event) => setField('username', event.target.value.toLowerCase())}
+                placeholder="nama.pengguna"
+                disabled={Boolean(editing)}
+                required
+              />
+            </Field>
+            <Field
+              label={editing ? 'Password baru' : 'Password'}
+              hint={editing ? 'Kosongkan bila tidak ingin mengubah password.' : 'Minimal 8 karakter.'}
+            >
+              <input
+                type="password"
+                className="input font-mono"
+                value={form.password}
+                onChange={(event) => setField('password', event.target.value)}
+                placeholder={editing ? '••••••••' : 'Minimal 8 karakter'}
+                minLength={editing ? undefined : 8}
+                autoComplete="new-password"
+                required={!editing}
+              />
+            </Field>
+            <Field label="Peran">
+              <select
+                className="input"
+                value={form.role}
+                onChange={(event) => setField('role', event.target.value as TenantUser['role'])}
+              >
+                <option value="admin">Admin</option>
+                <option value="driver">Driver</option>
+              </select>
+            </Field>
+            <Field label="Status">
+              <select
+                className="input"
+                value={form.status}
+                onChange={(event) => setField('status', event.target.value as TenantUser['status'])}
+              >
+                <option value="ACTIVE">Aktif</option>
+                <option value="INACTIVE">Nonaktif</option>
+              </select>
+            </Field>
+            {form.role === 'driver' && (
+              <Field
+                label="Nama driver terkait"
+                className="sm:col-span-2"
+                hint="Harus sama dengan nama pada master driver agar data transaksi terhubung."
+              >
+                <input
+                  className="input"
+                  value={form.driver_name}
+                  onChange={(event) => setField('driver_name', event.target.value)}
+                  placeholder="Nama driver"
+                  list="user-driver-names"
+                  required
+                />
+                <datalist id="user-driver-names">
+                  {drivers.map((driver) => (
+                    <option key={driver.id} value={driver.name} />
+                  ))}
+                </datalist>
+              </Field>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button type="button" onClick={() => setOpen(false)} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="submit" disabled={saving} className="btn btn-primary">
+              {saving ? 'Menyimpan…' : editing ? 'Simpan perubahan' : 'Buat akun'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDelete
+        open={Boolean(deleteTarget)}
+        title={deleteTarget ? `Hapus akun ${deleteTarget.name}?` : 'Hapus akun'}
+        description={
+          deleteTarget
+            ? `Akun ${deleteTarget.username} tidak akan bisa login lagi. Riwayat transaksi yang pernah dibuat tetap tersimpan.`
+            : ''
+        }
+        busy={deleting}
+        onCancel={() => (deleting ? undefined : setDeleteTarget(null))}
+        onConfirm={() => void handleDelete()}
+      />
+    </div>
+  )
+}
 
 function SystemTab() {
   const { data, updateSettings, resetDemo } = useFleet()

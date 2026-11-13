@@ -12,6 +12,12 @@ export default async function DriverLayout({ children }: { children: ReactNode }
   if (!session) {
     redirect('/login?next=/driver')
   }
+  if (session.role === 'owner') {
+    redirect('/platform')
+  }
+  if (!session.tenantId) {
+    redirect('/login?next=/driver')
+  }
 
   return (
     <FleetProvider>

@@ -15,7 +15,7 @@ export default async function LoginPage({
 }) {
   const session = await getSession()
   if (session) {
-    redirect(session.role === 'admin' ? '/admin' : '/driver')
+    redirect(session.role === 'owner' ? '/platform' : session.role === 'admin' ? '/admin' : '/driver')
   }
 
   const params = await searchParams

@@ -297,20 +297,23 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-export function buildSeedDatabase(): FleetDatabase {
+export function buildSeedDatabase(
+  options: { companyName?: string; companyShort?: string; users?: FleetDatabase['users'] } = {}
+): FleetDatabase {
   const vehicles = clone(VEHICLES)
   const logs = buildFuelLogs(vehicles)
   return {
     version: 1,
     updated_at: new Date().toISOString(),
     settings: {
-      company_name: 'PT Nusantara Logistik Prima',
-      company_short: 'NLP',
+      company_name: options.companyName || 'PT Nusantara Logistik Prima',
+      company_short: options.companyShort || 'NLP',
       currency: 'IDR',
       fuel_anomaly_threshold: 72,
       quality_target: 85,
       session_hours: 8,
     },
+    users: options.users || [],
     vehicles,
     drivers: clone(DRIVERS),
     fuelPrices: clone(FUEL_PRICES),

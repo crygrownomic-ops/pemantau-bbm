@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { isSameOrigin } from '@/lib/auth-session'
 import { appendAudit, createId, isValidCollection, mutateDatabase } from '@/lib/server/store'
+import { getTenant } from '@/lib/server/platform-store'
 import type {
   CollectionName,
   FleetDatabase,
@@ -59,6 +60,26 @@ function rowsOf(database: FleetDatabase, collection: CollectionName): Collection
 
 function setRows(database: FleetDatabase, collection: CollectionName, rows: CollectionRow[]): void {
   ;(database as unknown as Record<CollectionName, CollectionRow[]>)[collection] = rows
+}
+
+async function enforcePlanLimit(
+  tenantId: string,
+  collection: CollectionName,
+  database: FleetDatabase
+): Promise<void> {
+  if (collection !== 'vehicles' && collection !== 'drivers') return
+  const tenant = await getTenant(tenantId)
+  if (!tenant) return
+
+  const limit = collection === 'vehicles' ? tenant.limits.vehicles : tenant.limits.drivers
+  const current = collection === 'vehicles' ? database.vehicles.length : database.drivers.length
+  if (current >= limit) {
+    const label = collection === 'vehicles' ? 'armada' : 'driver'
+    throw new ApiError(
+      403,
+      `Batas paket ${tenant.plan.toUpperCase()} tercapai (${limit} ${label}). Tingkatkan paket untuk menambah data.`
+    )
+  }
 }
 
 function createFuelLog(database: FleetDatabase, session: SessionUser, body: Body): FuelLog {
@@ -196,8 +217,9 @@ async function readBody(request: Request): Promise<unknown> {
 
 export async function POST(request: Request, { params }: { params: Promise<{ collection: string }> }) {
   const session = await getSession()
-  if (!session) return fail('Sesi tidak valid. Silakan login ulang.', 401)
+  if (!session || !session.tenantId) return fail('Sesi tidak valid. Silakan login ulang.', 401)
   if (!isSameOrigin(request)) return fail('Permintaan tidak valid.', 403)
+  const tenantId = session.tenantId
 
   const { collection } = await params
   if (!isValidCollection(collection) || collection === 'auditTrail') {
@@ -209,7 +231,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ col
 
   try {
     const body = asRecord(await readBody(request))
-    const item = await mutateDatabase((database) => {
+    const item = await mutateDatabase(tenantId, async (database) => {
+      await enforcePlanLimit(tenantId, collection, database)
+
       let created: CollectionRow
       if (collection === 'fuelLogs') created = createFuelLog(database, session, body) as unknown as CollectionRow
       else if (collection === 'inspections')
@@ -240,9 +264,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ col
 
 export async function PUT(request: Request, { params }: { params: Promise<{ collection: string }> }) {
   const session = await getSession()
-  if (!session) return fail('Sesi tidak valid. Silakan login ulang.', 401)
+  if (!session || !session.tenantId) return fail('Sesi tidak valid. Silakan login ulang.', 401)
   if (session.role !== 'admin') return fail('Hanya admin yang dapat mengubah master data.', 403)
   if (!isSameOrigin(request)) return fail('Permintaan tidak valid.', 403)
+  const tenantId = session.tenantId
 
   const { collection } = await params
   if (!isValidCollection(collection) || collection === 'auditTrail') {
@@ -260,7 +285,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ coll
       return { ...row, id: hasId ? (row.id as string | number) : createId('REC') }
     })
 
-    await mutateDatabase((database) => {
+    await mutateDatabase(tenantId, (database) => {
       setRows(database, collection, normalized)
       appendAudit(
         database,
@@ -281,9 +306,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ coll
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ collection: string }> }) {
   const session = await getSession()
-  if (!session) return fail('Sesi tidak valid. Silakan login ulang.', 401)
+  if (!session || !session.tenantId) return fail('Sesi tidak valid. Silakan login ulang.', 401)
   if (session.role !== 'admin') return fail('Hanya admin yang dapat memperbarui status data.', 403)
   if (!isSameOrigin(request)) return fail('Permintaan tidak valid.', 403)
+  const tenantId = session.tenantId
 
   const { collection } = await params
   if (!isValidCollection(collection) || collection === 'auditTrail') {
@@ -298,7 +324,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
       return fail('ID dan data perubahan wajib dikirim.')
     }
 
-    const updated = await mutateDatabase((database) => {
+    const updated = await mutateDatabase(tenantId, (database) => {
       const list = rowsOf(database, collection)
       const index = list.findIndex((item) => String(item.id) === String(id))
       if (index < 0) throw new ApiError(404, 'Data tidak ditemukan.')
@@ -334,9 +360,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ collection: string }> }) {
   const session = await getSession()
-  if (!session) return fail('Sesi tidak valid. Silakan login ulang.', 401)
+  if (!session || !session.tenantId) return fail('Sesi tidak valid. Silakan login ulang.', 401)
   if (session.role !== 'admin') return fail('Hanya admin yang dapat menghapus data.', 403)
   if (!isSameOrigin(request)) return fail('Permintaan tidak valid.', 403)
+  const tenantId = session.tenantId
 
   const { collection } = await params
   if (!isValidCollection(collection) || collection === 'auditTrail') {
@@ -347,7 +374,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ c
   if (!id) return fail('ID data wajib dikirim.')
 
   try {
-    await mutateDatabase((database) => {
+    await mutateDatabase(tenantId, (database) => {
       const list = rowsOf(database, collection)
       const next = list.filter((item) => String(item.id) !== String(id))
       if (next.length === list.length) throw new ApiError(404, 'Data tidak ditemukan.')

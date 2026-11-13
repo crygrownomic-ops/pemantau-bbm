@@ -79,11 +79,18 @@ const SECURITY = [
 export default async function LandingPage() {
   const session = await getSession()
   const isAdmin = session?.role === 'admin'
+  const isOwner = session?.role === 'owner'
 
-  const primaryHref = session ? (isAdmin ? '/admin' : '/driver') : '/login'
-  const primaryLabel = session ? (isAdmin ? 'Buka Dashboard' : 'Buka Portal Driver') : 'Masuk ke Workspace'
-  const secondaryHref = session ? (isAdmin ? '/driver' : '/login') : '#fitur'
-  const secondaryLabel = session ? (isAdmin ? 'Portal Driver' : 'Ganti akun') : 'Lihat kemampuan'
+  const primaryHref = session ? (isOwner ? '/platform' : isAdmin ? '/admin' : '/driver') : '/login'
+  const primaryLabel = session
+    ? isOwner
+      ? 'Buka Konsol Platform'
+      : isAdmin
+        ? 'Buka Dashboard'
+        : 'Buka Portal Driver'
+    : 'Masuk ke Workspace'
+  const secondaryHref = session ? (isAdmin || isOwner ? '/driver' : '/login') : '#fitur'
+  const secondaryLabel = session ? (isAdmin || isOwner ? 'Portal Driver' : 'Ganti akun') : 'Lihat kemampuan'
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-navy-950 text-slate-100">

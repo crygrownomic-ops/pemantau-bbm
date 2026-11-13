@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import {
-  authenticate,
   checkLoginRateLimit,
   clientKey,
   isSameOrigin,
@@ -9,13 +8,14 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from '@/lib/auth-session'
 import { createSessionCookie } from '@/lib/auth'
+import { authenticateTenant } from '@/lib/server/auth-service'
 import { readDatabase } from '@/lib/server/store'
 
 export const runtime = 'nodejs'
 
-async function sessionHours(): Promise<number> {
+async function sessionHours(tenantId: string): Promise<number> {
   try {
-    const database = await readDatabase()
+    const database = await readDatabase(tenantId)
     const hours = Number(database.settings?.session_hours)
     if (Number.isFinite(hours) && hours >= 1 && hours <= 72) return Math.round(hours)
   } catch {
@@ -38,13 +38,14 @@ export async function POST(request: Request) {
     )
   }
 
-  let body: { username?: string; password?: string }
+  let body: { company_code?: string; username?: string; password?: string }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ ok: false, message: 'Format permintaan tidak valid.' }, { status: 400 })
   }
 
+  const companyCode = String(body.company_code || '').trim()
   const username = String(body.username || '').trim()
   const password = String(body.password || '')
 
@@ -52,12 +53,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: 'Username dan password wajib diisi.' }, { status: 400 })
   }
 
-  const user = authenticate(username, password)
-  if (!user) {
-    return NextResponse.json({ ok: false, message: 'Username atau password salah.' }, { status: 401 })
+  const result = await authenticateTenant(companyCode, username, password)
+  if (!result.user) {
+    return NextResponse.json(
+      { ok: false, message: result.message || 'Username atau password salah.' },
+      { status: result.status || 401 }
+    )
   }
 
-  const hours = await sessionHours()
+  const user = result.user
+  const hours = await sessionHours(user.tenantId as string)
   const maxAgeSeconds = Math.round(hours * 3600)
   user.exp = Math.floor(Date.now() / 1000) + maxAgeSeconds
 
@@ -66,7 +71,14 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    user: { username: user.username, name: user.name, role: user.role, driverName: user.driverName },
+    user: {
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      driverName: user.driverName,
+      tenantId: user.tenantId,
+      tenantName: user.tenantName,
+    },
     redirect: user.role === 'admin' ? '/admin' : '/driver',
   })
 }

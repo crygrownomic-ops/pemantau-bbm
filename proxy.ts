@@ -9,6 +9,15 @@ export function proxy(request: NextRequest) {
 
   const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/')
   const isDriverArea = pathname === '/driver' || pathname.startsWith('/driver/')
+  const isPlatformArea = pathname === '/platform' || pathname.startsWith('/platform/')
+  const isPlatformLogin = pathname === '/platform/login'
+
+  if (isPlatformArea && !isPlatformLogin && !token) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/platform/login'
+    url.search = ''
+    return NextResponse.redirect(url)
+  }
 
   if ((isAdminArea || isDriverArea) && !token) {
     const url = request.nextUrl.clone()
@@ -22,5 +31,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/driver/:path*'],
+  matcher: ['/admin/:path*', '/driver/:path*', '/platform/:path*'],
 }

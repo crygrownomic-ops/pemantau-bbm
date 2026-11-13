@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
+import { Icon } from '@/components/ui/Icon'
 import { login } from '@/lib/client-store'
 
 type Role = 'admin' | 'driver'
@@ -18,6 +19,7 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
   const isDev = process.env.NODE_ENV !== 'production'
 
   const [role, setRole] = useState<Role>('admin')
+  const [companyCode, setCompanyCode] = useState('')
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -44,7 +46,7 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
     setError(null)
 
     try {
-      const result = await login(username.trim(), password)
+      const result = await login(companyCode.trim(), username.trim(), password)
       const fallback = role === 'admin' ? '/admin' : '/driver'
       const target =
         nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
@@ -149,6 +151,27 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
 
             <form onSubmit={handleSubmit} className="card space-y-4 p-5">
               <div>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="company_code" className="label">
+                    Kode perusahaan
+                  </label>
+                  <span className="mb-1.5 text-[10px] font-semibold text-slate-400">Opsional</span>
+                </div>
+                <input
+                  id="company_code"
+                  name="company_code"
+                  autoComplete="organization"
+                  className="input font-mono"
+                  placeholder="contoh: demo"
+                  value={companyCode}
+                  onChange={(event) => setCompanyCode(event.target.value.toLowerCase())}
+                />
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
+                  Isi bila akun Anda terdaftar pada lebih dari satu perusahaan.
+                </p>
+              </div>
+
+              <div>
                 <label htmlFor="username" className="label">
                   Username
                 </label>
@@ -230,6 +253,7 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
                     <p className="mt-1 font-mono text-[11px] text-navy-800">
                       {DEMO[role].username} / {DEMO[role].password}
                     </p>
+                    <p className="mt-0.5 font-mono text-[10px] text-navy-600">Kode perusahaan: demo</p>
                   </div>
                   <button type="button" onClick={fillDemo} className="btn btn-ghost px-3 py-2 text-[10px]">
                     Isi otomatis
@@ -241,7 +265,19 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
               </div>
             )}
 
-            <p className="mt-6 text-center text-[10px] leading-relaxed text-slate-400">
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] font-bold text-slate-500">
+              <Link href="/register" className="inline-flex items-center gap-1.5 transition hover:text-navy-900">
+                <Icon name="building" className="h-3.5 w-3.5" />
+                Daftarkan perusahaan
+              </Link>
+              <span className="h-3 w-px bg-slate-300" />
+              <Link href="/platform/login" className="inline-flex items-center gap-1.5 transition hover:text-navy-900">
+                <Icon name="shield" className="h-3.5 w-3.5" />
+                Konsol platform
+              </Link>
+            </div>
+
+            <p className="mt-5 text-center text-[10px] leading-relaxed text-slate-400">
               Dengan masuk, Anda menyetujui kebijakan penggunaan internal perusahaan.
               <br />
               FleetOps 360 · Kendali BBM &amp; Operasional Armada

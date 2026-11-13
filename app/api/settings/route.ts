@@ -19,9 +19,10 @@ function fail(message: string, status = 400) {
 
 export async function PATCH(request: Request) {
   const session = await getSession()
-  if (!session) return fail('Sesi tidak valid. Silakan login ulang.', 401)
+  if (!session || !session.tenantId) return fail('Sesi tidak valid. Silakan login ulang.', 401)
   if (session.role !== 'admin') return fail('Hanya admin yang dapat mengubah pengaturan.', 403)
   if (!isSameOrigin(request)) return fail('Permintaan tidak valid.', 403)
+  const tenantId = session.tenantId
 
   let body: Record<string, unknown>
   try {
@@ -31,7 +32,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const settings = await mutateDatabase((database) => {
+    const settings = await mutateDatabase(tenantId, (database) => {
       const next: AppSettings = { ...database.settings }
 
       if (typeof body.company_name === 'string') next.company_name = body.company_name.trim().slice(0, 120)

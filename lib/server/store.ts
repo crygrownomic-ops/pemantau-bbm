@@ -1,12 +1,12 @@
 import { promises as fs } from 'node:fs'
-import path from 'node:path'
 import { buildSeedDatabase } from '@/lib/seed'
-import type { AuditEntry, CollectionName, FleetDatabase, SessionUser } from '@/lib/types'
+import { createId } from './ids'
+import { TENANTS_DIR, tenantDbFile } from './paths'
+import type { AuditEntry, CollectionName, FleetDatabase, SessionUser, TenantUser } from '@/lib/types'
 
-const DATA_DIR = process.env.FLEETOPS_DATA_DIR || path.join(process.cwd(), 'data')
-const DB_FILE = path.join(DATA_DIR, 'fleetops.json')
+export { createId }
 
-let writeLock: Promise<unknown> = Promise.resolve()
+const locks = new Map<string, Promise<unknown>>()
 
 export const COLLECTIONS: CollectionName[] = [
   'vehicles',
@@ -24,65 +24,82 @@ export function isCollection(value: string): value is CollectionName {
   return (COLLECTIONS as string[]).includes(value)
 }
 
-async function ensureDatabaseFile(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true })
-  try {
-    await fs.access(DB_FILE)
-  } catch {
-    await writeDatabaseFile(buildSeedDatabase())
-  }
+function normalizeDatabase(database: FleetDatabase): FleetDatabase {
+  if (!Array.isArray(database.users)) database.users = []
+  if (!Array.isArray(database.vehicles)) database.vehicles = []
+  return database
 }
 
-async function writeDatabaseFile(database: FleetDatabase): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true })
-  const tempFile = `${DB_FILE}.${process.pid}.tmp`
+function lockFor(tenantId: string): Promise<unknown> {
+  return locks.get(tenantId) || Promise.resolve()
+}
+
+export async function writeTenantDatabase(tenantId: string, database: FleetDatabase): Promise<void> {
+  const file = tenantDbFile(tenantId)
+  await fs.mkdir(TENANTS_DIR, { recursive: true })
   database.updated_at = new Date().toISOString()
+  const tempFile = `${file}.${process.pid}.tmp`
   await fs.writeFile(tempFile, JSON.stringify(database, null, 2), 'utf8')
-  await fs.rename(tempFile, DB_FILE)
+  await fs.rename(tempFile, file)
 }
 
-export async function readDatabase(): Promise<FleetDatabase> {
-  await ensureDatabaseFile()
-  const raw = await fs.readFile(DB_FILE, 'utf8')
-  let parsed: FleetDatabase | null = null
+export async function readDatabase(tenantId: string): Promise<FleetDatabase> {
+  const file = tenantDbFile(tenantId)
+  await fs.mkdir(TENANTS_DIR, { recursive: true })
+
+  let raw: string | null = null
   try {
-    parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as FleetDatabase
+    raw = await fs.readFile(file, 'utf8')
   } catch {
-    parsed = null
+    raw = null
   }
 
-  if (!parsed || !Array.isArray(parsed.vehicles)) {
-    // Simpan file lama sebagai bukti sebelum membuat ulang data contoh.
-    const backupFile = `${DB_FILE}.corrupt-${Date.now()}.bak`
-    await fs.copyFile(DB_FILE, backupFile).catch(() => undefined)
-    console.error(`Database JSON tidak valid. Cadangan disimpan di ${backupFile}`)
-    const seed = buildSeedDatabase()
-    await writeDatabaseFile(seed)
-    return seed
+  if (raw !== null) {
+    try {
+      const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as FleetDatabase
+      if (parsed && Array.isArray(parsed.vehicles)) {
+        return normalizeDatabase(parsed)
+      }
+    } catch {
+      // Ditangani di bawah: cadangkan lalu buat ulang.
+    }
+
+    const backupFile = `${file}.corrupt-${Date.now()}.bak`
+    await fs.copyFile(file, backupFile).catch(() => undefined)
+    console.error(`Database tenant tidak valid. Cadangan disimpan di ${backupFile}`)
   }
 
-  return parsed
-}
-
-export async function mutateDatabase<T>(mutator: (database: FleetDatabase) => T | Promise<T>): Promise<T> {
-  const run = writeLock.then(async () => {
-    const database = await readDatabase()
-    const result = await mutator(database)
-    await writeDatabaseFile(database)
-    return result
-  })
-  writeLock = run.catch(() => undefined)
-  return run
-}
-
-export async function resetDatabase(): Promise<FleetDatabase> {
   const seed = buildSeedDatabase()
-  await writeDatabaseFile(seed)
+  await writeTenantDatabase(tenantId, seed)
   return seed
 }
 
-export function createId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+export async function mutateDatabase<T>(
+  tenantId: string,
+  mutator: (database: FleetDatabase) => T | Promise<T>
+): Promise<T> {
+  const run = lockFor(tenantId).then(async () => {
+    const database = await readDatabase(tenantId)
+    const result = await mutator(database)
+    await writeTenantDatabase(tenantId, database)
+    return result
+  })
+  locks.set(tenantId, run.catch(() => undefined))
+  return run
+}
+
+export async function resetDatabase(tenantId: string): Promise<FleetDatabase> {
+  const current = await readDatabase(tenantId).catch(() => null)
+  const seed = buildSeedDatabase()
+  if (current) {
+    // Akun pengguna dan identitas perusahaan tidak boleh hilang saat reset demo.
+    seed.users = current.users
+    seed.settings.company_name = current.settings.company_name || seed.settings.company_name
+    seed.settings.company_short = current.settings.company_short || seed.settings.company_short
+    seed.settings.session_hours = current.settings.session_hours ?? seed.settings.session_hours
+  }
+  await writeTenantDatabase(tenantId, seed)
+  return seed
 }
 
 export function appendAudit(
@@ -106,8 +123,17 @@ export function appendAudit(
   database.auditTrail = [entry, ...(database.auditTrail || [])].slice(0, 500)
 }
 
+/** Menyembunyikan hash password sebelum data dikirim ke browser. */
+export function publicUser(user: TenantUser): TenantUser {
+  return { ...user, password_hash: '' }
+}
+
 export function databaseForSession(database: FleetDatabase, session: SessionUser): FleetDatabase {
-  if (session.role === 'admin') return database
+  const users = (database.users || []).map(publicUser)
+
+  if (session.role === 'admin' || session.role === 'owner') {
+    return { ...database, users }
+  }
 
   const driverName = session.driverName || session.name
   const own = <T extends { driver_name?: string }>(items: T[]): T[] =>
@@ -115,6 +141,7 @@ export function databaseForSession(database: FleetDatabase, session: SessionUser
 
   return {
     ...database,
+    users: [],
     drivers: database.drivers.map((driver) =>
       driver.name.toLowerCase() === driverName.toLowerCase()
         ? driver

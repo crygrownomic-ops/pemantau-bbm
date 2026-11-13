@@ -24,6 +24,19 @@ export async function requireAdmin(): Promise<SessionUser> {
   return session
 }
 
+/** Sesi tenant yang valid (admin atau driver) beserta ID tenant-nya. */
+export async function requireTenantSession(): Promise<SessionUser & { tenantId: string }> {
+  const session = await requireSession()
+  if (!session.tenantId) throw new Error('FORBIDDEN')
+  return session as SessionUser & { tenantId: string }
+}
+
+export async function requireOwner(): Promise<SessionUser> {
+  const session = await requireSession()
+  if (session.role !== 'owner') throw new Error('FORBIDDEN')
+  return session
+}
+
 export async function createSessionCookie(
   user: SessionUser,
   maxAgeSeconds: number = SESSION_MAX_AGE_SECONDS,

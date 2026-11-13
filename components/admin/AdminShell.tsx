@@ -14,6 +14,7 @@ export interface ShellUser {
   username: string
   name: string
   role: 'admin' | 'driver'
+  tenantName?: string
 }
 
 const MAIN_NAV: Array<{ key: string; label: string; href: string; icon: IconName }> = [
@@ -22,12 +23,14 @@ const MAIN_NAV: Array<{ key: string; label: string; href: string; icon: IconName
   { key: 'scorecard', label: 'Scorecard Driver', href: '/admin?tab=scorecard', icon: 'award' },
   { key: 'analytics', label: 'Analytics & TCO', href: '/admin?tab=analytics', icon: 'chart' },
   { key: 'maintenance', label: 'Servis & Legalitas', href: '/admin?tab=maintenance', icon: 'wrench' },
+  { key: 'reports', label: 'Laporan Bulanan', href: '/admin/reports', icon: 'fileText' },
 ]
 
 const MASTER_NAV: Array<{ key: string; label: string; href: string; icon: IconName }> = [
   { key: 'drivers', label: 'Master Driver', href: '/admin/settings?tab=drivers', icon: 'users' },
   { key: 'vehicles', label: 'Master Armada', href: '/admin/settings?tab=vehicles', icon: 'truck' },
   { key: 'prices', label: 'Tarif BBM', href: '/admin/settings?tab=prices', icon: 'fuel' },
+  { key: 'users', label: 'Pengguna', href: '/admin/settings?tab=users', icon: 'lock' },
   { key: 'system', label: 'Sistem & Audit', href: '/admin/settings?tab=system', icon: 'settings' },
 ]
 
@@ -37,9 +40,11 @@ const TITLES: Record<string, string> = {
   scorecard: 'Scorecard Driver',
   analytics: 'Analytics & Total Cost',
   maintenance: 'Servis & Legalitas',
+  reports: 'Laporan Bulanan',
   drivers: 'Master Driver',
   vehicles: 'Master Armada',
   prices: 'Tarif BBM',
+  users: 'Pengguna & Akses',
   system: 'Sistem & Audit',
 }
 
@@ -53,7 +58,8 @@ export function AdminShell({ user, children }: { user: ShellUser; children: Reac
   const [loggingOut, setLoggingOut] = useState(false)
 
   const isSettings = pathname.startsWith('/admin/settings')
-  const tab = searchParams.get('tab') || (isSettings ? 'drivers' : 'dashboard')
+  const isReports = pathname.startsWith('/admin/reports')
+  const tab = isReports ? 'reports' : searchParams.get('tab') || (isSettings ? 'drivers' : 'dashboard')
   const title = TITLES[tab] || 'Dashboard'
 
   const alerts = useMemo(() => {

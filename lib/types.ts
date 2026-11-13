@@ -1,11 +1,25 @@
-export type Role = 'admin' | 'driver'
+export type Role = 'admin' | 'driver' | 'owner'
 
 export interface SessionUser {
   username: string
   name: string
   role: Role
+  tenantId?: string
+  tenantName?: string
   driverName?: string
   exp: number
+}
+
+export interface TenantUser {
+  id: string
+  username: string
+  name: string
+  role: 'admin' | 'driver'
+  password_hash: string
+  driver_name?: string
+  status: 'ACTIVE' | 'INACTIVE'
+  created_at?: string
+  last_login_at?: string
 }
 
 export interface Vehicle {
@@ -152,6 +166,7 @@ export interface FleetDatabase {
   version: number
   updated_at: string
   settings: AppSettings
+  users: TenantUser[]
   vehicles: Vehicle[]
   drivers: Driver[]
   fuelPrices: FuelPrice[]
@@ -182,4 +197,87 @@ export interface QualityResult {
   expected: number
   actual: number
   reasons: string[]
+}
+
+/* ------------------------------------------------------------------ */
+/* SaaS: paket, tenant, dan penagihan                                  */
+/* ------------------------------------------------------------------ */
+
+export type PlanId = 'trial' | 'starter' | 'growth' | 'enterprise'
+
+export interface PlanLimits {
+  vehicles: number
+  drivers: number
+  users: number
+}
+
+export interface Plan {
+  id: PlanId
+  name: string
+  tagline: string
+  price_monthly: number
+  limits: PlanLimits
+  features: string[]
+}
+
+export type TenantStatus = 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED'
+
+export interface Tenant {
+  id: string
+  code: string
+  name: string
+  plan: PlanId
+  status: TenantStatus
+  created_at: string
+  trial_ends_at?: string
+  active_until?: string
+  contact_name?: string
+  contact_email?: string
+  contact_phone?: string
+  notes?: string
+  /** Tenant bawaan dari instalasi lama; kredensial env tetap berlaku. */
+  bootstrap?: boolean
+  limits: PlanLimits
+}
+
+export type InvoiceStatus = 'UNPAID' | 'PAID' | 'VOID'
+
+export interface Invoice {
+  id: string
+  tenant_id: string
+  number: string
+  plan: PlanId
+  period_start: string
+  period_end: string
+  amount: number
+  status: InvoiceStatus
+  issued_at: string
+  due_at: string
+  paid_at?: string
+  method?: string
+  note?: string
+}
+
+export interface PlatformAuditEntry {
+  id: string
+  at: string
+  actor: string
+  action: string
+  target: string
+  summary: string
+}
+
+export interface PlatformDatabase {
+  version: number
+  updated_at: string
+  tenants: Tenant[]
+  invoices: Invoice[]
+  auditTrail: PlatformAuditEntry[]
+}
+
+export interface TenantUsage {
+  vehicles: number
+  drivers: number
+  users: number
+  fuelLogs: number
 }

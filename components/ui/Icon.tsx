@@ -181,6 +181,115 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   spark: <path d="m13 2-8 12h6l-1 8 9-13h-6l0-7Z" />,
+  cloudOff: (
+    <>
+      <path d="M6.5 18a4.5 4.5 0 0 1-.7-8.9A6 6 0 0 1 17 8.5a4 4 0 0 1 1.3 7.7" />
+      <path d="M3 3l18 18" />
+      <path d="M9.5 18h8" />
+    </>
+  ),
+  wifi: (
+    <>
+      <path d="M2.5 8.5a14 14 0 0 1 19 0" />
+      <path d="M5.5 12a9.5 9.5 0 0 1 13 0" />
+      <path d="M8.5 15.5a5 5 0 0 1 7 0" />
+      <circle cx="12" cy="19" r="1" />
+    </>
+  ),
+  building: (
+    <>
+      <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16" />
+      <path d="M15 9h4a1 1 0 0 1 1 1v11" />
+      <path d="M2.5 21h19" />
+      <path d="M7.5 8h3M7.5 12h3M7.5 16h3M18 13h.01M18 17h.01" />
+    </>
+  ),
+  creditCard: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="M2.5 10h19" />
+      <path d="M6 15h4" />
+    </>
+  ),
+  package: (
+    <>
+      <path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9L12 3Z" />
+      <path d="M3.5 7.5 12 12l8.5-4.5" />
+      <path d="M12 12v9" />
+    </>
+  ),
+  userPlus: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M18.5 8v6M15.5 11h6" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4.5" y="10" width="15" height="10.5" rx="2" />
+      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" />
+      <path d="M12 14v3" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="m3.5 7 8.5 6 8.5-6" />
+    </>
+  ),
+  phone: <path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2.2 2A17.5 17.5 0 0 1 4.5 5.7 2 2 0 0 1 6.5 3.5Z" />,
+  print: (
+    <>
+      <path d="M7 8V3.5h10V8" />
+      <rect x="3.5" y="8" width="17" height="8" rx="2" />
+      <path d="M7 13h10v7.5H7V13Z" />
+    </>
+  ),
+  fileText: (
+    <>
+      <path d="M6 3h8l4 4v14H6V3Z" />
+      <path d="M14 3v4h4" />
+      <path d="M9 12h6M9 15.5h6M9 19h3" />
+    </>
+  ),
+  trendingUp: (
+    <>
+      <path d="m3 17 6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
+  checkCircle: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m8.5 12 2.5 2.5 4.5-5" />
+    </>
+  ),
+  xCircle: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m9 9 6 6M15 9l-6 6" />
+    </>
+  ),
+  power: (
+    <>
+      <path d="M12 3v9" />
+      <path d="M6.5 6.5a8 8 0 1 0 11 0" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="8" cy="8" r="4" />
+      <path d="m11 11 9 9" />
+      <path d="m16 16 2.5-2.5M19 19l2-2" />
+    </>
+  ),
 }
 
 export type IconName = keyof typeof PATHS

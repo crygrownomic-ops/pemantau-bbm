@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="FleetOps 360">
+  <rect width="512" height="512" fill="#0b1a29" />
+  <rect x="104" y="104" width="304" height="304" rx="72" fill="#d9ab2d" />
+  <g fill="none" stroke="#0b1a29" stroke-width="34" stroke-linecap="round">
+    <path d="M188 344V212a40 40 0 0 1 40-40h92" />
+    <path d="M188 276h114" />
+    <circle cx="330" cy="326" r="52" stroke-width="28" />
+  </g>
+</svg>

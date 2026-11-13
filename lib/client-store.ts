@@ -105,8 +105,16 @@ export async function logout(): Promise<void> {
   await request('/api/auth/logout', { method: 'POST' })
 }
 
-export async function login(username: string, password: string) {
+export async function login(companyCode: string, username: string, password: string) {
   const payload = await request<never>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ company_code: companyCode, username, password }),
+  })
+  return payload
+}
+
+export async function loginPlatform(username: string, password: string) {
+  const payload = await request<never>('/api/platform/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   })

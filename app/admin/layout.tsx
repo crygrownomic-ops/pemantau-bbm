@@ -12,7 +12,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!session) {
     redirect('/login?next=/admin')
   }
-  if (session.role !== 'admin') {
+  if (session.role === 'owner') {
+    redirect('/platform')
+  }
+  if (session.role !== 'admin' || !session.tenantId) {
     redirect('/driver')
   }
 
@@ -28,7 +31,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </div>
         }
       >
-        <AdminShell user={{ username: session.username, name: session.name, role: session.role }}>
+        <AdminShell
+          user={{
+            username: session.username,
+            name: session.name,
+            role: session.role,
+            tenantName: session.tenantName,
+          }}
+        >
           {children}
         </AdminShell>
       </Suspense>
