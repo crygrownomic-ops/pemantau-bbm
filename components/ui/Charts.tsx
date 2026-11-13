@@ -21,7 +21,6 @@ export function TrendChart({ data, height = 220 }: { data: TrendPoint[]; height?
   const slot = innerWidth / data.length
   const barWidth = Math.min(16, slot * 0.28)
 
-  const yFor = (value: number) => padding.top + innerHeight - (value / niceMax) * innerHeight
   const ticks = [0, 0.25, 0.5, 0.75, 1]
 
   return (

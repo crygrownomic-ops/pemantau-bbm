@@ -19,8 +19,6 @@ const CLAIM_STATUS: Record<ReimbursementClaim['status'], { label: string; badge:
   REJECTED: { label: 'Ditolak', badge: 'badge-red' },
 }
 
-const CATEGORY_OPTIONS = ['Tol', 'Parkir', 'Retribusi', 'Timbangan', 'Lainnya']
-
 export function ReimbursementTab() {
   const { data, create, update, remove, notify } = useFleet()
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReimbursementClaim['status']>('ALL')
@@ -35,11 +33,11 @@ export function ReimbursementTab() {
   const [formAmount, setFormAmount] = useState('')
   const [formNotes, setFormNotes] = useState('')
 
-  const claims = data?.reimbursementClaims || []
-  const advances = data?.cashAdvances || []
-  const drivers = data?.drivers || []
-  const vehicles = data?.vehicles || []
-  const logs = data?.fuelLogs || []
+  const claims = useMemo(() => data?.reimbursementClaims ?? [], [data])
+  const advances = useMemo(() => data?.cashAdvances ?? [], [data])
+  const drivers = useMemo(() => data?.drivers ?? [], [data])
+  const vehicles = useMemo(() => data?.vehicles ?? [], [data])
+  const logs = useMemo(() => data?.fuelLogs ?? [], [data])
 
   const filteredClaims = useMemo(() => {
     const keyword = search.trim().toLowerCase()

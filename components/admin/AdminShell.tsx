@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Logo } from '@/components/ui/Logo'
 import { Icon, type IconName } from '@/components/ui/Icon'
@@ -45,6 +45,7 @@ const TITLES: Record<string, string> = {
 
 export function AdminShell({ user, children }: { user: ShellUser; children: ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { data, refreshing, refresh, notify } = useFleet()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -80,7 +81,8 @@ export function AdminShell({ user, children }: { user: ShellUser; children: Reac
     } catch {
       // Sesi tetap dihapus di sisi server bila memungkinkan.
     }
-    window.location.href = '/login'
+    router.replace('/login')
+    router.refresh()
   }
 
   const navLink = (item: { key: string; label: string; href: string; icon: IconName }) => {

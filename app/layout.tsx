@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import type { ReactNode } from 'react'
 import { JetBrains_Mono, Manrope } from 'next/font/google'
 import './globals.css'
 
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
   themeColor: '#0b1a29',
 }
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="id" className={`${manrope.variable} ${jetbrains.variable} h-full`}>
       <body className="min-h-full antialiased">{children}</body>

@@ -1,182 +1,187 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { Modal } from '@/components/ui/Modal'
+import { Icon } from '@/components/ui/Icon'
+import { useFleet } from '@/components/providers/FleetProvider'
+import type { Vehicle } from '@/lib/types'
+
+const CHECKLIST_ITEMS: Array<{ key: string; label: string; hint: string }> = [
+  { key: 'brakes', label: 'Rem utama & handbrake', hint: 'Pakem, tidak ada kebocoran, pedal tidak dalam.' },
+  { key: 'tires', label: 'Ban & tekanan angin', hint: 'Alur ban layak, tidak benjol, tekanan sesuai.' },
+  { key: 'engine_oil', label: 'Oli mesin & air radiator', hint: 'Level oli dan coolant dalam batas normal.' },
+  { key: 'lights', label: 'Lampu & klakson', hint: 'Lampu utama, sein, hazard, dan klakson berfungsi.' },
+  { key: 'body_condition', label: 'Fisik body & kaca', hint: 'Tidak ada kerusakan baru, kaca dan spion utuh.' },
+]
+
+const EMPTY_ITEMS: Record<string, boolean> = {
+  brakes: true,
+  tires: true,
+  engine_oil: true,
+  lights: true,
+  body_condition: true,
+}
+
+interface ChecklistProps {
+  onClose: () => void
+  vehicles: Vehicle[]
+  driverName: string
+  defaultPlate: string
+}
 
 export function PreTripChecklistModal({
-  isOpen,
+  open,
   onClose,
   vehicles = [],
   driverName = '',
+  defaultPlate = '',
 }: {
-  isOpen: boolean
+  open: boolean
   onClose: () => void
-  vehicles: any[]
+  vehicles: Vehicle[]
   driverName: string
+  defaultPlate?: string
 }) {
-  const [selectedPlate, setSelectedPlate] = useState(vehicles[0]?.plate_number || 'B 1234 ABC')
-  const [items, setItems] = useState({
-    brakes: true,
-    tires: true,
-    engine_oil: true,
-    lights: true,
-    body_condition: true,
-  })
+  if (!open) return null
+  return (
+    <ChecklistForm
+      onClose={onClose}
+      vehicles={vehicles}
+      driverName={driverName}
+      defaultPlate={defaultPlate}
+    />
+  )
+}
+
+function ChecklistForm({ onClose, vehicles, driverName, defaultPlate }: ChecklistProps) {
+  const { create } = useFleet()
+  const [selectedPlate, setSelectedPlate] = useState(defaultPlate || vehicles[0]?.plate_number || '')
+  const [items, setItems] = useState<Record<string, boolean>>(EMPTY_ITEMS)
   const [notes, setNotes] = useState('')
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [failed, setFailed] = useState(false)
 
-  if (!isOpen) return null
+  const allOk = Object.values(items).every(Boolean)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const isAllOk = Object.values(items).every(Boolean)
-
-    const record = {
-      id: `CHK-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      driver_name: driverName || 'Supir Ops',
-      plate_number: selectedPlate,
-      status: isAllOk ? 'READY' : 'NEEDS_ATTENTION',
-      details: items,
-      notes: notes,
-    }
-
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (saving) return
+    if (!selectedPlate) return
+    setSaving(true)
+    setFailed(false)
     try {
-      const stored = localStorage.getItem('pre_trip_inspections')
-      const existing = stored ? JSON.parse(stored) : []
-      const updated = [record, ...existing]
-      localStorage.setItem('pre_trip_inspections', JSON.stringify(updated))
-    } catch (err) {
-      console.error(err)
+      await create('inspections', {
+        plate_number: selectedPlate,
+        driver_name: driverName,
+        date: new Date().toISOString().slice(0, 10),
+        details: items,
+        notes: notes.trim(),
+      })
+      setSubmitted(true)
+      window.setTimeout(() => onClose(), 1400)
+    } catch {
+      setFailed(true)
+    } finally {
+      setSaving(false)
     }
-
-    setIsSubmitted(true)
-    setTimeout(() => {
-      setIsSubmitted(false)
-      onClose()
-    }, 1200)
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-sans">
-      <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-slate-100">
-        <div className="flex justify-between items-center border-b pb-3 border-slate-100">
+    <Modal
+      open
+      onClose={onClose}
+      title="Inspeksi siap jalan"
+      description="Pemeriksaan fisik singkat sebelum armada keluar pool. Hasil masuk ke scorecard driver."
+      size="md"
+    >
+      {submitted ? (
+        <div className="flex flex-col items-center gap-3 px-2 py-8 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <Icon name="check" className="h-6 w-6" />
+          </span>
           <div>
-            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
-              <span>📋</span> Inspection Checklist Siap Jalan
-            </h3>
-            <p className="text-[11px] text-slate-500">Pemeriksaan fisik singkat kendaraan sebelum armada keluar pool</p>
+            <p className="text-sm font-extrabold text-slate-800">Checklist berhasil disimpan</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              Terima kasih telah memastikan keamanan armada sebelum bertugas.
+            </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
         </div>
-
-        {isSubmitted ? (
-          <div className="bg-emerald-50 text-emerald-800 p-6 rounded-2xl text-center space-y-2 border border-emerald-200">
-            <span className="text-3xl">✅</span>
-            <strong className="block text-sm font-bold">Checklist Berhasil Disimpan!</strong>
-            <p className="text-xs text-emerald-700">Terima kasih telah memastikan keamanan armada sebelum bertugas.</p>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <span className="label">Armada</span>
+            <select
+              value={selectedPlate}
+              onChange={(event) => setSelectedPlate(event.target.value)}
+              className="input font-semibold"
+              required
+            >
+              {vehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.plate_number}>
+                  {vehicle.plate_number} — {vehicle.model}
+                </option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Pilih Armada Kendaraan</label>
-              <select
-                value={selectedPlate}
-                onChange={(e) => setSelectedPlate(e.target.value)}
-                className="w-full border p-2.5 rounded-xl font-bold bg-slate-50 outline-none text-slate-900"
-              >
-                {vehicles.map((v: any) => (
-                  <option key={v.plate_number} value={v.plate_number}>
-                    {v.plate_number} — {v.model}
-                  </option>
-                ))}
-              </select>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-slate-500">Kondisi komponen</p>
+              <span className={`badge ${allOk ? 'badge-green' : 'badge-amber'}`}>
+                {allOk ? 'Semua layak' : 'Perlu perhatian'}
+              </span>
             </div>
-
-            <div className="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-              <span className="text-[11px] font-bold text-slate-700 block mb-1">Centang Kondisi Komponen:</span>
-
-              <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white rounded-lg transition">
-                <span className="text-slate-700">🛑 Rem Utama & Handbrake Pakem</span>
-                <input
-                  type="checkbox"
-                  checked={items.brakes}
-                  onChange={(e) => setItems({ ...items, brakes: e.target.checked })}
-                  className="w-4 h-4 accent-slate-900 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white rounded-lg transition">
-                <span className="text-slate-700">🛞 Tekanan Angin Ban & Alur Layak</span>
-                <input
-                  type="checkbox"
-                  checked={items.tires}
-                  onChange={(e) => setItems({ ...items, tires: e.target.checked })}
-                  className="w-4 h-4 accent-slate-900 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white rounded-lg transition">
-                <span className="text-slate-700">🛢️ Level Oli Mesin & Air Radiator Cukup</span>
-                <input
-                  type="checkbox"
-                  checked={items.engine_oil}
-                  onChange={(e) => setItems({ ...items, engine_oil: e.target.checked })}
-                  className="w-4 h-4 accent-slate-900 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white rounded-lg transition">
-                <span className="text-slate-700">💡 Lampu Utama, Sein, & Hazard Nyala</span>
-                <input
-                  type="checkbox"
-                  checked={items.lights}
-                  onChange={(e) => setItems({ ...items, lights: e.target.checked })}
-                  className="w-4 h-4 accent-slate-900 cursor-pointer"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer p-1.5 hover:bg-white rounded-lg transition">
-                <span className="text-slate-700">🚗 Fisik Body & Kaca Bebas Kerusakan Baru</span>
-                <input
-                  type="checkbox"
-                  checked={items.body_condition}
-                  onChange={(e) => setItems({ ...items, body_condition: e.target.checked })}
-                  className="w-4 h-4 accent-slate-900 cursor-pointer"
-                />
-              </label>
+            <div className="space-y-1">
+              {CHECKLIST_ITEMS.map((item) => (
+                <label
+                  key={item.key}
+                  className="flex cursor-pointer items-start justify-between gap-3 rounded-lg bg-white px-3 py-2.5 transition hover:bg-slate-50"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[11px] font-bold text-slate-700">{item.label}</span>
+                    <span className="block text-[10px] leading-relaxed text-slate-400">{item.hint}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(items[item.key])}
+                    onChange={(event) => setItems((current) => ({ ...current, [item.key]: event.target.checked }))}
+                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-navy-900"
+                  />
+                </label>
+              ))}
             </div>
+          </div>
 
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Catatan Tambahan (Opsional)</label>
-              <input
-                type="text"
-                placeholder="Contoh: Ban belakang agak kurang angin sedikit..."
-                className="w-full border p-2.5 rounded-xl outline-none"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
+          <div>
+            <span className="label">Catatan tambahan</span>
+            <textarea
+              className="input min-h-[64px] resize-y"
+              placeholder="Contoh: ban belakang kurang angin sedikit."
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </div>
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-1/2 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="w-1/2 bg-slate-900 text-white font-bold py-2.5 rounded-xl shadow-md hover:bg-slate-800 transition"
-              >
-                Simpan & Konfirmasi
-              </button>
+          {failed && (
+            <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[11px] font-semibold text-rose-700">
+              <Icon name="alert" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Checklist gagal disimpan. Periksa koneksi lalu coba lagi.
             </div>
-          </form>
-        )}
-      </div>
-    </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button type="button" onClick={onClose} className="btn btn-ghost">
+              Batal
+            </button>
+            <button type="submit" disabled={saving || !selectedPlate} className="btn btn-primary">
+              <Icon name="check" className="h-3.5 w-3.5" />
+              {saving ? 'Menyimpan…' : 'Simpan checklist'}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
   )
 }
 

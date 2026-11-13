@@ -126,6 +126,17 @@ export function authenticate(username: string, password: string): SessionUser | 
   }
 }
 
+export function isSecureRequest(request: Request): boolean {
+  const forwarded = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase()
+  if (forwarded === 'https') return true
+  if (forwarded === 'http') return false
+  try {
+    return new URL(request.url).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get('origin')
   if (!origin) return true

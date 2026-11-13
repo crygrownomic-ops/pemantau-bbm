@@ -7,7 +7,11 @@ import type { AppSettings } from '@/lib/types'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const NUMERIC_FIELDS: Array<keyof AppSettings> = ['fuel_anomaly_threshold', 'quality_target', 'session_hours']
+const NUMERIC_FIELDS: Array<'fuel_anomaly_threshold' | 'quality_target' | 'session_hours'> = [
+  'fuel_anomaly_threshold',
+  'quality_target',
+  'session_hours',
+]
 
 function fail(message: string, status = 400) {
   return NextResponse.json({ ok: false, message }, { status })

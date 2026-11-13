@@ -28,6 +28,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<ApiPayload<T
   const payload = (await response.json().catch(() => null)) as ApiPayload<T> | null
 
   if (response.status === 401 && typeof window !== 'undefined' && !url.includes('/auth/login')) {
+    // Redirect penuh diperlukan karena sesi habis di luar siklus navigasi React.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`
     throw new Error('Sesi berakhir. Silakan login ulang.')
   }

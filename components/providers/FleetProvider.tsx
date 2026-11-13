@@ -94,8 +94,24 @@ export function FleetProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    let active = true
+    fetchFleet()
+      .then((fleet) => {
+        if (!active) return
+        setData(fleet)
+        setError(null)
+      })
+      .catch((loadError: unknown) => {
+        if (!active) return
+        setError(loadError instanceof Error ? loadError.message : 'Gagal memuat data.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const refresh = useCallback(async () => {
     await load(true)

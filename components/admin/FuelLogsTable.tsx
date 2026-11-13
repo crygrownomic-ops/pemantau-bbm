@@ -235,7 +235,6 @@ export function FuelLogsTable({
             {filtered.map((log) => {
               const vehicle = vehicleMap.get(log.plate_number)
               const quality = scoreFuelLog(log, vehicle)
-              const status = STATUS_META[log.status] || STATUS_META.PENDING
               const isBusy = busyId === String(log.id)
               return (
                 <tr key={String(log.id)}>

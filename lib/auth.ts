@@ -24,23 +24,27 @@ export async function requireAdmin(): Promise<SessionUser> {
   return session
 }
 
-export async function createSessionCookie(user: SessionUser): Promise<void> {
+export async function createSessionCookie(
+  user: SessionUser,
+  maxAgeSeconds: number = SESSION_MAX_AGE_SECONDS,
+  secure: boolean = process.env.NODE_ENV === 'production'
+): Promise<void> {
   const store = await cookies()
   store.set(SESSION_COOKIE, signSessionToken(user), {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure,
     path: '/',
-    maxAge: SESSION_MAX_AGE_SECONDS,
+    maxAge: maxAgeSeconds,
   })
 }
 
-export async function clearSessionCookie(): Promise<void> {
+export async function clearSessionCookie(secure: boolean = process.env.NODE_ENV === 'production'): Promise<void> {
   const store = await cookies()
   store.set(SESSION_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure,
     path: '/',
     maxAge: 0,
   })

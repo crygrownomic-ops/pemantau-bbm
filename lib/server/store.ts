@@ -44,12 +44,23 @@ async function writeDatabaseFile(database: FleetDatabase): Promise<void> {
 export async function readDatabase(): Promise<FleetDatabase> {
   await ensureDatabaseFile()
   const raw = await fs.readFile(DB_FILE, 'utf8')
-  const parsed = JSON.parse(raw) as FleetDatabase
+  let parsed: FleetDatabase | null = null
+  try {
+    parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as FleetDatabase
+  } catch {
+    parsed = null
+  }
+
   if (!parsed || !Array.isArray(parsed.vehicles)) {
+    // Simpan file lama sebagai bukti sebelum membuat ulang data contoh.
+    const backupFile = `${DB_FILE}.corrupt-${Date.now()}.bak`
+    await fs.copyFile(DB_FILE, backupFile).catch(() => undefined)
+    console.error(`Database JSON tidak valid. Cadangan disimpan di ${backupFile}`)
     const seed = buildSeedDatabase()
     await writeDatabaseFile(seed)
     return seed
   }
+
   return parsed
 }
 

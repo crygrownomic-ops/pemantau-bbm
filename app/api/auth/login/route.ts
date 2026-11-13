@@ -4,11 +4,25 @@ import {
   checkLoginRateLimit,
   clientKey,
   isSameOrigin,
+  isSecureRequest,
   resetLoginRateLimit,
+  SESSION_MAX_AGE_SECONDS,
 } from '@/lib/auth-session'
 import { createSessionCookie } from '@/lib/auth'
+import { readDatabase } from '@/lib/server/store'
 
 export const runtime = 'nodejs'
+
+async function sessionHours(): Promise<number> {
+  try {
+    const database = await readDatabase()
+    const hours = Number(database.settings?.session_hours)
+    if (Number.isFinite(hours) && hours >= 1 && hours <= 72) return Math.round(hours)
+  } catch {
+    // Gunakan durasi default bila database belum dapat dibaca.
+  }
+  return SESSION_MAX_AGE_SECONDS / 3600
+}
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
@@ -43,8 +57,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: 'Username atau password salah.' }, { status: 401 })
   }
 
+  const hours = await sessionHours()
+  const maxAgeSeconds = Math.round(hours * 3600)
+  user.exp = Math.floor(Date.now() / 1000) + maxAgeSeconds
+
   resetLoginRateLimit(key)
-  await createSessionCookie(user)
+  await createSessionCookie(user, maxAgeSeconds, isSecureRequest(request))
 
   return NextResponse.json({
     ok: true,

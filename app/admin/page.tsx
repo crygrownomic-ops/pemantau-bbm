@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Icon, type IconName } from '@/components/ui/Icon'
@@ -103,7 +103,6 @@ function DashboardView() {
 
   const monthsInPeriod = new Set(logsInPeriod.map((log) => log.date?.slice(0, 7)).filter(Boolean)).size || 1
   const fuelBudget = data.vehicles.reduce((total, vehicle) => total + (Number(vehicle.monthly_budget) || 0), 0) * monthsInPeriod
-  const serviceBudget = data.vehicles.reduce((total, vehicle) => total + (Number(vehicle.monthly_service_budget) || 0), 0) * monthsInPeriod
 
   const fuelSpend = filteredLogs.reduce((total, log) => total + (Number(log.total_cost) || 0), 0)
   const serviceSpend = servicesInPeriod.reduce((total, record) => total + (Number(record.cost) || 0), 0)

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Suspense, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Modal } from '@/components/ui/Modal'
@@ -17,7 +17,7 @@ import {
   parseNumberInput,
 } from '@/lib/format'
 import { downloadFile } from '@/lib/export'
-import type { AppSettings, Driver, FuelPrice, Vehicle } from '@/lib/types'
+import type { AppSettings, AuditEntry, Driver, FleetDatabase, FuelPrice, Vehicle } from '@/lib/types'
 
 type TabKey = 'drivers' | 'vehicles' | 'prices' | 'system'
 
@@ -256,8 +256,8 @@ function DriversTab() {
   const [deleteTarget, setDeleteTarget] = useState<Driver | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const drivers = data?.drivers || []
-  const vehicles = data?.vehicles || []
+  const drivers = useMemo(() => data?.drivers ?? [], [data])
+  const vehicles = useMemo(() => data?.vehicles ?? [], [data])
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -654,7 +654,7 @@ function VehiclesTab() {
   const [deleteTarget, setDeleteTarget] = useState<Vehicle | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const vehicles = data?.vehicles || []
+  const vehicles = useMemo(() => data?.vehicles ?? [], [data])
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -1234,28 +1234,47 @@ function PricesTab() {
 
 function SystemTab() {
   const { data, updateSettings, resetDemo } = useFleet()
-  const settings = data?.settings
-  const [form, setForm] = useState<AppSettings>(
-    settings || {
-      company_name: '',
-      company_short: '',
-      currency: 'IDR',
-      fuel_anomaly_threshold: 72,
-      quality_target: 85,
-      session_hours: 8,
-    }
+
+  if (!data) {
+    return (
+      <div className="space-y-4">
+        <div className="card h-72 animate-pulse bg-white" />
+        <div className="card h-64 animate-pulse bg-white" />
+      </div>
+    )
+  }
+
+  return (
+    <SystemPanel
+      key={JSON.stringify(data.settings)}
+      settings={data.settings}
+      database={data}
+      auditTrail={data.auditTrail}
+      updateSettings={updateSettings}
+      resetDemo={resetDemo}
+    />
   )
+}
+
+function SystemPanel({
+  settings,
+  database,
+  auditTrail,
+  updateSettings,
+  resetDemo,
+}: {
+  settings: AppSettings
+  database: FleetDatabase
+  auditTrail: AuditEntry[]
+  updateSettings: (patch: Partial<AppSettings>) => Promise<void>
+  resetDemo: () => Promise<void>
+}) {
+  const [form, setForm] = useState<AppSettings>(settings)
   const [saving, setSaving] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [auditQuery, setAuditQuery] = useState('')
   const [auditCollection, setAuditCollection] = useState('ALL')
-
-  useEffect(() => {
-    if (settings) setForm(settings)
-  }, [settings])
-
-  const auditTrail = data?.auditTrail || []
 
   const filteredAudit = useMemo(() => {
     const term = auditQuery.trim().toLowerCase()
@@ -1283,9 +1302,8 @@ function SystemTab() {
   }
 
   const handleBackup = () => {
-    if (!data) return
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-    downloadFile(`fleetops-backup-${stamp}.json`, JSON.stringify(data, null, 2), 'application/json')
+    downloadFile(`fleetops-backup-${stamp}.json`, JSON.stringify(database, null, 2), 'application/json')
   }
 
   const handleReset = async () => {
