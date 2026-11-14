@@ -15,22 +15,22 @@ import type {
   TenantUser,
 } from '@/lib/types'
 import { createId, createTenantId } from './ids'
-import {
-  LEGACY_DB_FILE,
-  PLATFORM_FILE,
-  TENANTS_DIR,
-  isValidTenantId,
-  tenantDbFile,
-} from './paths'
+import { LEGACY_DB_FILE, isValidTenantId } from './paths'
 import { readDatabase, writeTenantDatabase } from './store'
+import {
+  PLATFORM_SCOPE,
+  mutateDocument,
+  readDocument,
+  removeDocument,
+  tenantScope,
+  writeDocument,
+} from './storage'
 
 const BOOTSTRAP_ID = isValidTenantId(process.env.FLEETOPS_TENANT_ID)
   ? (process.env.FLEETOPS_TENANT_ID as string)
   : 'demo'
 const BOOTSTRAP_CODE = (process.env.FLEETOPS_TENANT_CODE || 'demo').toLowerCase()
 const BOOTSTRAP_NAME = process.env.FLEETOPS_TENANT_NAME || 'PT Nusantara Logistik Prima'
-
-let platformLock: Promise<unknown> = Promise.resolve()
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -103,13 +103,9 @@ async function bootstrapPlatform(): Promise<PlatformDatabase> {
     limits: planLimits('enterprise'),
   }
 
-  const target = tenantDbFile(tenant.id)
-  const targetExists = await fs
-    .access(target)
-    .then(() => true)
-    .catch(() => false)
+  const existing = await readDocument<FleetDatabase>(tenantScope(tenant.id)).catch(() => null)
 
-  if (!targetExists) {
+  if (!existing) {
     const legacy = await readLegacyDatabase()
     const seed = legacy || buildSeedDatabase({ companyName: BOOTSTRAP_NAME })
     if (!Array.isArray(seed.users) || seed.users.length === 0) {
@@ -136,26 +132,36 @@ async function bootstrapPlatform(): Promise<PlatformDatabase> {
   }
 }
 
+function normalizePlatform(platform: PlatformDatabase): PlatformDatabase {
+  if (!Array.isArray(platform.tenants)) platform.tenants = []
+  if (!Array.isArray(platform.invoices)) platform.invoices = []
+  if (!Array.isArray(platform.auditTrail)) platform.auditTrail = []
+  return platform
+}
+
+function replacePlatformContents(target: PlatformDatabase, source: PlatformDatabase): void {
+  for (const key of Object.keys(target)) {
+    delete (target as unknown as Record<string, unknown>)[key]
+  }
+  Object.assign(target, source)
+}
+
 async function writePlatformFile(database: PlatformDatabase): Promise<void> {
-  await fs.mkdir(TENANTS_DIR, { recursive: true })
   database.updated_at = nowIso()
-  const tempFile = `${PLATFORM_FILE}.${process.pid}.tmp`
-  await fs.writeFile(tempFile, JSON.stringify(database, null, 2), 'utf8')
-  await fs.rename(tempFile, PLATFORM_FILE)
+  await writeDocument(PLATFORM_SCOPE, database)
 }
 
 export async function readPlatform(): Promise<PlatformDatabase> {
-  await fs.mkdir(TENANTS_DIR, { recursive: true })
-  try {
-    const raw = await fs.readFile(PLATFORM_FILE, 'utf8')
-    const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as PlatformDatabase
-    if (parsed && Array.isArray(parsed.tenants)) {
-      if (!Array.isArray(parsed.invoices)) parsed.invoices = []
-      if (!Array.isArray(parsed.auditTrail)) parsed.auditTrail = []
-      return parsed
-    }
-  } catch {
-    // Belum ada atau rusak: buat ulang dari data yang tersedia.
+  const stored = await readDocument<PlatformDatabase>(PLATFORM_SCOPE)
+  if (stored && Array.isArray(stored.tenants)) return normalizePlatform(stored)
+
+  if (!stored) {
+    // Baris belum ada: buat registri awal secara atomik (aman untuk beberapa instance).
+    return mutateDocument<PlatformDatabase, PlatformDatabase>(
+      PLATFORM_SCOPE,
+      bootstrapPlatform,
+      (database) => normalizePlatform(database)
+    )
   }
 
   const fresh = await bootstrapPlatform()
@@ -166,14 +172,15 @@ export async function readPlatform(): Promise<PlatformDatabase> {
 export async function mutatePlatform<T>(
   mutator: (database: PlatformDatabase) => T | Promise<T>
 ): Promise<T> {
-  const run = platformLock.then(async () => {
-    const database = await readPlatform()
+  return mutateDocument<PlatformDatabase, T>(PLATFORM_SCOPE, bootstrapPlatform, async (database) => {
+    if (!Array.isArray(database.tenants)) {
+      replacePlatformContents(database, await bootstrapPlatform())
+    }
+    normalizePlatform(database)
     const result = await mutator(database)
-    await writePlatformFile(database)
+    database.updated_at = nowIso()
     return result
   })
-  platformLock = run.catch(() => undefined)
-  return run
 }
 
 export async function listTenants(): Promise<Tenant[]> {
@@ -231,58 +238,66 @@ export async function createTenantRecord(input: CreateTenantInput): Promise<Tena
   const code = input.code.trim().toLowerCase()
   const plan = input.plan || 'trial'
   const now = new Date()
+  const id = createTenantId(name)
+  const status: TenantStatus = input.status || 'TRIAL'
 
-  return mutatePlatform(async (platform) => {
-    if (platform.tenants.some((tenant) => tenant.code.toLowerCase() === code)) {
-      throw new Error('Kode perusahaan sudah digunakan. Pilih kode lain.')
-    }
-    if (platform.tenants.some((tenant) => tenant.name.toLowerCase() === name.toLowerCase())) {
-      throw new Error('Nama perusahaan sudah terdaftar.')
-    }
+  const tenant: Tenant = {
+    id,
+    code,
+    name,
+    plan,
+    status,
+    created_at: now.toISOString(),
+    trial_ends_at: status === 'TRIAL' ? addDays(now, TRIAL_DAYS) : undefined,
+    active_until: status === 'ACTIVE' ? input.activeUntil || addMonths(now, 1) : input.activeUntil,
+    contact_name: input.contactName?.trim().slice(0, 120),
+    contact_email: input.contactEmail?.trim().slice(0, 160),
+    contact_phone: input.contactPhone?.trim().slice(0, 40),
+    notes: input.notes?.trim().slice(0, 500),
+    limits: planLimits(plan),
+  }
 
-    let id = createTenantId(name)
-    while (platform.tenants.some((tenant) => tenant.id === id)) {
-      id = createTenantId(name)
-    }
+  const adminUser: TenantUser = {
+    id: createId('USR'),
+    username: input.adminUsername.trim().toLowerCase(),
+    name: input.adminName.trim().slice(0, 120) || 'Administrator',
+    role: 'admin',
+    password_hash: hashPassword(input.adminPassword),
+    status: 'ACTIVE',
+    created_at: nowIso(),
+  }
 
-    const status: TenantStatus = input.status || 'TRIAL'
-    const tenant: Tenant = {
-      id,
-      code,
-      name,
-      plan,
-      status,
-      created_at: now.toISOString(),
-      trial_ends_at: status === 'TRIAL' ? addDays(now, TRIAL_DAYS) : undefined,
-      active_until: status === 'ACTIVE' ? input.activeUntil || addMonths(now, 1) : input.activeUntil,
-      contact_name: input.contactName?.trim().slice(0, 120),
-      contact_email: input.contactEmail?.trim().slice(0, 160),
-      contact_phone: input.contactPhone?.trim().slice(0, 40),
-      notes: input.notes?.trim().slice(0, 500),
-      limits: planLimits(plan),
-    }
-
-    const adminUser: TenantUser = {
-      id: createId('USR'),
-      username: input.adminUsername.trim().toLowerCase(),
-      name: input.adminName.trim().slice(0, 120) || 'Administrator',
-      role: 'admin',
-      password_hash: hashPassword(input.adminPassword),
-      status: 'ACTIVE',
-      created_at: nowIso(),
-    }
-
-    const seed = buildSeedDatabase({
-      companyName: name,
-      companyShort: name.slice(0, 24),
-      users: [adminUser],
-    })
-    await writeTenantDatabase(id, seed)
-
-    platform.tenants.push(tenant)
-    appendPlatformAudit(platform, 'platform', 'CREATE_TENANT', id, `Membuat tenant "${name}" (${code}).`)
-    return tenant
+  const seed = buildSeedDatabase({
+    companyName: name,
+    companyShort: name.slice(0, 24),
+    users: [adminUser],
   })
+
+  // Tulis database tenant lebih dulu, di luar transaksi registri platform,
+  // agar tidak memakai koneksi pool kedua saat transaksi sedang berjalan.
+  await writeTenantDatabase(id, seed)
+
+  try {
+    return await mutatePlatform(async (platform) => {
+      if (platform.tenants.some((item) => item.code.toLowerCase() === code)) {
+        throw new Error('Kode perusahaan sudah digunakan. Pilih kode lain.')
+      }
+      if (platform.tenants.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+        throw new Error('Nama perusahaan sudah terdaftar.')
+      }
+      if (platform.tenants.some((item) => item.id === id)) {
+        throw new Error('ID tenant bentrok. Silakan coba lagi.')
+      }
+
+      platform.tenants.push(tenant)
+      appendPlatformAudit(platform, 'platform', 'CREATE_TENANT', id, `Membuat tenant "${name}" (${code}).`)
+      return tenant
+    })
+  } catch (error) {
+    // Pendaftaran gagal: buang dokumen tenant agar tidak menjadi data yatim.
+    await removeDocument(tenantScope(id)).catch(() => undefined)
+    throw error
+  }
 }
 
 export interface UpdateTenantInput {
@@ -349,12 +364,13 @@ export async function deleteTenantRecord(id: string): Promise<void> {
     if (!tenant) throw new Error('Tenant tidak ditemukan.')
     if (tenant.bootstrap) throw new Error('Tenant bawaan tidak dapat dihapus.')
 
-    const file = tenantDbFile(id)
-    await fs.rename(file, `${file}.deleted-${Date.now()}.bak`).catch(() => undefined)
-
     platform.tenants = platform.tenants.filter((item) => item.id !== id)
     platform.invoices = platform.invoices.filter((invoice) => invoice.tenant_id !== id)
     appendPlatformAudit(platform, 'platform', 'DELETE_TENANT', id, `Menghapus tenant "${tenant.name}".`)
+  })
+
+  await removeDocument(tenantScope(id)).catch((error) => {
+    console.error(`Gagal menghapus dokumen tenant ${id}`, error)
   })
 }
 

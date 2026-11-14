@@ -10,6 +10,7 @@ import type {
   Inspection,
   ReimbursementClaim,
   SessionUser,
+  Tenant,
 } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -62,13 +63,12 @@ function setRows(database: FleetDatabase, collection: CollectionName, rows: Coll
   ;(database as unknown as Record<CollectionName, CollectionRow[]>)[collection] = rows
 }
 
-async function enforcePlanLimit(
-  tenantId: string,
+function enforcePlanLimit(
+  tenant: Tenant | null,
   collection: CollectionName,
   database: FleetDatabase
-): Promise<void> {
+): void {
   if (collection !== 'vehicles' && collection !== 'drivers') return
-  const tenant = await getTenant(tenantId)
   if (!tenant) return
 
   const limit = collection === 'vehicles' ? tenant.limits.vehicles : tenant.limits.drivers
@@ -129,7 +129,6 @@ function createFuelLog(database: FleetDatabase, session: SessionUser, body: Body
     created_at: new Date().toISOString(),
   }
 
-  database.fuelLogs.unshift(item)
   vehicle.last_km = finalKm
 
   return item
@@ -161,7 +160,6 @@ function createInspection(database: FleetDatabase, session: SessionUser, body: B
     notes: asText(body.notes),
     created_by: session.name,
   }
-  database.inspections.unshift(item)
   return item
 }
 
@@ -186,7 +184,6 @@ function createClaim(database: FleetDatabase, session: SessionUser, body: Body):
     receipt_photo: cleanReceipt(body.receipt_photo),
     status: 'PENDING',
   }
-  database.reimbursementClaims.unshift(item)
   return item
 }
 
@@ -231,8 +228,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ col
 
   try {
     const body = asRecord(await readBody(request))
+    // Baca paket tenant di luar transaksi agar tidak memakai koneksi kedua
+    // saat transaksi tulis sedang berjalan.
+    const tenant =
+      collection === 'vehicles' || collection === 'drivers' ? await getTenant(tenantId) : null
     const item = await mutateDatabase(tenantId, async (database) => {
-      await enforcePlanLimit(tenantId, collection, database)
+      enforcePlanLimit(tenant, collection, database)
 
       let created: CollectionRow
       if (collection === 'fuelLogs') created = createFuelLog(database, session, body) as unknown as CollectionRow

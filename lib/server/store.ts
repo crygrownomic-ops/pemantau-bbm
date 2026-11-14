@@ -1,12 +1,9 @@
-import { promises as fs } from 'node:fs'
 import { buildSeedDatabase } from '@/lib/seed'
 import { createId } from './ids'
-import { TENANTS_DIR, tenantDbFile } from './paths'
+import { mutateDocument, readDocument, tenantScope, writeDocument } from './storage'
 import type { AuditEntry, CollectionName, FleetDatabase, SessionUser, TenantUser } from '@/lib/types'
 
 export { createId }
-
-const locks = new Map<string, Promise<unknown>>()
 
 export const COLLECTIONS: CollectionName[] = [
   'vehicles',
@@ -30,43 +27,25 @@ function normalizeDatabase(database: FleetDatabase): FleetDatabase {
   return database
 }
 
-function lockFor(tenantId: string): Promise<unknown> {
-  return locks.get(tenantId) || Promise.resolve()
+function replaceContents<T extends object>(target: T, source: T): void {
+  for (const key of Object.keys(target)) {
+    delete (target as Record<string, unknown>)[key]
+  }
+  Object.assign(target, source)
 }
 
 export async function writeTenantDatabase(tenantId: string, database: FleetDatabase): Promise<void> {
-  const file = tenantDbFile(tenantId)
-  await fs.mkdir(TENANTS_DIR, { recursive: true })
   database.updated_at = new Date().toISOString()
-  const tempFile = `${file}.${process.pid}.tmp`
-  await fs.writeFile(tempFile, JSON.stringify(database, null, 2), 'utf8')
-  await fs.rename(tempFile, file)
+  await writeDocument(tenantScope(tenantId), database)
 }
 
 export async function readDatabase(tenantId: string): Promise<FleetDatabase> {
-  const file = tenantDbFile(tenantId)
-  await fs.mkdir(TENANTS_DIR, { recursive: true })
-
-  let raw: string | null = null
-  try {
-    raw = await fs.readFile(file, 'utf8')
-  } catch {
-    raw = null
+  const stored = await readDocument<FleetDatabase>(tenantScope(tenantId))
+  if (stored && Array.isArray(stored.vehicles)) {
+    return normalizeDatabase(stored)
   }
-
-  if (raw !== null) {
-    try {
-      const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as FleetDatabase
-      if (parsed && Array.isArray(parsed.vehicles)) {
-        return normalizeDatabase(parsed)
-      }
-    } catch {
-      // Ditangani di bawah: cadangkan lalu buat ulang.
-    }
-
-    const backupFile = `${file}.corrupt-${Date.now()}.bak`
-    await fs.copyFile(file, backupFile).catch(() => undefined)
-    console.error(`Database tenant tidak valid. Cadangan disimpan di ${backupFile}`)
+  if (stored) {
+    console.error(`Database tenant ${tenantId} tidak valid. Membuat ulang dari data contoh.`)
   }
 
   const seed = buildSeedDatabase()
@@ -78,28 +57,32 @@ export async function mutateDatabase<T>(
   tenantId: string,
   mutator: (database: FleetDatabase) => T | Promise<T>
 ): Promise<T> {
-  const run = lockFor(tenantId).then(async () => {
-    const database = await readDatabase(tenantId)
-    const result = await mutator(database)
-    await writeTenantDatabase(tenantId, database)
-    return result
-  })
-  locks.set(tenantId, run.catch(() => undefined))
-  return run
+  return mutateDocument<FleetDatabase, T>(
+    tenantScope(tenantId),
+    () => buildSeedDatabase(),
+    async (database) => {
+      if (!Array.isArray(database.vehicles)) {
+        replaceContents(database, buildSeedDatabase())
+      }
+      normalizeDatabase(database)
+      const result = await mutator(database)
+      database.updated_at = new Date().toISOString()
+      return result
+    }
+  )
 }
 
 export async function resetDatabase(tenantId: string): Promise<FleetDatabase> {
-  const current = await readDatabase(tenantId).catch(() => null)
-  const seed = buildSeedDatabase()
-  if (current) {
+  return mutateDatabase(tenantId, (database) => {
+    const seed = buildSeedDatabase()
     // Akun pengguna dan identitas perusahaan tidak boleh hilang saat reset demo.
-    seed.users = current.users
-    seed.settings.company_name = current.settings.company_name || seed.settings.company_name
-    seed.settings.company_short = current.settings.company_short || seed.settings.company_short
-    seed.settings.session_hours = current.settings.session_hours ?? seed.settings.session_hours
-  }
-  await writeTenantDatabase(tenantId, seed)
-  return seed
+    seed.users = database.users
+    seed.settings.company_name = database.settings.company_name || seed.settings.company_name
+    seed.settings.company_short = database.settings.company_short || seed.settings.company_short
+    seed.settings.session_hours = database.settings.session_hours ?? seed.settings.session_hours
+    replaceContents(database, seed)
+    return database
+  })
 }
 
 export function appendAudit(
@@ -123,9 +106,11 @@ export function appendAudit(
   database.auditTrail = [entry, ...(database.auditTrail || [])].slice(0, 500)
 }
 
-/** Menyembunyikan hash password sebelum data dikirim ke browser. */
+/** Menghapus hash password sebelum data dikirim ke browser. */
 export function publicUser(user: TenantUser): TenantUser {
-  return { ...user, password_hash: '' }
+  const clone = { ...user } as Partial<TenantUser>
+  delete clone.password_hash
+  return clone as TenantUser
 }
 
 export function databaseForSession(database: FleetDatabase, session: SessionUser): FleetDatabase {

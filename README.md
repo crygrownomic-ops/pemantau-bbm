@@ -87,7 +87,8 @@ Admin dapat membuka portal driver dalam mode pratinjau dan memilih driver yang i
 - React 19
 - TypeScript
 - Tailwind CSS v4
-- Node.js runtime untuk API dan penyimpanan file
+- Node.js runtime untuk API
+- Penyimpanan: Postgres (`pg`) untuk Vercel/serverless, atau file JSON untuk lokal/VPS
 - `node:crypto` untuk HMAC sesi, hash scrypt, dan ID acak
 - `pdf-lib` untuk pembuatan PDF laporan di server
 - Web App Manifest + Service Worker untuk PWA
@@ -149,13 +150,18 @@ Salin `.env.example` menjadi `.env.local`, lalu sesuaikan.
 | `OPERATOR_USERNAME` | Opsional | Akun tambahan peran admin pada tenant bawaan. |
 | `OPERATOR_NAME` | Opsional | Nama tampilan operator. |
 | `OPERATOR_PASSWORD` / `OPERATOR_PASSWORD_HASH` | Opsional | Kredensial operator. |
-| `FLEETOPS_DATA_DIR` | Opsional | Direktori database JSON. Default `./data`. |
+| `DATABASE_URL` | Vercel | Connection string Postgres (Supabase/Neon/Vercel Postgres). **Wajib** di hosting serverless. |
+| `PG_POOL_MAX` | Opsional | Jumlah koneksi per instance. Default `4`. |
+| `FLEETOPS_DATA_DIR` | Opsional | Direktori database JSON. Default `./data`. Hanya dipakai bila `DATABASE_URL` kosong. |
 
 Catatan penting:
 
 - Variabel `ADMIN_*`, `DRIVER_*`, dan `OPERATOR_*` **hanya** berlaku untuk tenant bawaan hasil migrasi (`demo`).
 - Tenant baru selalu memakai akun yang tersimpan di database tenant dengan hash scrypt.
 - Akun dan password tenant dapat dikelola dari **Admin → Pengguna**.
+- Jika `DATABASE_URL` diisi, aplikasi memakai Postgres dan mengabaikan `FLEETOPS_DATA_DIR`.
+- Variabel alternatif yang juga dibaca: `POSTGRES_URL`, `POSTGRES_PRISMA_URL`, `SUPABASE_DB_URL`.
+- `PGSSLMODE=disable` dapat dipakai untuk Postgres lokal tanpa SSL.
 
 ### Membuat hash password
 
@@ -175,6 +181,29 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ## 6. Penyimpanan data & multi-tenancy
 
+Aplikasi punya dua backend penyimpanan yang dipilih otomatis:
+
+- **Postgres** bila `DATABASE_URL` (atau `POSTGRES_URL`) diisi. Dipakai untuk Vercel/serverless dan aman untuk banyak instance.
+- **File JSON** bila `DATABASE_URL` kosong. Dipakai untuk pengembangan lokal atau VPS dengan disk persisten.
+
+### Mode Postgres
+
+Satu tabel menyimpan seluruh dokumen:
+
+```sql
+create table if not exists fleetops_documents (
+  scope text primary key,        -- 'platform' atau 'tenant:<id>'
+  doc jsonb not null,            -- isi database
+  updated_at timestamptz not null default now()
+);
+```
+
+- Tabel dibuat otomatis saat pertama kali dipakai (tidak perlu migrasi manual).
+- Setiap perubahan memakai transaksi + `select ... for update`, sehingga aman ketika beberapa instance Vercel menulis bersamaan.
+- Perintah `npm run db:check` memverifikasi koneksi dan menampilkan dokumen yang ada.
+
+### Mode file JSON
+
 ```text
 data/
   platform.json          registri tenant, invoice, dan audit platform
@@ -189,16 +218,18 @@ data/
 - Setiap tenant memiliki lock penulisan sendiri sehingga perubahan antar-tenant tidak saling menimpa.
 - Penulisan dilakukan secara atomik (tulis file sementara lalu rename).
 - Jika file tenant rusak, file tersebut dicadangkan dengan akhiran `.corrupt-<timestamp>.bak` lalu database dibuat ulang.
+- Folder `data/` sudah diabaikan oleh Git.
+
+### Kedua mode
+
 - Reset data contoh mempertahankan akun pengguna dan identitas perusahaan tenant.
 - Audit trail tenant menyimpan maksimal 500 entri terakhir.
-- Folder `data/` sudah diabaikan oleh Git.
+- Data setiap tenant terisolasi dalam dokumennya sendiri.
 
 ### Backup
 
-1. Buka **Admin → Sistem & Audit**.
-2. Klik **Unduh cadangan JSON**.
-3. Simpan file di lokasi aman di luar server aplikasi.
-4. Cadangkan juga `data/platform.json` dan seluruh isi `data/tenants/` dari server.
+- **Postgres**: gunakan fitur backup penyedia (Supabase/Neon) atau `pg_dump`.
+- **File JSON**: buka **Admin → Sistem & Audit → Unduh cadangan JSON**, lalu cadangkan juga `data/platform.json` dan seluruh isi `data/tenants/`.
 
 ### Reset data contoh
 
@@ -263,6 +294,7 @@ Endpoint: `GET /api/reports/monthly?year=YYYY&month=MM&format=json|csv|pdf` (khu
 | `npm run start` | Menjalankan hasil build. |
 | `npm run lint` | Pemeriksaan ESLint. |
 | `npm run typecheck` | Pemeriksaan TypeScript tanpa emit. |
+| `npm run db:check` | Cek koneksi Postgres dan siapkan tabel dokumen. |
 | `npm run hash-password -- "..."` | Membuat hash scrypt. |
 
 ---
@@ -301,7 +333,9 @@ lib/
   plans.ts           katalog paket dan status tenant
   reports.ts         agregasi laporan bulanan
   server/
-    store.ts         penyimpanan JSON tenant, audit, filter per peran
+    db.ts            koneksi Postgres dan skema tabel dokumen
+    storage.ts       adapter penyimpanan (Postgres atau file JSON)
+    store.ts         penyimpanan tenant, audit, filter per peran
     platform-store.ts registri tenant, invoice, audit platform
     report-pdf.ts    generator PDF laporan
   seed.ts            data contoh
@@ -309,6 +343,7 @@ public/
   sw.js              service worker
   icons/             ikon PWA
 scripts/
+  db-check.mjs       verifikasi koneksi Postgres
   hash-password.mjs  pembuat hash scrypt
 proxy.ts             proteksi route admin/driver/platform
 ```
@@ -373,17 +408,56 @@ Untuk produksi:
 
 ## 14. Deployment
 
-Aplikasi memerlukan Node.js runtime dan filesystem yang dapat ditulis.
+### Vercel + Postgres (serverless)
 
-- **VPS / server kantor**: jalankan `npm run build` lalu `npm run start` di belakang reverse proxy HTTPS.
-- **Platform serverless**: pastikan direktori data berada pada volume persisten. Tanpa volume persisten, data JSON dapat hilang saat instance dibuat ulang.
+Vercel tidak menyediakan filesystem permanen, jadi aplikasi **wajib** memakai Postgres.
+
+1. Buat database Postgres gratis, misalnya **Supabase** atau **Neon**.
+2. Salin connection string (gunakan host pooling: Supabase port `6543`, Neon host `-pooler`).
+3. Di Vercel → Project → **Settings → Environment Variables**, tambahkan:
+   - `DATABASE_URL`
+   - `SESSION_SECRET` (acak, minimal 32 karakter)
+   - `PLATFORM_PASSWORD_HASH`, `ADMIN_PASSWORD_HASH`, `DRIVER_PASSWORD_HASH`
+4. Deploy ulang. Tabel `fleetops_documents` dibuat otomatis pada permintaan pertama.
+5. Verifikasi dari lokal: isi `DATABASE_URL` di `.env.local`, lalu jalankan `npm run db:check`.
+6. Login dengan tenant bawaan `demo` atau daftar perusahaan baru di `/register`.
+
+Catatan Vercel:
+
+- Jangan set `FLEETOPS_DATA_DIR`; variabel itu hanya untuk mode file.
+- Gunakan connection pooler agar tidak kehabisan koneksi. Default `PG_POOL_MAX=4` per instance.
+- Data tetap ada setelah redeploy/cold start karena tersimpan di Postgres.
+- PWA memerlukan HTTPS; Vercel sudah menyediakannya.
+
+### VPS / server kantor (file JSON)
+
+- Jalankan `npm run build` lalu `npm run start` di belakang reverse proxy HTTPS.
+- Biarkan `DATABASE_URL` kosong dan atur `FLEETOPS_DATA_DIR` ke path absolut, misalnya `/var/lib/fleetops`.
+- Pastikan direktori data hanya dapat diakses proses aplikasi dan ikut di-backup.
 - **Jangan** menaruh `data/` di dalam folder publik.
-- Atur `FLEETOPS_DATA_DIR` ke path absolut, misalnya `/var/lib/fleetops`.
 - PWA memerlukan HTTPS (atau `localhost`) agar service worker dapat didaftarkan.
+
+### VPS dengan Postgres
+
+- Isi `DATABASE_URL`; `FLEETOPS_DATA_DIR` diabaikan.
+- Cocok bila ingin data terpusat dan tidak bergantung pada file server.
 
 ---
 
 ## 15. Troubleshooting
+
+**Di Vercel semua modul gagal dimuat / login 500**
+
+- Gejalanya biasanya `EROFS: read-only file system` atau pesan `DATABASE_URL belum dikonfigurasi` pada log function.
+- Vercel tidak bisa menyimpan file JSON. Set `DATABASE_URL` ke Postgres (Supabase/Neon) lalu deploy ulang.
+- Jalankan `npm run db:check` dengan `DATABASE_URL` yang sama untuk memastikan koneksi berhasil.
+- Jika memakai Supabase, gunakan connection pooler port `6543`; jika Neon, gunakan host `-pooler`.
+
+**`npm run db:check` gagal konek**
+
+- Periksa password/URL, dan pastikan `?sslmode=require` atau biarkan deteksi SSL otomatis.
+- Untuk Postgres lokal tanpa SSL, set `PGSSLMODE=disable`.
+- Jika provider membatasi koneksi, turunkan `PG_POOL_MAX`.
 
 **Login gagal padahal kredensial benar**
 
@@ -403,7 +477,8 @@ Aplikasi memerlukan Node.js runtime dan filesystem yang dapat ditulis.
 
 **Data kembali ke contoh setelah restart**
 
-- Kemungkinan direktori data tidak persisten. Set `FLEETOPS_DATA_DIR` ke volume permanen.
+- Mode file JSON: direktori data tidak persisten. Set `FLEETOPS_DATA_DIR` ke volume permanen.
+- Mode Postgres: pastikan `DATABASE_URL` menunjuk database yang sama dan tidak memakai database sementara.
 
 **Data lama tidak muncul setelah upgrade SaaS**
 

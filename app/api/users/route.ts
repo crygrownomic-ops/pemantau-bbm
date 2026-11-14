@@ -3,7 +3,7 @@ import { getSession } from '@/lib/auth'
 import { hashPassword, isSameOrigin } from '@/lib/auth-session'
 import { getTenant } from '@/lib/server/platform-store'
 import { appendAudit, createId, mutateDatabase, publicUser, readDatabase } from '@/lib/server/store'
-import type { SessionUser, TenantUser } from '@/lib/types'
+import type { FleetDatabase, SessionUser, Tenant, TenantUser } from '@/lib/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -71,21 +71,20 @@ function isSelf(session: SessionUser, user: TenantUser): boolean {
   return user.username.toLowerCase() === session.username.toLowerCase()
 }
 
-async function assertAdminRemains(
-  tenantId: string,
+function assertAdminRemains(
+  tenant: Tenant | null,
   session: SessionUser,
   target: TenantUser,
   nextRole: TenantUser['role'],
-  nextStatus: TenantUser['status']
-): Promise<void> {
+  nextStatus: TenantUser['status'],
+  database: FleetDatabase
+): void {
   if (target.role !== 'admin') return
   if (nextRole === 'admin' && nextStatus !== 'INACTIVE') return
   if (isSelf(session, target)) {
     throw new ApiError(400, 'Anda tidak dapat menurunkan atau menonaktifkan akun sendiri.')
   }
-  const tenant = await getTenant(tenantId)
   if (tenant?.bootstrap) return
-  const database = await readDatabase(tenantId)
   const remaining = activeAdmins(database).filter((user) => user.id !== target.id)
   if (remaining.length === 0) {
     throw new ApiError(400, 'Minimal harus ada satu admin aktif pada perusahaan.')
@@ -195,6 +194,9 @@ export async function PATCH(request: Request) {
       if (passwordError) throw new ApiError(400, passwordError)
     }
 
+    // Dibaca di luar transaksi agar tidak memakai koneksi pool kedua.
+    const tenant = await getTenant(tenantId)
+
     const updated = await mutateDatabase(tenantId, async (database) => {
       const index = (database.users || []).findIndex((user) => user.id === id)
       if (index < 0) throw new ApiError(404, 'Pengguna tidak ditemukan.')
@@ -212,7 +214,7 @@ export async function PATCH(request: Request) {
       if (role === 'driver' && !driverName) {
         throw new ApiError(400, 'Nama driver wajib diisi untuk akun bertipe driver.')
       }
-      await assertAdminRemains(tenantId, session, target, role, status)
+      assertAdminRemains(tenant, session, target, role, status, database)
 
       const next: TenantUser = {
         ...target,
@@ -255,6 +257,9 @@ export async function DELETE(request: Request) {
     const id = new URL(request.url).searchParams.get('id') || ''
     if (!id) throw new ApiError(400, 'ID pengguna wajib dikirim.')
 
+    // Dibaca di luar transaksi agar tidak memakai koneksi pool kedua.
+    const tenant = await getTenant(tenantId)
+
     await mutateDatabase(tenantId, async (database) => {
       const index = (database.users || []).findIndex((user) => user.id === id)
       if (index < 0) throw new ApiError(404, 'Pengguna tidak ditemukan.')
@@ -264,7 +269,6 @@ export async function DELETE(request: Request) {
         throw new ApiError(400, 'Anda tidak dapat menghapus akun sendiri.')
       }
       if (target.role === 'admin') {
-        const tenant = await getTenant(tenantId)
         if (!tenant?.bootstrap) {
           const remaining = activeAdmins(database).filter((user) => user.id !== target.id)
           if (remaining.length === 0) {
