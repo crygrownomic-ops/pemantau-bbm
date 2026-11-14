@@ -65,7 +65,13 @@ export function getPool(): Pool {
   return pool
 }
 
-/** Tabel dokumen JSON: satu baris per platform/tenant. Dibuat otomatis saat pertama dipakai. */
+/**
+ * Tabel dokumen JSON: satu baris per platform/tenant. Dibuat otomatis saat pertama dipakai.
+ *
+ * RLS diaktifkan dan hak akses `anon`/`authenticated` dicabut supaya tabel ini tetap
+ * tertutup bila database dipakai bersama project Supabase lain yang memegang anon key.
+ * Aplikasi ini terhubung sebagai pemilik tabel (role `postgres`), sehingga tidak terpengaruh.
+ */
 export async function ensureSchema(): Promise<void> {
   if (!globalDb.__fleetopsSchemaReady) {
     globalDb.__fleetopsSchemaReady = getPool()
@@ -74,7 +80,17 @@ export async function ensureSchema(): Promise<void> {
            scope text primary key,
            doc jsonb not null,
            updated_at timestamptz not null default now()
-         )`
+         );
+         alter table fleetops_documents enable row level security;
+         do $$
+         begin
+           if exists (select 1 from pg_roles where rolname = 'anon') then
+             revoke all on table fleetops_documents from anon;
+           end if;
+           if exists (select 1 from pg_roles where rolname = 'authenticated') then
+             revoke all on table fleetops_documents from authenticated;
+           end if;
+         end $$;`
       )
       .then(() => undefined)
       .catch((error) => {

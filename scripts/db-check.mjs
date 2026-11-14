@@ -69,12 +69,24 @@ try {
   const version = await pool.query('select version()')
   console.log('Koneksi OK:', String(version.rows[0].version).split(',')[0])
 
+  // Samakan dengan ensureSchema() di lib/server/db.ts. RLS + cabut hak anon/authenticated
+  // penting karena database bisa dipakai bersama project Supabase lain.
   await pool.query(
     `create table if not exists fleetops_documents (
        scope text primary key,
        doc jsonb not null,
        updated_at timestamptz not null default now()
-     )`
+     );
+     alter table fleetops_documents enable row level security;
+     do $$
+     begin
+       if exists (select 1 from pg_roles where rolname = 'anon') then
+         revoke all on table fleetops_documents from anon;
+       end if;
+       if exists (select 1 from pg_roles where rolname = 'authenticated') then
+         revoke all on table fleetops_documents from authenticated;
+       end if;
+     end $$;`
   )
 
   const docs = await pool.query(

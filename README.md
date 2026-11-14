@@ -200,6 +200,7 @@ create table if not exists fleetops_documents (
 
 - Tabel dibuat otomatis saat pertama kali dipakai (tidak perlu migrasi manual).
 - Setiap perubahan memakai transaksi + `select ... for update`, sehingga aman ketika beberapa instance Vercel menulis bersamaan.
+- Tabel dikunci dari API Supabase: RLS diaktifkan dan hak `anon`/`authenticated` dicabut, jadi database boleh dipakai bersama project lain tanpa membocorkan data lewat anon key.
 - Perintah `npm run db:check` memverifikasi koneksi dan menampilkan dokumen yang ada.
 
 ### Mode file JSON
