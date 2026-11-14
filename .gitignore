@@ -38,6 +38,10 @@ yarn-error.log*
 /data/
 /data/*.tmp
 
+# catatan kredensial lokal (password polos, jangan di-commit)
+/kredensial/
+*.kredensial.md
+
 # vercel
 .vercel
 
