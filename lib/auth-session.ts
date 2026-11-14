@@ -49,16 +49,24 @@ export function verifySessionToken(token: string | undefined | null): SessionUse
   }
 }
 
+/**
+ * Hash password memakai scrypt.
+ *
+ * Pemisah memakai `:` (bukan `$`) karena Next.js meng-expand `$nama` pada file .env,
+ * sehingga hash berformat `scrypt$salt$key` akan rusak bila ditempel ke `.env.local`.
+ * Format lama `scrypt$...` tetap diterima oleh verifyPassword().
+ */
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex')
   const key = scryptSync(password, salt, 64).toString('hex')
-  return `scrypt$${salt}$${key}`
+  return `scrypt:${salt}:${key}`
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
   if (!stored) return false
-  if (stored.startsWith('scrypt$')) {
-    const [, salt, key] = stored.split('$')
+  const separator = stored.startsWith('scrypt$') ? '$' : stored.startsWith('scrypt:') ? ':' : null
+  if (separator) {
+    const [, salt, key] = stored.split(separator)
     if (!salt || !key) return false
     const candidate = scryptSync(password, salt, 64).toString('hex')
     return safeEqual(candidate, key)

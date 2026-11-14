@@ -169,7 +169,7 @@ Catatan penting:
 npm run hash-password -- "password-yang-kuat"
 ```
 
-Tempelkan hasil `scrypt$...` ke `ADMIN_PASSWORD_HASH`, `DRIVER_PASSWORD_HASH`, atau `PLATFORM_PASSWORD_HASH`, lalu hapus variabel password polos yang sesuai.
+Tempelkan hasil `scrypt:...` ke `ADMIN_PASSWORD_HASH`, `DRIVER_PASSWORD_HASH`, atau `PLATFORM_PASSWORD_HASH`, lalu hapus variabel password polos yang sesuai. Pemisah `:` dipakai (bukan `$`) karena Next.js meng-expand `$nama` di file `.env`; format lama `scrypt$...` tetap diterima.
 
 ### Membuat SESSION_SECRET
 
@@ -464,7 +464,7 @@ Catatan Vercel:
 
 - Pastikan `.env.local` terbaca dan server dijalankan ulang setelah mengubah env.
 - Pastikan kode perusahaan diisi untuk akun tenant non-bawaan.
-- Jika memakai `*_PASSWORD_HASH`, pastikan formatnya `scrypt$<salt>$<key>`.
+- Jika memakai `*_PASSWORD_HASH`, pastikan formatnya `scrypt:<salt>:<key>` (format lama `scrypt$<salt>$<key>` juga diterima, tetapi `$` harus di-escape `\$` bila ditulis di file `.env`).
 - Hapus `*_PASSWORD` bila memakai hash agar tidak membingungkan.
 
 **Kode perusahaan tidak ditemukan**

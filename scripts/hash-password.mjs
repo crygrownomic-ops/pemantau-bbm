@@ -16,7 +16,8 @@ import { stdin, stdout } from 'node:process'
 function hashPassword(password) {
   const salt = randomBytes(16).toString('hex')
   const key = scryptSync(password, salt, 64).toString('hex')
-  return `scrypt$${salt}$${key}`
+  // Pemisah ':' agar aman di file .env (Next.js meng-expand '$nama').
+  return `scrypt:${salt}:${key}`
 }
 
 const fromArgs = process.argv.slice(2).join(' ').trim()
